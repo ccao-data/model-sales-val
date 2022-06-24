@@ -1,0 +1,9 @@
+name: assessor
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python
+  - geopandas
+  - pyarrow
+  - cenpy
