@@ -8,3 +8,6 @@ dependencies:
   - pyarrow
   - cenpy
   - pexpect
+  - pip
+  - pip:
+    - sodapy
