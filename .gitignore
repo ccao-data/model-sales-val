@@ -1,4 +1,6 @@
 sale_sample_18-21.parquet
+townships.geojson
+parcels_geoinfo.csv
 __pycache__/
 ipynb_checkpoints
-townships.geojson
+
