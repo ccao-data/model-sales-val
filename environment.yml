@@ -8,6 +8,7 @@ dependencies:
   - pyarrow
   - cenpy
   - pexpect
+  - scikit-learn
   - pip
   - pip:
     - sodapy
