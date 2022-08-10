@@ -13,14 +13,13 @@ from sklearn.ensemble import IsolationForest
 from sklearn.decomposition import PCA
 
 
-
 def go(columns: list, permut: tuple, groups: tuple, labels, output_file: str):
 
 
     drop_cols = ['is_homestead_exemption', 'homestead_exemption_general_alternative',
                  'homestead_exemption_senior_citizens', 'homestead_exemption_senior_citizens_assessment_freeze',
-                 'card', 'sqft', 'year_built', 'is installment contract_fufilled', 'is_multisale',
-                  'num_parcels_sale', 'is_condemndation', ] 
+                 'card', 'sqft', 'year_built', 'is_installment_contract_fulfilled', 'is_multisale',
+                  'num_parcels_sale', 'is_condemnation']
 
     df = read_data('sale_sample_18-21.parquet', 'cards.csv', 'char_sample.csv')
 
@@ -28,13 +27,48 @@ def go(columns: list, permut: tuple, groups: tuple, labels, output_file: str):
 
     df = string_processing(df)
 
-    df = create_labels(df, columns, labels, permut)
+    df, columns = create_labels(df, columns, labels, permut)
 
-    df = iso_forest()
+    df = iso_forest(df, columns)
 
     df = drop_irrelevant(df, drop_cols)
 
     df.to_csv(output_file)
+
+
+def iso_forest(df, columns: list,  n_estimators: int = 1000, max_samples: int or float = .2):
+    df.set_index('sale_key', inplace=True)
+
+    feed = pca(df, columns)
+
+    feed.index = df.index
+    feed['township_code'] = df['township_code']
+    feed['class'] = df['class']
+
+    print(feed)
+    isof = IsolationForest(n_estimators=n_estimators, max_samples=max_samples, bootstrap=True, random_state=42)
+    df['unsupervised_method'] = isof.fit_predict(feed)
+
+    return df
+
+
+def pca(df, columns):
+
+    feed_data = df[columns]
+    feed_data.fillna(0, inplace=True)
+
+    pca = PCA(n_components = len(feed_data.columns))
+    pc = pca.fit_transform(feed_data)
+
+    cols = ['PC' + str(num) for num in range(len(feed_data.columns))]
+
+    pc_df = pd.DataFrame(data = pc, 
+                         columns = cols)
+    take = len(pca.explained_variance_[pca.explained_variance_ > 1])
+
+    df = pc_df[pc_df.columns[:take]]
+
+    return df
 
 
 def drop_irrelevant(df: pd.DataFrame, columns: list) -> pd.DataFrame:
@@ -122,7 +156,7 @@ def create_labels(df: pd.DataFrame,
 
     df = outlier_description(df)
 
-    return df
+    return df, columns
 
 
 def dup_stats(df: pd.DataFrame, groups: tuple) -> pd.DataFrame:
@@ -524,7 +558,7 @@ def outlier_std_upper(row, thresholds: dict, labels: dict):
     Finally we create a transaction_type column that is just what kind of entity it is
     with a dash between them.
 
-    TODO: Process more strings types:
+    TODO: Process more string types:
         - If a name contains 'and', we split the string on it and take
           the token directly to the left. We could take a more sophisticated
           approach to determine if the last name in this case.
@@ -785,6 +819,6 @@ labels = {
     'price_per_sqft_log10_zscore': 'Price/SQFT Outlier', 
     'counts_zscore': 'Transaction Volatility Outlier',
     'days_since_last_transaction_zscore': 'Days Since Last Transaction Outlier'}
-    #'seller_id': 'Buyer ID and Seller ID match'}
+
 
 go(columns, (2,2), ('township_code', 'class'), labels, 'flagged.csv')
