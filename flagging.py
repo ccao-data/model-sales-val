@@ -1,7 +1,6 @@
 """
 This file contains all necessary functions to create a DataFrame ready to use for
 non-arms length transaction detection using statistical and heurstic methods.
-
 """
 
 import pandas as pd
@@ -33,8 +32,6 @@ def go(columns: list, permut: tuple, groups: tuple, labels, output_file: str):
     df = iso_forest(df, columns)
 
     df = drop_irrelevant(df, drop_cols + columns)
-
-    df = df[[]]
 
     df.to_csv(output_file)
 
@@ -561,7 +558,7 @@ def outlier_std_upper(row, thresholds: dict, labels: dict) -> float:
         row: passed from apply().
         thresholds (dict): nested thersholds dictionary from get_thresh()
         labels (dict): columns: primary_outlier value mapping
-        Outputs:
+    Outputs:
         value(float): upper_limit of the standard deviation threshold.
     """
     reverse_labels = {v: k for k, v in labels.items()}
@@ -583,7 +580,7 @@ def outlier_std_upper(row, thresholds: dict, labels: dict) -> float:
 """
     An outline of our overall approach:
 
-    Tries to create an identifier from the buyer/seler name.
+    Tries to create an identifier from the buyer/seller name.
     Our appraoch is to try to identify if it is a legal identify of some sort,
     such as a bank, construction company, trust, LLC, or other and
     return the string as-is with some formatting applied if so. We also combine some
@@ -724,7 +721,7 @@ def get_id(row, col: str) -> str:
     return id
 
 
-def split_logic(words: str) -> str or list:
+def split_logic(words: str):
     """
     Given a cleaned string, determines where to split the string.
     Splits on 'and', variations of FKA/NKA/KNA if present, on spaces if not.
@@ -787,7 +784,7 @@ def get_category(row, col: str) -> str:
     person if otherwise.
     Inputs:
         row: from pandas dataframe
-        col (str): column to process. 'buyer_id' or 'seller_id'
+        col (str): column to process. 'buyer' or 'seller'
     Outputs:
         category (str): category of buyer/seller id    
     """
@@ -805,8 +802,18 @@ def get_category(row, col: str) -> str:
     return category
 
 
-
 def get_role(row, col: str) -> str:
+    """
+    Picks the role th person is playing in the transaction off of the
+    buyer/seller_id. Meant for apply()
+    Ex: 'as trustee', or 'as successor'
+    Inputs:
+        row: from pandas dataframe
+        col (str): column to process. 'buyer' or 'seller'
+    Outputs:
+        roles(str): the role of the person n the transaction
+
+    """
     role = None
     column = col + '_id'
     words = row[column]
@@ -832,7 +839,7 @@ def clean_id(row, col: str) -> str:
     Cleans id field after get_role() by removing role.
     Inputs:
         row: from padnas dataframe
-        col (str): column to process. 'seller_id' or 'buyer_id'
+        col (str): column to process. 'seller' or 'buyer'
     Outputs:
         words (str): seller/buyer id without role.
     """
@@ -843,9 +850,9 @@ def clean_id(row, col: str) -> str:
     words = re.sub(r' as successor trustee|\b as successor\b| as trustee', '', words)
     words = re.sub(' as$| as $|as $','', words)
 
-    if not re.search(entity_keywords, words) or \
+    if not (re.search(entity_keywords, words) or \
             re.search(r'\d{4}|\d{3}', words) or \
-            len(words.split()) == 1:
+            len(words.split()) == 1):
         words = name_selector(split_logic(words))
 
     return words
@@ -927,6 +934,5 @@ labels = {
     'price_per_sqft_log10_zscore': 'Price/SQFT Outlier', 
     'counts_zscore': 'Transaction Volatility Outlier',
     'days_since_last_transaction_zscore': 'Days Since Last Transaction Outlier'}
-
 
 go(columns, (2,2), ('township_code', 'class'), labels, 'flagged.csv')
