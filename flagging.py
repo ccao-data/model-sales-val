@@ -9,19 +9,46 @@ import numpy as np
 import re
 
 from scipy.stats import zscore
+from sklearn.ensemble import IsolationForest
+from sklearn.decomposition import PCA
+
 
 
 def go(columns: list, permut: tuple, groups: tuple, labels, output_file: str):
+
+
+    drop_cols = ['is_homestead_exemption', 'homestead_exemption_general_alternative',
+                 'homestead_exemption_senior_citizens', 'homestead_exemption_senior_citizens_assessment_freeze',
+                 'card', 'sqft', 'year_built', 'is installment contract_fufilled', 'is_multisale',
+                  'num_parcels_sale', 'is_condemndation', ] 
 
     df = read_data('sale_sample_18-21.parquet', 'cards.csv', 'char_sample.csv')
 
     df = create_stats(df, groups)
 
-    df = create_labels(df, columns, labels, permut)
-
     df = string_processing(df)
 
+    df = create_labels(df, columns, labels, permut)
+
+    df = iso_forest()
+
+    df = drop_irrelevant(df, drop_cols)
+
     df.to_csv(output_file)
+
+
+def drop_irrelevant(df: pd.DataFrame, columns: list) -> pd.DataFrame:
+    """
+    Drops columns that aren't relevant to analsts in determining whether
+    a transaction may be non-arms length.
+    Inputs:
+        df (pd.DataFrame): dataframe to have columsn dropped from
+    Outputs:
+        df(pd.DataFrame)
+    """
+    df.drop(columns, axis=1, inplace=True)
+
+    return df
 
 
 def read_data(sales_name: str, card_name: str, char_name: str):
@@ -323,7 +350,9 @@ def primary_outlier(row, thresholds: dict, outliers: pd.DataFrame, columns: list
                      Chosen from labels.
     """
 
-    if row['sale_key'] not in outliers:
+    if row['buyer_id'] == row['seller_id'] and row['buyer_id'] != 'Empty Name':
+        value = 'Buyer ID and Seller ID match'
+    elif row['sale_key'] not in outliers:
         value = 'Not Outlier'
     else:
         stds = {}
@@ -382,7 +411,7 @@ def outlier_value(row: pd.Series, labels: dict):
 
     """
     reverse_labels = {v: k for k, v in labels.items()}
-    if row['primary_outlier'] == 'Not Outlier':
+    if row['primary_outlier'] not in labels.values():
         value = None
     else:
         value = row[reverse_labels[row['primary_outlier']]]
@@ -405,9 +434,11 @@ def outlier_value_std(row: pd.Series, thresholds: dict, labels: dict):
 
     if row['primary_outlier'] == 'Not Outlier':
         value = None
+    elif row['primary_outlier'] == 'Buyer ID and Seller ID match':
+        return row['seller_id']
     else:
         col = reverse_labels[row['primary_outlier']]
-        std, *std_range = thresholds[col][row['township_code'], row['class']]
+        std, *std_range = thresholds.get(col).get((row['township_code'], row['class']))
         value = std
 
     return value
@@ -424,13 +455,15 @@ def outlier_std_lower(row, thresholds: dict, labels: dict):
         value(float): lower_limit of the standard deviation threshold.
     """
     reverse_labels = {v: k for k, v in labels.items()}
-    if row['primary_outlier'] == 'Not Outlier':
-        value = None
-    else:
+
+    if reverse_labels.get(row['primary_outlier']):
         col = reverse_labels[row['primary_outlier']]
-        std, *std_range = thresholds[col][row['township_code'], row['class']]
-        value = tuple(std_range)
-        value = value[0]
+        if thresholds.get(col).get(row['township_code'], row['class']):
+            std, *std_range = thresholds[col][row['township_code'], row['class']]
+            value = tuple(std_range)
+            value = value[0]
+    else:
+        value = None
 
     return value
 
@@ -446,13 +479,15 @@ def outlier_std_upper(row, thresholds: dict, labels: dict):
         value(float): upper_limit of the standard deviation threshold.
     """
     reverse_labels = {v: k for k, v in labels.items()}
-    if row['primary_outlier'] == 'Not Outlier':
-        value = None
-    else:
+
+    if reverse_labels.get(row['primary_outlier']):
         col = reverse_labels[row['primary_outlier']]
-        std, *std_range = thresholds[col][row['township_code'], row['class']]
-        value = tuple(std_range)
-        value = value[1]
+        if thresholds.get(col).get(row['township_code'], row['class']):
+            std, *std_range = thresholds[col][row['township_code'], row['class']]
+            value = tuple(std_range)
+            value = value[1]
+    else:
+        value = None
 
     return value
 
@@ -750,5 +785,6 @@ labels = {
     'price_per_sqft_log10_zscore': 'Price/SQFT Outlier', 
     'counts_zscore': 'Transaction Volatility Outlier',
     'days_since_last_transaction_zscore': 'Days Since Last Transaction Outlier'}
+    #'seller_id': 'Buyer ID and Seller ID match'}
 
 go(columns, (2,2), ('township_code', 'class'), labels, 'flagged.csv')
