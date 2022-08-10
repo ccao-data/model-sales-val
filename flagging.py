@@ -19,7 +19,8 @@ def go(columns: list, permut: tuple, groups: tuple, labels, output_file: str):
     drop_cols = ['is_homestead_exemption', 'homestead_exemption_general_alternative',
                  'homestead_exemption_senior_citizens', 'homestead_exemption_senior_citizens_assessment_freeze',
                  'card', 'sqft', 'year_built', 'is_installment_contract_fulfilled', 'is_multisale',
-                  'num_parcels_sale', 'is_condemnation']
+                  'num_parcels_sale', 'is_condemnation', 'sale_filter_lower_limit', 'sale_filter_upper_limit',
+                  'sale_filter_count', 'year']
 
     df = read_data('sale_sample_18-21.parquet', 'cards.csv', 'char_sample.csv')
 
@@ -31,12 +32,30 @@ def go(columns: list, permut: tuple, groups: tuple, labels, output_file: str):
 
     df = iso_forest(df, columns)
 
-    df = drop_irrelevant(df, drop_cols)
+    df = drop_irrelevant(df, drop_cols + columns)
+
+    df = df[[]]
 
     df.to_csv(output_file)
 
 
-def iso_forest(df, columns: list,  n_estimators: int = 1000, max_samples: int or float = .2):
+def iso_forest(df: pd.DataFrame,
+               columns: list,
+               n_estimators: int = 1000,
+               max_samples: int or float = .2) -> pd.DataFrame:
+    """
+    Runs an isolation forest model on our data for outlier detection.
+    First does PCA, then, attaches township/class info, and then runs the
+    IsoForest model with given parameters.
+    Inputs:
+        df (pd.DataFrame): dataframe with data for IsoForest
+        columns (list): list with columns to run PCA/IsoForest on
+        n_estimators (int): 
+        max_samples(int or float): share of data to use as sample if float,
+                                   number to use if int
+    Outputs:
+        df (pd.DataFrame): with 'unsupervised_method' column from IsoForest.
+    """
     df.set_index('sale_key', inplace=True)
 
     feed = pca(df, columns)
@@ -45,14 +64,24 @@ def iso_forest(df, columns: list,  n_estimators: int = 1000, max_samples: int or
     feed['township_code'] = df['township_code']
     feed['class'] = df['class']
 
-    print(feed)
     isof = IsolationForest(n_estimators=n_estimators, max_samples=max_samples, bootstrap=True, random_state=42)
     df['unsupervised_method'] = isof.fit_predict(feed)
+
+    df['unsupervised_method'] = np.select([(df['unsupervised_method'] == -1), (df['price_movement'] == 1)],
+                                          ['Outlier', 'Not Outlier'], default= 'Not Outlier')
 
     return df
 
 
-def pca(df, columns):
+def pca(df:pd.DataFrame, columns: list) -> pd.DataFrame:
+    """
+    Runs PCA on data, selects compoents where explained variance > 1.
+    Inputs:
+        df (pd.DataFrame): dataframe to run PCA on.
+        columns (list): columns of dataframe to run PCA on.
+    Outputs:
+        df (pd.DataFrame): dataframe of principal components
+    """
 
     feed_data = df[columns]
     feed_data.fillna(0, inplace=True)
@@ -85,7 +114,17 @@ def drop_irrelevant(df: pd.DataFrame, columns: list) -> pd.DataFrame:
     return df
 
 
-def read_data(sales_name: str, card_name: str, char_name: str):
+def read_data(sales_name: str, card_name: str, char_name: str) -> pd.DataFrame:
+    """
+    Read in data from multiple sources and merge them.
+    Inputs:
+        sales_name (str): name of sales data file
+        card_name (str): name of card data file
+        char_name (str): name of characteristics file
+    Outputs:
+        df (pd.DataFrame): dataframe of merged data
+    """
+
     sales = pd.read_parquet(sales_name)
     cards = pd.read_csv(card_name)
     char_sample = pd.read_csv(char_name, dtype={'class': str}) # also has 'EX' in column
@@ -110,7 +149,15 @@ def read_data(sales_name: str, card_name: str, char_name: str):
     return df
 
 
-def create_stats(df: pd.DataFrame, groups: tuple   ):
+def create_stats(df: pd.DataFrame, groups: tuple) -> pd.DataFrame:
+    """
+    Create all statistical outlier measures.
+    Inputs:
+        df (pd.DataFrame): Dataframe to create statistics from
+        groups (tuple): grouping for groupby. Usually 'township_code' and 'class'
+    Outputs:
+        df(pd.DataFrame): dataframe with statistical measures calculated.
+    """
 
     df = price_sqft(df)
     df = grouping_mean(df, groups)
@@ -124,7 +171,7 @@ def create_labels(df: pd.DataFrame,
                   columns: list,
                   labels: dict,
                   permut: tuple,
-                  group: str = 'township_code'):
+                  group: str = 'township_code') -> pd.DataFrame:
     """
     Brings all functions together to create microdata and label columns.
     To be run after create_stats().
@@ -266,7 +313,9 @@ def get_movement(dups: pd.DataFrame, groups:tuple) -> pd.DataFrame:
     group2 = groups[1]
 
     temp = dups.sort_values('sale_date').groupby(['pin'])[f'diff_from_{group1}_{group2}_mean_sale_log10'].shift()
-    dups['town_class_movement'] = dups[f'diff_from_{group1}_{group2}_mean_sale_log10'].lt(temp).astype(float) # 0 is moving away, 1 is moving towards
+    dups['price_movement'] = dups[f'diff_from_{group1}_{group2}_mean_sale_log10'].lt(temp).astype(float)
+    dups['price_movement'] = np.select([dups['price_movement'] == 0, dups['price_movement'] == 1],
+                                        ['Away from mean', 'Towards mean'])
 
     return dups
 
@@ -363,7 +412,11 @@ def z_normalize(df: pd.DataFrame, columns: list) -> pd.DataFrame:
     return df
 
 
-def primary_outlier(row, thresholds: dict, outliers: pd.DataFrame, columns: list, labels: dict):
+def primary_outlier(row,
+                    thresholds: dict,
+                    outliers: pd.DataFrame,
+                    columns: list,
+                    labels: dict) -> pd.DataFrame:
     """
     Meant to be used as an apply() function for a pd.DataFrame.
     Determines the primary outlier for a record by finding
@@ -401,7 +454,7 @@ def primary_outlier(row, thresholds: dict, outliers: pd.DataFrame, columns: list
     return value
 
 
-def outlier_description(df: pd.DataFrame):
+def outlier_description(df: pd.DataFrame) -> pd.DataFrame:
     """
     Runs np.select that creates more detailed description of what the outlier is.
     Inputs:
@@ -430,7 +483,7 @@ def outlier_description(df: pd.DataFrame):
     return df
 
 
-def outlier_value(row: pd.Series, labels: dict):
+def outlier_value(row: pd.Series, labels: dict) -> float:
     """
     Uses the mapping of column : primary_outlier label to retrieve
     the actual outlier value from the row passed from apply().
@@ -442,7 +495,6 @@ def outlier_value(row: pd.Series, labels: dict):
     Outputs:
         value: Whatever the actual outlying value is.
                Most likely int or float.
-
     """
     reverse_labels = {v: k for k, v in labels.items()}
     if row['primary_outlier'] not in labels.values():
@@ -453,7 +505,7 @@ def outlier_value(row: pd.Series, labels: dict):
     return value
 
 
-def outlier_value_std(row: pd.Series, thresholds: dict, labels: dict):
+def outlier_value_std(row: pd.Series, thresholds: dict, labels: dict) -> float:
     """
     Retrieves the standard deviation for the outlier column.
     Inputs:
@@ -478,7 +530,7 @@ def outlier_value_std(row: pd.Series, thresholds: dict, labels: dict):
     return value
 
 
-def outlier_std_lower(row, thresholds: dict, labels: dict):
+def outlier_std_lower(row, thresholds: dict, labels: dict) -> float:
     """
     Fetches the lower_limit of the standard deviation range.
     Inputs:
@@ -502,7 +554,7 @@ def outlier_std_lower(row, thresholds: dict, labels: dict):
     return value
 
 
-def outlier_std_upper(row, thresholds: dict, labels: dict):
+def outlier_std_upper(row, thresholds: dict, labels: dict) -> float:
     """
     Fetches the upper_limit of the standard deviation range.
     Inputs:
@@ -576,8 +628,8 @@ def outlier_std_upper(row, thresholds: dict, labels: dict):
 entity_keywords = r"llc| ll$| l$|l l c|estate|training|construction|building|masonry|apartments|plumbing|service|professional|roofing|advanced|office|\blaw\b|loan|legal|production|woodwork|concepts|corp| company| united|\binc\b|county|entertainment|community|heating|cooling|partners|equity|indsutries|series|revitalization|collection|agency|renovation|consulting|flippers|estates|\bthe \b|dept|funding|opportunity|improvements|servicing|equities|sale|judicial| in$|bank|\btrust\b|holding|investment|housing|properties|limited|realty|development|capital|management|developers|construction|rentals|group|investments|invest|residences|enterprise|enterprises|ventures|remodeling|specialists|homes|business|venture|restoration|renovations|maintenance|ltd|real estate|builders|buyers|property|financial|associates|consultants|international|acquisitions|credit|design|homeownership|solutions|home|diversified|assets|family|land|revocable|services|rehabbing|living|county of cook|fannie mae|land|veteran|mortgage|savings|lp$"
 
 
-def get_id(row, col: str):
-    """ 
+def get_id(row, col: str) -> str:
+    """
     Creates an ID from the buyer/seller name.
 
     Returns string as-is if identified as legal entity.
@@ -672,7 +724,7 @@ def get_id(row, col: str):
     return id
 
 
-def split_logic(words: str):
+def split_logic(words: str) -> str or list:
     """
     Given a cleaned string, determines where to split the string.
     Splits on 'and', variations of FKA/NKA/KNA if present, on spaces if not.
@@ -702,14 +754,14 @@ def split_logic(words: str):
     return tokens
 
 
-def name_selector(tokens):
+def name_selector(tokens) -> str:
     """
     Attempts to select the last name of a persons name based on number of tokens.
     Inputs:
         tokens: name to be identified
     Outputs:
         'Empty Name' if name is empty.
-        id (str): identified last name.
+        id (str): identified last name
     """
     if tokens == 'Empty Name':
         return tokens
@@ -729,20 +781,32 @@ def name_selector(tokens):
     return id
 
 
-def get_category(row, col: str):
+def get_category(row, col: str) -> str:
+    """
+    Gets category buyer/seller id. legal_entity if in entity keywords,
+    person if otherwise.
+    Inputs:
+        row: from pandas dataframe
+        col (str): column to process. 'buyer_id' or 'seller_id'
+    Outputs:
+        category (str): category of buyer/seller id    
+    """
 
     column = col + '_id'
     words = row[column]
 
     if re.search(entity_keywords, words):
-        return 'legal_entity'
+        category = 'legal_entity'
     elif words == 'Empty Name':
-        return 'none'
+        category = 'none'
     else:
-        return 'person'
+        category = 'person'
+
+    return category
 
 
-def get_role(row, col: str):
+
+def get_role(row, col: str) -> str:
     role = None
     column = col + '_id'
     words = row[column]
@@ -763,24 +827,66 @@ def get_role(row, col: str):
     return role
 
 
-def clean_id(row: object, col: str):
+def clean_id(row, col: str) -> str:
+    """
+    Cleans id field after get_role() by removing role.
+    Inputs:
+        row: from padnas dataframe
+        col (str): column to process. 'seller_id' or 'buyer_id'
+    Outputs:
+        words (str): seller/buyer id without role.
+    """
+
     column = col + '_id'
     words = row[column]
 
     words = re.sub(r' as successor trustee|\b as successor\b| as trustee', '', words)
     words = re.sub(' as$| as $|as $','', words)
 
-    if not (re.search(entity_keywords, words) or re.search(r'\d{4}|\d{3}', words) or len(words.split()) == 1):
+    if not re.search(entity_keywords, words) or \
+            re.search(r'\d{4}|\d{3}', words) or \
+            len(words.split()) == 1:
         words = name_selector(split_logic(words))
 
     return words
 
 
-def transaction_type(row):
+def transaction_type(row) -> str:
+    """
+    Creates a column with transaction type.
+    Is buyer/seller category separated by hyphen.
+    Meant for apply().
+    Ex: person-person, legal-entity-person
+    Inputs:
+        row: from pandas dataframe
+    Outputs:
+        t_type (str): buyer/seller category separated by hypen.
+    """
     buyer = row['buyer_category']
     seller = row['seller_category']
 
-    return buyer + '-' + seller
+    t_type = buyer + '-' + seller
+
+    return t_type
+
+
+def create_judicial_flag(row) -> int:
+    """
+    Creates a column that contains 1 if sold from a judicial corp
+    and 0 otherwise. Mean for use with apply().
+    Inputs:
+        row: from pandas dataframe
+    Outputs:
+        value (int): 1 if judicial sale, 0 otherwise.
+    """
+
+    if row['seller_id'] == 'the judicial sale corporation' or \
+       row['seller_id'] == 'intercounty judicial sale':
+        value = 1
+    else:
+        value = 0
+
+    return value
 
 
 def string_processing(df: pd.DataFrame) -> pd.DataFrame:
@@ -808,6 +914,8 @@ def string_processing(df: pd.DataFrame) -> pd.DataFrame:
     df['buyer_id'] = df.apply(clean_id, args=('buyer',), axis=1)
     df['seller_id'] = df.apply(clean_id, args=('seller',), axis=1)
     df['transaction_type'] = df.apply(transaction_type, axis=1)
+
+    df['is_judical_sale']  = df.apply(create_judicial_flag, axis=1)
 
     return df
 
