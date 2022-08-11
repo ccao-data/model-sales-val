@@ -3,6 +3,7 @@ This file contains all necessary functions to create a DataFrame ready to use fo
 non-arms length transaction detection using statistical and heurstic methods.
 """
 
+from tkinter import E
 import pandas as pd
 import numpy as np
 import re
@@ -16,10 +17,18 @@ def go(columns: list, permut: tuple, groups: tuple, labels, output_file: str):
 
 
     drop_cols = ['is_homestead_exemption', 'homestead_exemption_general_alternative',
-                 'homestead_exemption_senior_citizens', 'homestead_exemption_senior_citizens_assessment_freeze',
-                 'card', 'sqft', 'year_built', 'is_installment_contract_fulfilled', 'is_multisale',
-                  'num_parcels_sale', 'is_condemnation', 'sale_filter_lower_limit', 'sale_filter_upper_limit',
-                  'sale_filter_count', 'year']
+                 'homestead_exemption_senior_citizens',
+                 'homestead_exemption_senior_citizens_assessment_freeze',
+                 'card', 'year_built', 'is_installment_contract_fulfilled', 'is_multisale',
+                  'num_parcels_sale', 'is_condemnation', 'sale_filter_lower_limit',
+                  'sale_filter_upper_limit', 'sale_filter_count', 'year', 'buyer_role',
+                  'seller_role', 'sale_price_log10', 'property_advertised',
+                  'is_seller_buyer_a_relocation_company',
+                  'buyer_category', 'seller_category',
+                  #'price_per_sqft_log10',
+                  #'township_code_class_mean_sale_log10',
+                  #'diff_from_township_code_class_mean_sale_log10',
+                  'buyer_id', 'seller_id', 'buyer_role', 'seller_role']
 
     df = read_data('sale_sample_18-21.parquet', 'cards.csv', 'char_sample.csv')
 
@@ -32,6 +41,30 @@ def go(columns: list, permut: tuple, groups: tuple, labels, output_file: str):
     df = iso_forest(df, columns)
 
     df = drop_irrelevant(df, drop_cols + columns)
+
+    print(df.columns)
+
+    df = df[['township_code', 'class', 'pin', 'sale_date', 'sale_price',
+       'deed_type', 'primary_outlier', 'outlier_value', 'unsupervised_method',
+       'buyer_seller_match', 'name_match',
+       'is_sale_between_related_individuals_or_corporate_affiliates',
+       'is_transfer_of_less_than_100_percent_interest',
+       'is_court_ordered_sale', 'is_sale_in_lieu_of_foreclosure',
+       'is_short_sale', 'is_bank_reo_real_estate_owned', 'is_auction_sale',
+       #'is_seller_buyer_a_relocation_company',
+       'is_seller_buyer_a_financial_institution_or_government_agency',
+       'is_buyer_a_real_estate_investment_trust', 'is_buyer_a_pension_fund',
+       'is_buyer_an_adjacent_property_owner',
+       'is_buyer_exercising_an_option_to_purchase',
+       'is_simultaneous_trade_of_property', 'is_sale_leaseback','is_judical_sale',
+       'seller_name', 'buyer_name', 'sale_type', 'doc_no', 'sqft','price_per_sqft',
+       'pct', 'counts', 'price_movement', 'days_since_last_transaction',
+       #'buyer_category', 'seller_category',
+       'transaction_type', 'outlier_value_std',
+       'outlier_std_lower', 'outlier_std_upper', 'outlier_description']]
+
+    df = df[(df['primary_outlier'] != 'Not Outlier') | (df['unsupervised_method'] == 'Outlier') | (df['buyer_seller_match'] == 'Buyer ID and Seller ID match')].sample(2000)
+    df.sort_values(by=['primary_outlier','buyer_seller_match', 'unsupervised_method'], ascending=[True, True, False], inplace=True)
 
     df.to_csv(output_file)
 
@@ -252,9 +285,7 @@ def price_sqft(df: pd.DataFrame) -> pd.DataFrame:
         df (pd.DataFrame): pandas dataframe with _per_sqft columns.
     """
     df['price_per_sqft'] = df['sale_price'] / df['sqft']
-    df['price_per_sqft_log10'] = df['sale_price_log10'] / df['sqft']
     df['price_per_sqft'].replace([np.inf, -np.inf], np.nan, inplace=True)
-    df['price_per_sqft_log10'].replace([np.inf, -np.inf], np.nan, inplace=True)
 
     return df
 
@@ -272,11 +303,11 @@ def grouping_mean(df: pd.DataFrame, groups: tuple) -> pd.DataFrame:
     group1 = groups[0]
     group2 = groups[1]
 
-    df['pct'] = df.sort_values('sale_date').groupby('pin')['sale_price_log10'].pct_change()
-    group_mean = df.groupby([group1, group2])['sale_price_log10'].mean()
+    df['pct'] = df.sort_values('sale_date').groupby('pin')['sale_price'].pct_change()
+    group_mean = df.groupby([group1, group2])['sale_price'].mean()
     df.set_index([group1, group2], inplace=True)
-    df[f'{group1}_{group2}_mean_sale_log10'] = group_mean
-    df[f'diff_from_{group1}_{group2}_mean_sale_log10'] = abs(df[f'{group1}_{group2}_mean_sale_log10'] - df['sale_price_log10'])
+    df[f'{group1}_{group2}_mean_sale'] = group_mean
+    df[f'diff_from_{group1}_{group2}_mean_sale'] = abs(df[f'{group1}_{group2}_mean_sale'] - df['sale_price'])
     df.reset_index(inplace=True)
 
     return df
@@ -309,8 +340,8 @@ def get_movement(dups: pd.DataFrame, groups:tuple) -> pd.DataFrame:
     group1 = groups[0]
     group2 = groups[1]
 
-    temp = dups.sort_values('sale_date').groupby(['pin'])[f'diff_from_{group1}_{group2}_mean_sale_log10'].shift()
-    dups['price_movement'] = dups[f'diff_from_{group1}_{group2}_mean_sale_log10'].lt(temp).astype(float)
+    temp = dups.sort_values('sale_date').groupby(['pin'])[f'diff_from_{group1}_{group2}_mean_sale'].shift()
+    dups['price_movement'] = dups[f'diff_from_{group1}_{group2}_mean_sale'].lt(temp).astype(float)
     dups['price_movement'] = np.select([dups['price_movement'] == 0, dups['price_movement'] == 1],
                                         ['Away from mean', 'Towards mean'])
 
@@ -434,9 +465,7 @@ def primary_outlier(row,
                      Chosen from labels.
     """
 
-    if row['buyer_id'] == row['seller_id'] and row['buyer_id'] != 'Empty Name':
-        value = 'Buyer ID and Seller ID match'
-    elif row['sale_key'] not in outliers:
+    if row['sale_key'] not in outliers:
         value = 'Not Outlier'
     else:
         stds = {}
@@ -517,8 +546,6 @@ def outlier_value_std(row: pd.Series, thresholds: dict, labels: dict) -> float:
 
     if row['primary_outlier'] == 'Not Outlier':
         value = None
-    elif row['primary_outlier'] == 'Buyer ID and Seller ID match':
-        return row['seller_id']
     else:
         col = reverse_labels[row['primary_outlier']]
         std, *std_range = thresholds.get(col).get((row['township_code'], row['class']))
@@ -896,6 +923,40 @@ def create_judicial_flag(row) -> int:
     return value
 
 
+def create_match_flag(row) -> str:
+    """
+    Creates a column that says whether the buyer/seller id match.
+    Meant for apply().
+    Inputs:
+        row: from dataframe
+    Outputs:
+        value (str): whether the buyer and seller ID match
+    """
+    if row['buyer_id'] == row['seller_id'] and row['buyer_id'] != 'Empty Name':
+        value = 'Buyer ID and Seller ID match'
+    else:
+        value = 'No match'
+
+    return value
+
+
+def create_name_match(row) -> str:
+    """
+    Creates a column that contains the actual string that was matched.
+    Meant for apply().
+    Inputs:
+        row: from pandas dataframe
+    Outputs:
+        value (str or None): string match if applicable, None otherwise
+    """
+    if row['buyer_id'] == row['seller_id'] and row['buyer_id'] != 'Empty Name':
+        value = row['seller_id']
+    else:
+        value = 'No match'
+
+    return value
+
+
 def string_processing(df: pd.DataFrame) -> pd.DataFrame:
     """
     Brings together all of the apply functions for string processing.
@@ -923,15 +984,17 @@ def string_processing(df: pd.DataFrame) -> pd.DataFrame:
     df['transaction_type'] = df.apply(transaction_type, axis=1)
 
     df['is_judical_sale']  = df.apply(create_judicial_flag, axis=1)
+    df['buyer_seller_match'] = df.apply(create_match_flag, axis=1)
+    df['name_match'] = df.apply(create_name_match, axis=1)
 
     return df
 
 
-columns = ['sale_price_log10', 'price_per_sqft_log10', 'pct', 'counts', 'days_since_last_transaction']
+columns = ['sale_price', 'price_per_sqft', 'pct', 'counts', 'days_since_last_transaction']
 labels = {
     'pct_zscore': 'Price Change Outlier',
-    'sale_price_log10_zscore' : 'Raw Price Outlier',
-    'price_per_sqft_log10_zscore': 'Price/SQFT Outlier', 
+    'sale_price_zscore' : 'Raw Price Outlier',
+    'price_per_sqft_zscore': 'Price/SQFT Outlier', 
     'counts_zscore': 'Transaction Volatility Outlier',
     'days_since_last_transaction_zscore': 'Days Since Last Transaction Outlier'}
 
