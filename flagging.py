@@ -16,7 +16,8 @@ from sklearn.decomposition import PCA
 def go(columns: list, permut: tuple, groups: tuple, labels, output_file: str):
 
 
-    drop_cols = ['is_homestead_exemption', 'homestead_exemption_general_alternative',
+    drop_cols = ['sale_key', 'pct',
+                 'is_homestead_exemption', 'homestead_exemption_general_alternative',
                  'homestead_exemption_senior_citizens',
                  'homestead_exemption_senior_citizens_assessment_freeze',
                  'card', 'year_built', 'is_installment_contract_fulfilled', 'is_multisale',
@@ -24,7 +25,7 @@ def go(columns: list, permut: tuple, groups: tuple, labels, output_file: str):
                   'sale_filter_upper_limit', 'sale_filter_count', 'year', 'buyer_role',
                   'seller_role', 'sale_price_log10', 'property_advertised',
                   'is_seller_buyer_a_relocation_company',
-                  'buyer_category', 'seller_category',
+                  'buyer_category', 'seller_category', 
                   #'price_per_sqft_log10',
                   #'township_code_class_mean_sale_log10',
                   #'diff_from_township_code_class_mean_sale_log10',
@@ -42,11 +43,31 @@ def go(columns: list, permut: tuple, groups: tuple, labels, output_file: str):
 
     df = drop_irrelevant(df, drop_cols + columns)
 
+    df = analyst_readable(df)
+
     print(df.columns)
 
-    df = df[['township_code', 'class', 'pin', 'sale_date', 'sale_price',
-       'deed_type', 'primary_outlier', 'outlier_value', 'unsupervised_method',
-       'buyer_seller_match', 'name_match',
+    df.to_csv(output_file, index=False)
+
+
+def analyst_readable(df):
+    """
+    A function that helps make the resulting spreadsheet more readable for analysts.
+    """
+    df['pin'] = df['pin'].astype(str).str.pad(14,fillchar='0')
+
+    df = df.sample(5000)
+
+    outliers = len(df[(df['primary_outlier'] != 'Not Outlier') | (df['unsupervised_method'] == 'Outlier') | (df['name_match'] != 'No match')])
+
+    print(outliers / len(df))
+
+    df.sort_values(by=['primary_outlier', 'unsupervised_method', 'name_match'], ascending=[True, False, False], inplace=True)
+
+    df = df[['doc_no', 'deed_type', 'township_code', 'class', 'pin',
+       'sale_date', 'sale_price', 'price_per_sqft', 'sqft',
+       'primary_outlier', 'unsupervised_method',
+        'name_match', 'seller_name', 'buyer_name',
        'is_sale_between_related_individuals_or_corporate_affiliates',
        'is_transfer_of_less_than_100_percent_interest',
        'is_court_ordered_sale', 'is_sale_in_lieu_of_foreclosure',
@@ -57,16 +78,53 @@ def go(columns: list, permut: tuple, groups: tuple, labels, output_file: str):
        'is_buyer_an_adjacent_property_owner',
        'is_buyer_exercising_an_option_to_purchase',
        'is_simultaneous_trade_of_property', 'is_sale_leaseback','is_judical_sale',
-       'seller_name', 'buyer_name', 'sale_type', 'doc_no', 'sqft','price_per_sqft',
-       'pct', 'counts', 'price_movement', 'days_since_last_transaction',
+       'sale_type', 'outlier_value', 'counts', 'price_movement', 'days_since_last_transaction',
        #'buyer_category', 'seller_category',
        'transaction_type', 'outlier_value_std',
        'outlier_std_lower', 'outlier_std_upper', 'outlier_description']]
+    df['deed_type'] = np.select([(df['deed_type'] == '01'), (df['deed_type'] == '02'),
+                                (df['deed_type'] == '03'), (df['deed_type'] == '04'),
+                                 (df['deed_type'] == '05'), (df['deed_type'] == '06'),
+                                 (df['deed_type'] == '99')],
+                                 ['Warranty Deed', 'Trustee Deed', 
+                                 'Quit Claim Deed','Executor Deed',
+                                 'Other', 'Beneficial Intrst',
+                                 'Unknown'])
+    townships = [(df['township_code'] == 10), (df['township_code'] == 11),
+                 (df['township_code'] == 12), (df['township_code'] == 13),
+                 (df['township_code'] == 14), (df['township_code'] == 15),
+                 (df['township_code'] == 16), (df['township_code'] == 17),
+                 (df['township_code'] == 18), (df['township_code'] == 19),
+                 (df['township_code'] == 20), (df['township_code'] == 21),
+                 (df['township_code'] == 22), (df['township_code'] == 23),
+                 (df['township_code'] == 24), (df['township_code'] == 25),
+                 (df['township_code'] == 26), (df['township_code'] == 27),
+                 (df['township_code'] == 28), (df['township_code'] == 29),
+                 (df['township_code'] == 30), (df['township_code'] == 31),
+                 (df['township_code'] == 32), (df['township_code'] == 33),
+                 (df['township_code'] == 34), (df['township_code'] == 35),
+                 (df['township_code'] == 36), (df['township_code'] == 37),
+                 (df['township_code'] == 38), (df['township_code'] == 39),
+                 (df['township_code'] == 70), (df['township_code'] == 71),
+                 (df['township_code'] == 72), (df['township_code'] == 73),
+                 (df['township_code'] == 74), (df['township_code'] == 75),
+                 (df['township_code'] == 76), (df['township_code'] == 77)]
+    town_names = ['Barrington', 'Berwyn', 'Bloom','Bremen', 'Calumet', 'Cicero',
+                  'Elk Grove', 'Evanston', 'Hanover', 'Lemont', 'Leyden', 'Lyons',
+                  'Maine', 'New Trier', 'Niles', 'Northfield', 'Norwood Park',
+                  'Oak Park', 'Orland', 'Palatine', 'Palos', 'Proviso', 'Rich',
+                  'River Forest', 'Riverside', 'Schaumburg', 'Stickney',
+                  'Thornton', 'Wheeling', 'Worth', 'Hyde Park', 'Jefferson',
+                  'Lake', 'Lake View', 'North Chicago', 'Rogers Park', 'South Chicago',
+                  'West Chicago']
 
-    df = df[(df['primary_outlier'] != 'Not Outlier') | (df['unsupervised_method'] == 'Outlier') | (df['buyer_seller_match'] == 'Buyer ID and Seller ID match')].sample(2000)
-    df.sort_values(by=['primary_outlier','buyer_seller_match', 'unsupervised_method'], ascending=[True, True, False], inplace=True)
+    df['township_code'] = np.select(townships, town_names)
 
-    df.to_csv(output_file)
+    df.rename(columns={'counts': 'number_of_transactions',
+                       'township_code': 'township'}, inplace=True)
+
+    return df
+
 
 
 def iso_forest(df: pd.DataFrame,
@@ -97,7 +155,7 @@ def iso_forest(df: pd.DataFrame,
     isof = IsolationForest(n_estimators=n_estimators, max_samples=max_samples, bootstrap=True, random_state=42)
     df['unsupervised_method'] = isof.fit_predict(feed)
 
-    df['unsupervised_method'] = np.select([(df['unsupervised_method'] == -1), (df['price_movement'] == 1)],
+    df['unsupervised_method'] = np.select([(df['unsupervised_method'] == -1), (df['unsupervised_method'] == 1)],
                                           ['Outlier', 'Not Outlier'], default= 'Not Outlier')
 
     return df
@@ -139,6 +197,7 @@ def drop_irrelevant(df: pd.DataFrame, columns: list) -> pd.DataFrame:
     Outputs:
         df(pd.DataFrame)
     """
+    df.reset_index(inplace=True)
     df.drop(columns, axis=1, inplace=True)
 
     return df
@@ -227,11 +286,26 @@ def create_labels(df: pd.DataFrame,
     df['primary_outlier'] = df.apply(primary_outlier, args=(holds, sale_outs, columns, labels), axis=1)
 
     df['outlier_value'] = df.apply(outlier_value, args=(labels,), axis=1)
+
     df['outlier_value_std'] = df.apply(outlier_value_std, args=(holds, labels), axis=1)
     df['outlier_std_lower'] = df.apply(outlier_std_lower, args=(holds, labels), axis=1)
     df['outlier_std_upper'] = df.apply(outlier_std_upper, args=(holds, labels), axis=1)
 
     df = outlier_description(df)
+
+    # we need to get the actual value, not the zscore value
+    # for analyst readability
+    # CHANGES IN ORDERING OF LABELS MATTER
+    labs = ['Raw Price Outlier',
+            'Price/SQFT Outlier',
+            'Price Change Outlier',
+            'Days Since Last Transaction Outlier',
+            'Transaction Volatility Outlier']
+
+    no_z = [col.replace('_zscore', '') for col in columns]
+    no_zlabels = dict(zip(no_z, labs))
+    df.drop(['outlier_value'], axis=1, inplace=True)
+    df['outlier_value'] = df.apply(outlier_value, args=(no_zlabels,), axis=1)
 
     return df, columns
 
@@ -285,6 +359,7 @@ def price_sqft(df: pd.DataFrame) -> pd.DataFrame:
         df (pd.DataFrame): pandas dataframe with _per_sqft columns.
     """
     df['price_per_sqft'] = df['sale_price'] / df['sqft']
+    df['price_per_sqft'] = df['price_per_sqft'].round(2)
     df['price_per_sqft'].replace([np.inf, -np.inf], np.nan, inplace=True)
 
     return df
@@ -436,7 +511,7 @@ def z_normalize(df: pd.DataFrame, columns: list) -> pd.DataFrame:
     """
     for col in columns:
         df[col + '_zscore'] = zscore(df[col], nan_policy='omit')
-    
+
     return df
 
 
@@ -984,7 +1059,7 @@ def string_processing(df: pd.DataFrame) -> pd.DataFrame:
     df['transaction_type'] = df.apply(transaction_type, axis=1)
 
     df['is_judical_sale']  = df.apply(create_judicial_flag, axis=1)
-    df['buyer_seller_match'] = df.apply(create_match_flag, axis=1)
+    #df['buyer_seller_match'] = df.apply(create_match_flag, axis=1)
     df['name_match'] = df.apply(create_name_match, axis=1)
 
     return df
