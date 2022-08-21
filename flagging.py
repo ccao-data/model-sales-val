@@ -3,6 +3,7 @@ This file contains all necessary functions to create a DataFrame ready to use fo
 non-arms length transaction detection using statistical and heurstic methods.
 """
 
+from itertools import permutations
 from tkinter import E
 import pandas as pd
 import numpy as np
@@ -58,16 +59,18 @@ def analyst_readable(df):
 
     df = df.sample(5000)
 
-    outliers = len(df[(df['primary_outlier'] != 'Not Outlier') | (df['unsupervised_method'] == 'Outlier') | (df['name_match'] != 'No match')])
+    outliers = len(df[(df['primary_outlier'] != 'Not Outlier') | (df['anomaly'] == 'Outlier') | (df['name_match'] != 'No match')])
+    stats_outliers = len(df[df['primary_outlier'] != 'Not Outlier'])
 
+    print(stats_outliers / len(df))
     print(outliers / len(df))
 
-    df.sort_values(by=['primary_outlier', 'unsupervised_method', 'name_match'], ascending=[True, False, False], inplace=True)
+    df.sort_values(by=['primary_outlier', 'anomaly', 'name_match'], ascending=[True, False, False], inplace=True)
 
     df = df[['doc_no', 'deed_type', 'township_code', 'class', 'pin',
        'sale_date', 'sale_price', 'price_per_sqft', 'sqft',
-       'primary_outlier', 'unsupervised_method',
-        'name_match', 'seller_name', 'buyer_name',
+       'primary_outlier', 'anomaly',
+       'name_match', 'price_column', 'which_price', 'seller_name', 'buyer_name',
        'is_sale_between_related_individuals_or_corporate_affiliates',
        'is_transfer_of_less_than_100_percent_interest',
        'is_court_ordered_sale', 'is_sale_in_lieu_of_foreclosure',
@@ -142,7 +145,7 @@ def iso_forest(df: pd.DataFrame,
         max_samples(int or float): share of data to use as sample if float,
                                    number to use if int
     Outputs:
-        df (pd.DataFrame): with 'unsupervised_method' column from IsoForest.
+        df (pd.DataFrame): with 'anomaly' column from IsoForest.
     """
     df.set_index('sale_key', inplace=True)
 
@@ -153,9 +156,9 @@ def iso_forest(df: pd.DataFrame,
     feed['class'] = df['class']
 
     isof = IsolationForest(n_estimators=n_estimators, max_samples=max_samples, bootstrap=True, random_state=42)
-    df['unsupervised_method'] = isof.fit_predict(feed)
+    df['anomaly'] = isof.fit_predict(feed)
 
-    df['unsupervised_method'] = np.select([(df['unsupervised_method'] == -1), (df['unsupervised_method'] == 1)],
+    df['anomaly'] = np.select([(df['anomaly'] == -1), (df['anomaly'] == 1)],
                                           ['Outlier', 'Not Outlier'], default= 'Not Outlier')
 
     return df
@@ -219,7 +222,8 @@ def read_data(sales_name: str, card_name: str, char_name: str) -> pd.DataFrame:
     char_sample = pd.read_csv(char_name, dtype={'class': str}) # also has 'EX' in column
 
     cards.drop_duplicates(inplace=True)
-    # some are duplicates other than sqft and year built, same year and other info but diff sqft, so we drop it cuz this look anamolous
+    # some are duplicates other than sqft and year built, same year and other info but diff sqft
+    # so we drop it cuz this look anamolous - this also probably has to do with multi_cards?
     char_sample.drop_duplicates(subset=['year', 'pin','class'],inplace=True)
 
     sales['year'] = sales.year.astype(int)
@@ -235,7 +239,60 @@ def read_data(sales_name: str, card_name: str, char_name: str) -> pd.DataFrame:
     sales.rename(columns = {'township_code_x': 'township_code'}, inplace=True)
 
     df = sales
+
     return df
+
+
+def high_low_price_column(df: pd.DataFrame, permut: tuple) -> pd.DataFrame:
+
+    prices = ['sale_price','price_per_sqft']
+
+    holds = get_thresh(df, prices, permut)
+    price_outs = over_std(df, 'township_code', prices, permut)
+    price_outs = price_outs.sale_key.to_list()
+
+    df['price_column'] = df.apply(price_column, args=(holds, price_outs), axis=1)
+    df['which_price'] = df.apply(which_price, args=(holds, price_outs), axis=1)
+
+    return df
+
+
+def which_price(row, thresholds, outliers):
+    if row['sale_key'] in outliers:
+        s_std, *s_std_range = thresholds.get('sale_price').get((row['township_code'], row['class']))
+        s_lower, s_upper = s_std_range
+        sq_std, *sq_std_range = thresholds.get('price_per_sqft').get((row['township_code'], row['class']))
+        sq_lower, sq_upper = sq_std_range
+        if row['sale_price'] not in np.arange(s_lower, s_upper) and \
+            row['price_per_sqft'] not in np.arange(sq_lower, sq_upper):
+            value = '(raw & sqft)'
+        elif row['sale_price'] not in np.arange(s_lower, s_upper) and \
+            row['price_per_sqft'] in np.arange(sq_lower, sq_upper):
+            value = '(raw)'
+        elif row['sale_price'] in np.arange(s_lower, s_upper) and \
+            row['price_per_sqft'] not in np.arange(sq_lower, sq_upper):
+            value = '(sqft)'
+    else:
+        value = 'Non-outlier'
+
+    return value
+
+
+def price_column(row, thresholds,  outliers):
+    if row['sale_key'] in outliers:
+        s_std, *s_std_range = thresholds.get('sale_price').get((row['township_code'], row['class']))
+        s_lower, s_upper = s_std_range
+        sq_std, *sq_std_range = thresholds.get('price_per_sqft').get((row['township_code'], row['class']))
+        sq_lower, sq_upper = sq_std_range
+
+        if row['sale_price'] > s_upper or row['price_per_sqft'] > sq_upper:
+            value = 'High price'
+        if row['sale_price'] < s_lower or row['price_per_sqft'] < sq_lower:
+            value = 'Low price'
+    else:
+        value = 'Non-outlier'
+
+    return value
 
 
 def create_stats(df: pd.DataFrame, groups: tuple) -> pd.DataFrame:
@@ -291,19 +348,11 @@ def create_labels(df: pd.DataFrame,
     df['outlier_std_lower'] = df.apply(outlier_std_lower, args=(holds, labels), axis=1)
     df['outlier_std_upper'] = df.apply(outlier_std_upper, args=(holds, labels), axis=1)
 
+    df = high_low_price_column(df, permut)
     df = outlier_description(df)
 
-    # we need to get the actual value, not the zscore value
-    # for analyst readability
-    # CHANGES IN ORDERING OF LABELS MATTER
-    labs = ['Raw Price Outlier',
-            'Price/SQFT Outlier',
-            'Price Change Outlier',
-            'Days Since Last Transaction Outlier',
-            'Transaction Volatility Outlier']
-
     no_z = [col.replace('_zscore', '') for col in columns]
-    no_zlabels = dict(zip(no_z, labs))
+    no_zlabels = dict(zip(no_z, labels.values()))
     df.drop(['outlier_value'], axis=1, inplace=True)
     df['outlier_value'] = df.apply(outlier_value, args=(no_zlabels,), axis=1)
 
@@ -342,8 +391,9 @@ def is_outlier_groupby(s: pd.Series, lower_lim : int, upper_lim: int) -> pd.Data
         dataframe with only entries between
         lower_limit and upper_limit
     """
-    lower_limit = s.mean() - (s.std() * lower_lim)
-    upper_limit = s.mean() + (s.std() * upper_lim)
+    lower_limit = s.mean() - (s.std(ddof=0) * lower_lim)
+    upper_limit = s.mean() + (s.std(ddof=0) * upper_lim)
+
     return ~s.between(lower_limit, upper_limit)
 
 
@@ -352,14 +402,13 @@ def price_sqft(df: pd.DataFrame) -> pd.DataFrame:
     Creates price/sqft columns in DataFrame. Must contain 'sale_price',
     'sale_price_log10' and 'sqft' in the columns, where the first two names are
     self explanatory and 'sqft' is the properties square footage.
-    Helperfor create_stats().
+    Helper for create_stats().
     Inputs:
         df (pd.DataFrame): pandas dataframe with required columns.
     Outputs:
         df (pd.DataFrame): pandas dataframe with _per_sqft columns.
     """
     df['price_per_sqft'] = df['sale_price'] / df['sqft']
-    df['price_per_sqft'] = df['price_per_sqft'].round(2)
     df['price_per_sqft'].replace([np.inf, -np.inf], np.nan, inplace=True)
 
     return df
@@ -456,17 +505,19 @@ def get_thresh(df: pd.DataFrame, cols: list, permut: tuple) -> dict:
     stds = {}
 
     for col in cols:
+        #print(col)
+        df[col] = df[col].astype(float)
         grouped = df.dropna(subset=['township_code', col]).groupby(['township_code', 'class'])[col]
-        lower_limit = grouped.mean() - (grouped.std() * permut[0])
-        upper_limit = grouped.mean() + (grouped.std() * permut[1])
-        std = grouped.std()
-
+        lower_limit = grouped.mean() - (grouped.std(ddof=0) * permut[0])
+        upper_limit = grouped.mean() + (grouped.std(ddof=0) * permut[1])
+        std = grouped.std(ddof=0)
         lower_limit = lower_limit.to_dict()
         upper_limit = upper_limit.to_dict()
         std = std.to_dict()
 
         limits =  {x: (std.get(x, 0), lower_limit.get(x, 0), upper_limit.get(x, 0))
-                    for x in set(std).union(upper_limit, lower_limit)}
+                for x in set(std).union(upper_limit, lower_limit)}
+        #print(limits)
         stds[col] = limits
 
     return stds
@@ -487,8 +538,9 @@ def over_std(df: pd.DataFrame, group: str, cols: list, permuts: tuple) -> pd.Dat
     outties = []
 
     for col in cols:
+        df[col] = df[col].astype(float)
         if col == 'pct':
-            df = df[df.town_class_movement == 0]
+            df = df[df.price_movement == 'Away from mean']
         outties.append(
             df.dropna(subset=[group, col])[df.groupby([group, 'class'])[col].apply(
                 is_outlier_groupby, permuts[0], permuts[1])])
@@ -519,7 +571,7 @@ def primary_outlier(row,
                     thresholds: dict,
                     outliers: pd.DataFrame,
                     columns: list,
-                    labels: dict) -> pd.DataFrame:
+                    labels: dict) -> str:
     """
     Meant to be used as an apply() function for a pd.DataFrame.
     Determines the primary outlier for a record by finding
@@ -547,7 +599,10 @@ def primary_outlier(row,
         for col in columns:
             if thresholds.get(col).get((row['township_code'], row['class'])) and pd.notnull(row[col]):
                 std, *std_range = thresholds.get(col).get((row['township_code'], row['class']))
-                stds[col] = abs(std)
+                lower, upper = std_range
+                if pd.notnull(lower) and pd.notnull(upper):
+                    if row[col] not in np.arange(lower, upper):
+                        stds[col] = abs(std)
 
         highest = max(stds, key=stds.get)
         value = labels[highest]
@@ -1065,7 +1120,7 @@ def string_processing(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-columns = ['sale_price', 'price_per_sqft', 'pct', 'counts', 'days_since_last_transaction']
+columns = ['pct', 'sale_price', 'price_per_sqft', 'counts', 'days_since_last_transaction']
 labels = {
     'pct_zscore': 'Price Change Outlier',
     'sale_price_zscore' : 'Raw Price Outlier',
