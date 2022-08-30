@@ -24,7 +24,7 @@ def go(columns: list, permut: tuple, groups: tuple, labels, output_file: str):
                   'sale_filter_upper_limit', 'sale_filter_count', 'year', 'buyer_role',
                   'seller_role', 'sale_price_log10', 'property_advertised',
                   'is_seller_buyer_a_relocation_company',
-                  'buyer_category', 'seller_category', 
+                  'buyer_category', 'seller_category',
                   #'price_per_sqft_log10',
                   #'township_code_class_mean_sale_log10',
                   #'diff_from_township_code_class_mean_sale_log10',
@@ -39,12 +39,16 @@ def go(columns: list, permut: tuple, groups: tuple, labels, output_file: str):
     df = high_low_price_column(df, permut)
     df['short_owner'] = df.apply(check_days, args=(182,), axis=1) # 182 = 6 months
 
-    df, columns = create_labels(df, columns, labels, permut)
+    #df, columns = create_labels(df, columns, labels, permut)
 
     # need all important info about transaction
     df = iso_forest(df, ['sale_price', 'price_per_sqft', 'days_since_last_transaction'] + columns)
 
-    df = outlier_description(df)
+    df = outlier_type(df)
+
+    df['special_flags'] = df.apply(special_flag, axis=1)
+
+    # df['outlier_description'] = df.apply(outlier_description, axis=1)
 
     df = drop_irrelevant(df, drop_cols + columns)
 
@@ -63,18 +67,16 @@ def analyst_readable(df):
 
     df = df.sample(5000)
 
-    outliers = len(df[(df['primary_outlier'] != 'Not Outlier') | (df['anomaly'] == 'Outlier') | (df['name_match'] != 'No match') | (df['price_column'] != None)])
-    stats_outliers = len(df[df['primary_outlier'] != 'Not Outlier'])
-
-    print(stats_outliers / len(df))
+    outliers = len((df['anomaly'] == 'Outlier') | (df['name_match'] != 'No match') | (df['price_column'] != None))
     print(outliers / len(df))
 
-    df.sort_values(by=['primary_outlier', 'anomaly', 'name_match'], ascending=[True, False, False], inplace=True)
+    df.sort_values(by=['outlier_type'], ascending=[True], inplace=True)
 
-    df = df[['doc_no', 'deed_type', 'township_code', 'class', 'pin',
-       'sale_date', 'sale_price', 'price_per_sqft', 'sqft',
-       'price_column', 'which_price', 'outlier_description', 'anomaly', 'short_owner',
-       'name_match', 'seller_name', 'buyer_name',
+    df = df[['doc_no', 'deed_type', 'township_code','pin', 'class',
+       'sale_date', 'seller_name', 'buyer_name',
+       'outlier_type', 'price_column', 'special_flags',
+       'sale_price', 'std_deviation', 'price_per_sqft', 'sqft',
+       'name_match', 'anomaly', 'short_owner',
        'is_sale_between_related_individuals_or_corporate_affiliates',
        'is_transfer_of_less_than_100_percent_interest',
        'is_court_ordered_sale', 'is_sale_in_lieu_of_foreclosure',
@@ -85,9 +87,8 @@ def analyst_readable(df):
        'is_buyer_an_adjacent_property_owner',
        'is_buyer_exercising_an_option_to_purchase',
        'is_simultaneous_trade_of_property', 'is_sale_leaseback','is_judical_sale',
-       'sale_type', 'outlier_value', 'counts', 'price_movement', 'days_since_last_transaction',
-       'transaction_type', 'outlier_value_std',
-       'outlier_std_lower', 'outlier_std_upper']]
+       'sale_type', 'price_movement', 'days_since_last_transaction',
+       'transaction_type']]
     df['deed_type'] = np.select([(df['deed_type'] == '01'), (df['deed_type'] == '02'),
                                 (df['deed_type'] == '03'), (df['deed_type'] == '04'),
                                  (df['deed_type'] == '05'), (df['deed_type'] == '06'),
@@ -247,8 +248,15 @@ def read_data(sales_name: str, card_name: str, char_name: str) -> pd.DataFrame:
 
 
 def high_low_price_column(df: pd.DataFrame, permut: tuple) -> pd.DataFrame:
+    """
+    
+    """
 
     prices = ['sale_price','price_per_sqft']
+
+    df = z_normalize(df, prices)
+
+    prices = [col + '_zscore' for col in prices]
 
     holds = get_thresh(df, prices, permut)
     price_outs = over_std(df, 'township_code', prices, permut)
@@ -256,25 +264,70 @@ def high_low_price_column(df: pd.DataFrame, permut: tuple) -> pd.DataFrame:
 
     df['price_column'] = df.apply(price_column, args=(holds, price_outs), axis=1)
     df['which_price'] = df.apply(which_price, args=(holds, price_outs), axis=1)
-    #df['pricing'] = df['price_column'] + df['which_price']
+
+    df['std_deviation'] = df.apply(price_std, args=(holds,), axis=1)
 
     return df
 
 
-def which_price(row, thresholds, outliers):
+def special_flag(row) -> str:
+    """
+    Creates column that checks whether there is a special flag for this record.
+    Meant for apply().
+    Outputs:
+        value (str): the special flag for the transaction.
+    """
+
+    if row['name_match'] != 'No match':
+        value = 'Family sale'
+    elif row['short_owner'] == 'Short-term owner':
+        value = 'Home flip sale'
+    elif row['transaction_type'] == 'legal_entity-legal_entity':
+        value = 'Non-person sale'
+    else:
+        value = None
+
+    return value
+
+
+def price_std(row, thresholds: dict) -> float:
+    """
+    Fetches the z-normalized standard deviation for the sale price for the record.
+    Meant for apply().
+    Inputs:
+        thresholds (dict): dictionary of thresholds from get_thresh
+    Outputs:
+        std (float): standard deviation from this record.
+    """
+
+    std, *std_range = thresholds.get('sale_price_zscore').get((row['township_code'], row['class']))
+
+    return std
+
+
+def which_price(row, thresholds: dict, outliers: list) -> str:
+    """
+    Determines whether sale_price, price_per_sqft, or both are outliers,
+    and returns a string resembling it.
+    Inputs:
+        thresholds (dict): dict of thresholds from get_thresh
+        outlier (list): list of outliers from over_std
+    Outputs:
+        value (str): string saying which of these are outliers.
+    """
     if row['sale_key'] in outliers:
-        s_std, *s_std_range = thresholds.get('sale_price').get((row['township_code'], row['class']))
+        s_std, *s_std_range = thresholds.get('sale_price_zscore').get((row['township_code'], row['class']))
         s_lower, s_upper = s_std_range
-        sq_std, *sq_std_range = thresholds.get('price_per_sqft').get((row['township_code'], row['class']))
+        sq_std, *sq_std_range = thresholds.get('price_per_sqft_zscore').get((row['township_code'], row['class']))
         sq_lower, sq_upper = sq_std_range
-        if row['sale_price'] not in np.arange(s_lower, s_upper) and \
-            row['price_per_sqft'] not in np.arange(sq_lower, sq_upper):
+        if row['sale_price_zscore'] not in np.arange(s_lower, s_upper) and \
+            row['price_per_sqft_zscore'] not in np.arange(sq_lower, sq_upper):
             value = '(raw & sqft)'
-        if row['sale_price'] not in np.arange(s_lower, s_upper) and \
-            row['price_per_sqft'] in np.arange(sq_lower, sq_upper):
+        if row['sale_price_zscore'] not in np.arange(s_lower, s_upper) and \
+            row['price_per_sqft_zscore'] in np.arange(sq_lower, sq_upper):
             value = '(raw)'
-        if row['sale_price'] in np.arange(s_lower, s_upper) and \
-            row['price_per_sqft'] not in np.arange(sq_lower, sq_upper):
+        if row['sale_price_zscore'] in np.arange(s_lower, s_upper) and \
+            row['price_per_sqft_zscore'] not in np.arange(sq_lower, sq_upper):
             value = '(sqft)'
     else:
         value = 'Non-outlier'
@@ -282,25 +335,34 @@ def which_price(row, thresholds, outliers):
     return value
 
 
-def price_column(row, thresholds,  outliers):
+def price_column(row, thresholds: dict,  outliers: list) -> str:
+    """
+    Determines whether the record is a high price outlier or a low price outlier.
+    If the record is also a price change outlier, than add 'swing' to the string.
+    Inputs:
+        thresholds (dict): dict of standard deviation thresholds from get_thresh()
+        outliers (dict): list of outliers from over_std()
+    Outputs:
+        value (str): string showing what kind of price outlier the record is.
+    """
     if row['sale_key'] in outliers:
-        s_std, *s_std_range = thresholds.get('sale_price').get((row['township_code'], row['class']))
+        s_std, *s_std_range = thresholds.get('sale_price_zscore').get((row['township_code'], row['class']))
         s_lower, s_upper = s_std_range
-        sq_std, *sq_std_range = thresholds.get('price_per_sqft').get((row['township_code'], row['class']))
+        sq_std, *sq_std_range = thresholds.get('price_per_sqft_zscore').get((row['township_code'], row['class']))
         sq_lower, sq_upper = sq_std_range
-        p_std, *p_std_range = thresholds.get('price_per_sqft').get((row['township_code'], row['class']))
+        p_std, *p_std_range = thresholds.get('price_per_sqft_zscore').get((row['township_code'], row['class']))
         p_lower, p_upper = p_std_range
 
-        if row['sale_price'] > s_upper or row['price_per_sqft'] > sq_upper:
+        if row['sale_price_zscore'] > s_upper or row['price_per_sqft_zscore'] > sq_upper:
             value = 'High price'
             if row['price_movement'] == 'Away from mean':
                 value = value + ' swing'
-        if row['sale_price'] < s_lower or row['price_per_sqft'] < sq_lower:
+        if row['sale_price_zscore'] < s_lower or row['price_per_sqft_zscore'] < sq_lower:
             value = 'Low price'
             if row['price_movement'] == 'Away from mean':
                 value = value + ' swing'
     else:
-        value = ''
+        value = 'Not price outlier'
 
     return value
 
@@ -624,45 +686,63 @@ def primary_outlier(row,
     return value
 
 
-def outlier_description(df: pd.DataFrame) -> pd.DataFrame:
+def outlier_type(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Runs np.select that creates more detailed description of what the outlier is.
+    Runs np.select that creates an outlier taxonomy.
     Inputs:
         df (pd.DataFrame): dataframe with necessary columns created from previous apply() functions.
     Outputs:
-        df (pd.DataFrame): dataframe with 'outlier_description' column.
+        df (pd.DataFrame): dataframe with 'outlier_type' column.
     """
     conditions = [
-    (df['short_owner'] == 'Short-term owner') & (df['price_column'] != 'Non-outlier'),
-    (df['name_match'] != 'No match') & (df['price_column'] != 'Non-outlier'),
-    (df['transaction_type'] == 'legal_entity-legal_entity') & (df['price_column'] != 'Non-outlier'),
+    (df['short_owner'] == 'Short-term owner') & (df['price_column'].str.contains('High')),
+    (df['name_match'] != 'No match') & (df['price_column'].str.contains('High')),
+    (df['transaction_type'] == 'legal_entity-legal_entity') & (df['price_column'].str.contains('High')),
     (df['anomaly'] == 'Outlier') & (df['price_column'].str.contains('High')),
-    (df['anomaly'] == 'Outlier') & (df['price_column'].str.contains('Low'))]
-    """(df['price_column'].str.contains('High')) & (df['which_price'] == '(raw & sqft)') & \
-    (df['name_match'] == 'No match') & (df['short_owner'] != 'Short-term owner') & (df['anomaly'] == 'Not outlier'),
-    (df['price_column'].str.contains('High')) & (df['which_price'] == '(raw)') & \
-    (df['name_match'] == 'No match') & (df['short_owner'] != 'Short-term owner') & (df['anomaly'] == 'Not outlier'),
-    (df['price_column'].str.contains('High')) & (df['which_price'] == '(sqft)') & \
-    (df['name_match'] == 'No match') & (df['short_owner'] != 'Short-term owner') & (df['anomaly'] == 'Not outlier'),
-    (df['price_column'].str.contains('Low')) & (df['which_price'] == '(raw & sqft)') & \
-    (df['name_match'] == 'No match') & (df['short_owner'] != 'Short-term owner') & (df['anomaly'] == 'Not outlier'),
-    (df['price_column'].str.contains('Low')) & (df['which_price'] == '(raw)') & \
-    (df['name_match'] == 'No match') & (df['short_owner'] != 'Short-term owner') & (df['anomaly'] == 'Not outlier'),
-    (df['price_column'].str.contains('Low')) & (df['which_price'] == '(sqft)') & \
-    (df['name_match'] == 'No match') & (df['short_owner'] != 'Short-term owner') & (df['anomaly'] == 'Not outlier')"""
+    (df['price_column'].str.contains('High price swing')),
+    (df['price_column'].str.contains('High')) & (df['which_price'] == '(raw & sqft)'),
+    (df['price_column'].str.contains('High')) & (df['which_price'] == '(raw)'),
+    (df['price_column'].str.contains('High')) & (df['which_price'] == '(sqft)'),
+    (df['short_owner'] == 'Short-term owner') & (df['price_column'].str.contains('Low')),
+    (df['name_match'] != 'No match') & (df['price_column'].str.contains('Low')),
+    (df['transaction_type'] == 'legal_entity-legal_entity') & (df['price_column'].str.contains('Low')),
+    (df['anomaly'] == 'Outlier') & (df['price_column'].str.contains('Low')),
+    (df['price_column'].str.contains('Low price swing')),
+    (df['price_column'].str.contains('Low')) & (df['which_price'] == '(raw & sqft)'),
+    (df['price_column'].str.contains('Low')) & (df['which_price'] == '(raw)'),
+    (df['price_column'].str.contains('Low')) & (df['which_price'] == '(sqft)')]
 
+    labels = ['Home flip sale (high)', 'Family sale (high)',
+              'Non-person sale (high)', 'Anomaly (high)',
+              'High price swing',
+              'High price (raw & sqft)', 'High price (raw)',
+              'High price (sqft)',
+              'Home flip sale (low)', 'Family sale (low)',
+              'Non-person sale (low)', 'Anomaly (low)',
+              'Low price swing',
+              'Low price (raw & sqft)', 'Low price (raw)',
+              'Low price (sqft)']
 
-    labels = ['Home Flip Sale', 'Family Sale',
-              'Non-Person Sale', 'Anomaly (high)',
-              'Anomaly (Low)']
-              #'High price (raw & sqft)',
-              #'High price (raw)', 'High price (sqft)',
-              #'Low price (raw & sqft)',
-              #'Low price (raw)', 'Low price (sqft)'
-              
-    df["outlier_description"] = np.select(conditions, labels, default='Not suspicious')
+    df["outlier_type"] = np.select(conditions, labels, default='Not outlier')
 
     return df
+
+
+def outlier_description(row) -> str:
+
+    if row['outlier_type'] == 'Family Sale':
+        value = row['name_match'] + ' & ' + row['price_column']
+    if row['outlier_type'] == 'Non-person Sale':
+        value = row['transaction_type'] + ' & ' + row['price_column']
+    if 'Anomaly' in row['outlier_type']:
+        value = 'Anomaly' + ' & ' + row['price_column']
+    if row['outlier_type'] == 'Home Flip Sale':
+        value = row['short_owner'] + ' & ' + row['price_column']
+    else:
+        value = None
+
+    return value
+
 
 
 def outlier_value(row: pd.Series, labels: dict) -> float:
