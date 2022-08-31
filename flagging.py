@@ -249,7 +249,17 @@ def read_data(sales_name: str, card_name: str, char_name: str) -> pd.DataFrame:
 
 def high_low_price_column(df: pd.DataFrame, permut: tuple) -> pd.DataFrame:
     """
-    
+    Creates information about whether the price is an outlier, and its movement.
+    Also fetches the sandard deviation for the record.
+    pricing is whether it is a high/low outlier and whether it is a price swing.
+    which_price is whether it is the raw price, price/sqft or both that are outliers.
+    std_deviation is the std deviation for the raw price for that records class/township.
+    Inputs:
+        df (pd.DataFrame): dataframe of sales
+        permut (tuple): tuple of standard deviation boundaries.
+                        Ex: (2,2) is 2 std away on both sides.
+    Outputs:
+        df (pd.DataFrame): dataframe with 3 extra columns of price info.
     """
 
     prices = ['sale_price','price_per_sqft', 'pct']
@@ -351,7 +361,6 @@ def price_column(row, thresholds: dict,  outliers: list) -> str:
         s_lower, s_upper = s_std_range
         sq_std, *sq_std_range = thresholds.get('price_per_sqft_zscore').get((row['township_code'], row['class']))
         sq_lower, sq_upper = sq_std_range
-
 
         if row['sale_price_zscore'] > s_upper or row['price_per_sqft_zscore'] > sq_upper:
             value = 'High price'
