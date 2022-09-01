@@ -75,8 +75,8 @@ def analyst_readable(df):
     df = df[['doc_no', 'deed_type', 'township_code','pin', 'class',
        'sale_date', 'seller_name', 'buyer_name',
        'outlier_type', 'pricing', 'special_flags',
-       'sale_price', 'std_deviation', 'price_per_sqft', 'sqft',
-       'name_match', 'anomaly', 'short_owner',
+       'sale_price', 'price_std_dev', 'price_per_sqft', 'price_per_sqft_std_dev',
+        'sqft', 'name_match', 'anomaly', 'short_owner',
        'is_sale_between_related_individuals_or_corporate_affiliates',
        'is_transfer_of_less_than_100_percent_interest',
        'is_court_ordered_sale', 'is_sale_in_lieu_of_foreclosure',
@@ -228,7 +228,7 @@ def read_data(sales_name: str, card_name: str, char_name: str) -> pd.DataFrame:
     cards.drop_duplicates(inplace=True)
     # some are duplicates other than sqft and year built, same year and other info but diff sqft
     # so we drop it cuz this look anamolous - this also probably has to do with multi_cards?
-    char_sample.drop_duplicates(subset=['year', 'pin','class'],inplace=True)
+    char_sample.drop_duplicates(subset=['year', 'pin', 'class'], inplace=True)
 
     sales['year'] = sales.year.astype(int)
     sales['pin'] = sales.pin.astype(int)
@@ -240,6 +240,7 @@ def read_data(sales_name: str, card_name: str, char_name: str) -> pd.DataFrame:
 
     sales = sales[sales['is_multisale'] != '1']
     sales = sales[sales['card'] == 1]
+
     sales.rename(columns = {'township_code_x': 'township_code'}, inplace=True)
 
     df = sales
@@ -269,7 +270,7 @@ def high_low_price_column(df: pd.DataFrame, permut: tuple) -> pd.DataFrame:
     prices = [col + '_zscore' for col in prices]
 
     holds = get_thresh(df, prices, permut)
-    
+
     # only get the outliers for actual prices, we only want
     # the price swings if it is also a price outlier
     price_outs = over_std(df, 'township_code', prices[:2], permut)
@@ -278,7 +279,8 @@ def high_low_price_column(df: pd.DataFrame, permut: tuple) -> pd.DataFrame:
     df['pricing'] = df.apply(price_column, args=(holds, price_outs), axis=1)
     df['which_price'] = df.apply(which_price, args=(holds, price_outs), axis=1)
 
-    df['std_deviation'] = df.apply(price_std, args=(holds,), axis=1)
+    df['price_std_dev'] = df.apply(price_std, args=(holds,), axis=1)
+    df['price_per_sqft_std_dev'] = df.apply(price_sqft_std, args=(holds,), axis=1)
 
     return df
 
@@ -314,6 +316,28 @@ def price_std(row, thresholds: dict) -> float:
     """
 
     std, *std_range = thresholds.get('sale_price_zscore').get((row['township_code'], row['class']))
+
+    return std
+
+
+def price_sqft_std(row, thresholds: dict) -> float:
+    """
+    Fetches the z-normalized standard deviation for the price per sqft for the record.
+    Meant for apply().
+    Inputs:
+        thresholds (dict): dictionary of thresholds from get_thresh
+    Outputs:
+        std (float): standard deviation from this record.
+    """
+    # some small amount of records do not have sqft data or sqft = 0 
+    # so price/sqft can not be calculated for some class/township combos
+    # Therefore, we check before fetching to avoid:
+    # TypeError: cannot unpack non-iterable NoneType object
+    # This probably won't be a problem in the full dataset, 
+    # where the data is merged better? or more full?
+    std = np.nan
+    if thresholds.get('price_per_sqft_zscore').get((row['township_code'], row['class'])):
+        std, *std_range = thresholds.get('price_per_sqft_zscore').get((row['township_code'], row['class']))
 
     return std
 
