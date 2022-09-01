@@ -65,7 +65,7 @@ def analyst_readable(df):
     """
     df['pin'] = df['pin'].astype(str).str.pad(14,fillchar='0')
 
-    df = df.sample(5000)
+    #df = df.sample(5000)
 
     outliers = len((df['anomaly'] == 'Outlier') | (df['name_match'] != 'No match') | (df['pricing'] != None))
     print(outliers / len(df))
@@ -269,7 +269,10 @@ def high_low_price_column(df: pd.DataFrame, permut: tuple) -> pd.DataFrame:
     prices = [col + '_zscore' for col in prices]
 
     holds = get_thresh(df, prices, permut)
-    price_outs = over_std(df, 'township_code', prices, permut)
+    
+    # only get the outliers for actual prices, we only want
+    # the price swings if it is also a price outlier
+    price_outs = over_std(df, 'township_code', prices[:2], permut)
     price_outs = price_outs.sale_key.to_list()
 
     df['pricing'] = df.apply(price_column, args=(holds, price_outs), axis=1)
@@ -355,7 +358,6 @@ def price_column(row, thresholds: dict,  outliers: list) -> str:
     Outputs:
         value (str): string showing what kind of price outlier the record is.
     """
-    value = None
     if row['sale_key'] in outliers:
         s_std, *s_std_range = thresholds.get('sale_price_zscore').get((row['township_code'], row['class']))
         s_lower, s_upper = s_std_range
@@ -364,13 +366,14 @@ def price_column(row, thresholds: dict,  outliers: list) -> str:
 
         if row['sale_price_zscore'] > s_upper or row['price_per_sqft_zscore'] > sq_upper:
             value = 'High price'
-        if row['sale_price_zscore'] < s_lower or row['price_per_sqft_zscore'] < sq_lower:
+        elif row['sale_price_zscore'] < s_lower or row['price_per_sqft_zscore'] < sq_lower:
             value = 'Low price'
+
         if thresholds.get('pct_zscore').get((row['township_code'], row['class'])):
             # not every class/township combo has pct change info so we need this check
             p_std, *p_std_range = thresholds.get('pct_zscore').get((row['township_code'], row['class']))
             p_lower, p_upper = p_std_range
-            if value and row['price_movement'] == 'Away from mean' and \
+            if row['price_movement'] == 'Away from mean' and \
                 row['pct_zscore'] not in np.arange(p_lower, p_upper):
                 value += ' swing'
     else:
@@ -711,18 +714,18 @@ def outlier_type(df: pd.DataFrame) -> pd.DataFrame:
     (df['name_match'] != 'No match') & (df['pricing'].str.contains('High')),
     (df['transaction_type'] == 'legal_entity-legal_entity') & (df['pricing'].str.contains('High')),
     (df['anomaly'] == 'Outlier') & (df['pricing'].str.contains('High')),
-    (df['pricing'].str.contains('High price swing', na=False)),
-    (df['pricing'].str.contains('High', na=False)) & (df['which_price'] == '(raw & sqft)'),
-    (df['pricing'].str.contains('High', na=False)) & (df['which_price'] == '(raw)'),
-    (df['pricing'].str.contains('High', na=False)) & (df['which_price'] == '(sqft)'),
-    (df['short_owner'] == 'Short-term owner') & (df['pricing'].str.contains('Low', na=False)),
-    (df['name_match'] != 'No match') & (df['pricing'].str.contains('Low', na=False)),
-    (df['transaction_type'] == 'legal_entity-legal_entity') & (df['pricing'].str.contains('Low', na=False)),
-    (df['anomaly'] == 'Outlier') & (df['pricing'].str.contains('Low', na=False)),
-    (df['pricing'].str.contains('Low price swing', na=False)),
-    (df['pricing'].str.contains('Low', na=False)) & (df['which_price'] == '(raw & sqft)'),
-    (df['pricing'].str.contains('Low', na=False)) & (df['which_price'] == '(raw)'),
-    (df['pricing'].str.contains('Low', na=False)) & (df['which_price'] == '(sqft)')]
+    (df['pricing'].str.contains('High price swing')),
+    (df['pricing'].str.contains('High')) & (df['which_price'] == '(raw & sqft)'),
+    (df['pricing'].str.contains('High')) & (df['which_price'] == '(raw)'),
+    (df['pricing'].str.contains('High')) & (df['which_price'] == '(sqft)'),
+    (df['short_owner'] == 'Short-term owner') & (df['pricing'].str.contains('Low')),
+    (df['name_match'] != 'No match') & (df['pricing'].str.contains('Low')),
+    (df['transaction_type'] == 'legal_entity-legal_entity') & (df['pricing'].str.contains('Low')),
+    (df['anomaly'] == 'Outlier') & (df['pricing'].str.contains('Low')),
+    (df['pricing'].str.contains('Low price swing')),
+    (df['pricing'].str.contains('Low')) & (df['which_price'] == '(raw & sqft)'),
+    (df['pricing'].str.contains('Low')) & (df['which_price'] == '(raw)'),
+    (df['pricing'].str.contains('Low')) & (df['which_price'] == '(sqft)')]
 
     labels = ['Home flip sale (high)', 'Family sale (high)',
               'Non-person sale (high)', 'Anomaly (high)',
