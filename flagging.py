@@ -12,23 +12,7 @@ from sklearn.ensemble import IsolationForest
 from sklearn.decomposition import PCA
 
 
-def go(columns: list, permut: tuple, groups: tuple, labels, output_file: str):
-
-
-    drop_cols = ['sale_key', 'pct',
-                 'is_homestead_exemption', 'homestead_exemption_general_alternative',
-                 'homestead_exemption_senior_citizens',
-                 'homestead_exemption_senior_citizens_assessment_freeze',
-                 'card', 'year_built', 'is_installment_contract_fulfilled', 'is_multisale',
-                  'num_parcels_sale', 'is_condemnation', 'sale_filter_lower_limit',
-                  'sale_filter_upper_limit', 'sale_filter_count', 'year', 'buyer_role',
-                  'seller_role', 'sale_price_log10', 'property_advertised',
-                  'is_seller_buyer_a_relocation_company',
-                  'buyer_category', 'seller_category',
-                  #'price_per_sqft_log10',
-                  #'township_code_class_mean_sale_log10',
-                  #'diff_from_township_code_class_mean_sale_log10',
-                  'buyer_id', 'seller_id', 'buyer_role', 'seller_role']
+def go(columns: list, permut: tuple, groups: tuple, output_file: str):
 
     df = read_data('sale_sample_18-21.parquet', 'cards.csv', 'char_sample.csv')
 
@@ -36,8 +20,8 @@ def go(columns: list, permut: tuple, groups: tuple, labels, output_file: str):
 
     df = string_processing(df)
 
-    df = high_low_price_column(df, permut)
-    df['short_owner'] = df.apply(check_days, args=(182,), axis=1) # 182 = 6 months
+    df = high_low_price_column(df, permut, groups)
+    df['short_owner'] = df.apply(check_days, args=(365,), axis=1) # 365 = 365 days or 1 year
 
     #df, columns = create_labels(df, columns, labels, permut)
 
@@ -48,35 +32,40 @@ def go(columns: list, permut: tuple, groups: tuple, labels, output_file: str):
 
     df['special_flags'] = df.apply(special_flag, axis=1)
 
-    # df['outlier_description'] = df.apply(outlier_description, axis=1)
-
-    df = drop_irrelevant(df, drop_cols + columns)
-
-    df = analyst_readable(df)
+    df = analyst_readable(df, groups)
 
     print(df.columns)
 
     df.to_csv(output_file, index=False)
 
 
-def analyst_readable(df):
+def analyst_readable(df, groups):
     """
     A function that helps make the resulting spreadsheet more readable for analysts.
     """
+
+    df['is_outlier'] = df.apply(outlier_flag, axis=1)
+
+    df.set_index('sale_key', inplace=True)
+    outs = df[df['is_outlier'] == 'Outlier']
+
+    df['zscore_price_per_sqft_class_township_percentile'] = outs.groupby(list(groups))['zscore_price_per_sqft_class_township'].rank(pct=True)
+    df['zscore_price_class_township_percentile'] = outs.groupby(list(groups))['zscore_price_class_township'].rank(pct=True)
+
+    df.reset_index(inplace=True)
+
     df['pin'] = df['pin'].astype(str).str.pad(14,fillchar='0')
-
-    #df = df.sample(5000)
-
-    outliers = len((df['anomaly'] == 'Outlier') | (df['name_match'] != 'No match') | (df['pricing'] != None))
-    print(outliers / len(df))
 
     df.sort_values(by=['outlier_type'], ascending=[True], inplace=True)
 
     df = df[['doc_no', 'deed_type', 'township_code','pin', 'class',
-       'sale_date', 'seller_name', 'buyer_name',
-       'outlier_type', 'pricing', 'special_flags',
-       'sale_price', 'price_std_dev', 'price_per_sqft', 'price_per_sqft_std_dev',
-        'sqft', 'name_match', 'anomaly', 'short_owner',
+       'sale_date', 'seller_name', 'buyer_name', 'outlier_type',
+       'pricing', 'special_flags',
+       'sale_price', 'price_deviation_class_township',
+       'price_per_sqft', 'price_per_sqft_deviation_class_township', 'sqft',
+       'sale_price_deviation_county', 'price_per_sqft_deviation_county',
+        'zscore_price_class_township_percentile', 'price_per_sqft_class_township_percentile',
+       'name_match', 'anomaly', 'short_owner',
        'is_sale_between_related_individuals_or_corporate_affiliates',
        'is_transfer_of_less_than_100_percent_interest',
        'is_court_ordered_sale', 'is_sale_in_lieu_of_foreclosure',
@@ -165,6 +154,8 @@ def iso_forest(df: pd.DataFrame,
     df['anomaly'] = np.select([(df['anomaly'] == -1), (df['anomaly'] == 1)],
                                           ['Outlier', 'Not Outlier'], default= 'Not Outlier')
 
+    df.reset_index(inplace=True)
+
     return df
 
 
@@ -191,21 +182,6 @@ def pca(df:pd.DataFrame, columns: list) -> pd.DataFrame:
     take = len(pca.explained_variance_[pca.explained_variance_ > 1])
 
     df = pc_df[pc_df.columns[:take]]
-
-    return df
-
-
-def drop_irrelevant(df: pd.DataFrame, columns: list) -> pd.DataFrame:
-    """
-    Drops columns that aren't relevant to analsts in determining whether
-    a transaction may be non-arms length.
-    Inputs:
-        df (pd.DataFrame): dataframe to have columsn dropped from
-    Outputs:
-        df(pd.DataFrame)
-    """
-    df.reset_index(inplace=True)
-    df.drop(columns, axis=1, inplace=True)
 
     return df
 
@@ -248,7 +224,7 @@ def read_data(sales_name: str, card_name: str, char_name: str) -> pd.DataFrame:
     return df
 
 
-def high_low_price_column(df: pd.DataFrame, permut: tuple) -> pd.DataFrame:
+def high_low_price_column(df: pd.DataFrame, permut: tuple, groups: tuple) -> pd.DataFrame:
     """
     Creates information about whether the price is an outlier, and its movement.
     Also fetches the sandard deviation for the record.
@@ -263,11 +239,13 @@ def high_low_price_column(df: pd.DataFrame, permut: tuple) -> pd.DataFrame:
         df (pd.DataFrame): dataframe with 3 extra columns of price info.
     """
 
-    prices = ['sale_price','price_per_sqft', 'pct']
+    df = z_normalize(df, ['sale_price', 'price_per_sqft'])
 
-    df = z_normalize(df, prices)
+    prices = ['zscore_price_per_sqft_class_township', 'zscore_price_class_township', 'zscore_pct_class_township']
 
-    prices = [col + '_zscore' for col in prices]
+    df['zscore_price_class_township'] = df.groupby(list(groups))['sale_price'].apply(z_normalize_groupby)
+    df['zscore_price_per_sqft_class_township'] = df.groupby(list(groups))['price_per_sqft'].apply(z_normalize_groupby)
+    df['zscore_pct_class_township'] = df.groupby(list(groups))['pct'].apply(z_normalize_groupby)
 
     holds = get_thresh(df, prices, permut)
 
@@ -278,9 +256,6 @@ def high_low_price_column(df: pd.DataFrame, permut: tuple) -> pd.DataFrame:
 
     df['pricing'] = df.apply(price_column, args=(holds, price_outs), axis=1)
     df['which_price'] = df.apply(which_price, args=(holds, price_outs), axis=1)
-
-    df['price_std_dev'] = df.apply(price_std, args=(holds,), axis=1)
-    df['price_per_sqft_std_dev'] = df.apply(price_sqft_std, args=(holds,), axis=1)
 
     return df
 
@@ -305,43 +280,6 @@ def special_flag(row) -> str:
     return value
 
 
-def price_std(row, thresholds: dict) -> float:
-    """
-    Fetches the z-normalized standard deviation for the sale price for the record.
-    Meant for apply().
-    Inputs:
-        thresholds (dict): dictionary of thresholds from get_thresh
-    Outputs:
-        std (float): standard deviation from this record.
-    """
-
-    std, *std_range = thresholds.get('sale_price_zscore').get((row['township_code'], row['class']))
-
-    return std
-
-
-def price_sqft_std(row, thresholds: dict) -> float:
-    """
-    Fetches the z-normalized standard deviation for the price per sqft for the record.
-    Meant for apply().
-    Inputs:
-        thresholds (dict): dictionary of thresholds from get_thresh
-    Outputs:
-        std (float): standard deviation from this record.
-    """
-    # some small amount of records do not have sqft data or sqft = 0 
-    # so price/sqft can not be calculated for some class/township combos
-    # Therefore, we check before fetching to avoid:
-    # TypeError: cannot unpack non-iterable NoneType object
-    # This probably won't be a problem in the full dataset, 
-    # where the data is merged better? or more full?
-    std = np.nan
-    if thresholds.get('price_per_sqft_zscore').get((row['township_code'], row['class'])):
-        std, *std_range = thresholds.get('price_per_sqft_zscore').get((row['township_code'], row['class']))
-
-    return std
-
-
 def which_price(row, thresholds: dict, outliers: list) -> str:
     """
     Determines whether sale_price, price_per_sqft, or both are outliers,
@@ -353,23 +291,30 @@ def which_price(row, thresholds: dict, outliers: list) -> str:
         value (str): string saying which of these are outliers.
     """
     if row['sale_key'] in outliers:
-        s_std, *s_std_range = thresholds.get('sale_price_zscore').get((row['township_code'], row['class']))
+        s_std, *s_std_range = thresholds.get('zscore_price_class_township').get((row['township_code'], row['class']))
         s_lower, s_upper = s_std_range
-        sq_std, *sq_std_range = thresholds.get('price_per_sqft_zscore').get((row['township_code'], row['class']))
+        sq_std, *sq_std_range = thresholds.get('zscore_price_per_sqft_class_township').get((row['township_code'], row['class']))
         sq_lower, sq_upper = sq_std_range
-        if row['sale_price_zscore'] not in np.arange(s_lower, s_upper) and \
-            row['price_per_sqft_zscore'] not in np.arange(sq_lower, sq_upper):
-            value = '(raw & sqft)'
-        if row['sale_price_zscore'] not in np.arange(s_lower, s_upper) and \
-            row['price_per_sqft_zscore'] in np.arange(sq_lower, sq_upper):
+        if not between_two_numbers(row['zscore_price_class_township'], s_lower, s_upper) and \
+            between_two_numbers(row['zscore_price_per_sqft_class_township'], sq_lower, sq_upper):
             value = '(raw)'
-        if row['sale_price_zscore'] in np.arange(s_lower, s_upper) and \
-            row['price_per_sqft_zscore'] not in np.arange(sq_lower, sq_upper):
+        elif between_two_numbers(row['zscore_price_class_township'], s_lower, s_upper) and \
+            not between_two_numbers(row['zscore_price_per_sqft_class_township'], sq_lower, sq_upper):
             value = '(sqft)'
+        elif not between_two_numbers(row['zscore_price_class_township'], s_lower, s_upper) and \
+            not between_two_numbers(row['zscore_price_per_sqft_class_township'], sq_lower, sq_upper):
+            value = '(raw & sqft)'
     else:
         value = 'Non-outlier'
 
     return value
+
+
+def between_two_numbers(num: int or float , a: int or float, b: int or float):
+    if a < num and num < b:
+        return True
+    else:
+        return False
 
 
 def price_column(row, thresholds: dict,  outliers: list) -> str:
@@ -383,22 +328,22 @@ def price_column(row, thresholds: dict,  outliers: list) -> str:
         value (str): string showing what kind of price outlier the record is.
     """
     if row['sale_key'] in outliers:
-        s_std, *s_std_range = thresholds.get('sale_price_zscore').get((row['township_code'], row['class']))
+        s_std, *s_std_range = thresholds.get('zscore_price_class_township').get((row['township_code'], row['class']))
         s_lower, s_upper = s_std_range
-        sq_std, *sq_std_range = thresholds.get('price_per_sqft_zscore').get((row['township_code'], row['class']))
+        sq_std, *sq_std_range = thresholds.get('zscore_price_per_sqft_class_township').get((row['township_code'], row['class']))
         sq_lower, sq_upper = sq_std_range
 
-        if row['sale_price_zscore'] > s_upper or row['price_per_sqft_zscore'] > sq_upper:
+        if row['zscore_price_class_township'] > s_upper or row['zscore_price_per_sqft_class_township'] > sq_upper:
             value = 'High price'
-        elif row['sale_price_zscore'] < s_lower or row['price_per_sqft_zscore'] < sq_lower:
+        elif row['zscore_price_class_township'] < s_lower or row['zscore_price_per_sqft_class_township'] < sq_lower:
             value = 'Low price'
 
-        if thresholds.get('pct_zscore').get((row['township_code'], row['class'])):
+        if thresholds.get('zscore_pct_class_township').get((row['township_code'], row['class'])):
             # not every class/township combo has pct change info so we need this check
-            p_std, *p_std_range = thresholds.get('pct_zscore').get((row['township_code'], row['class']))
+            p_std, *p_std_range = thresholds.get('zscore_pct_class_township').get((row['township_code'], row['class']))
             p_lower, p_upper = p_std_range
             if row['price_movement'] == 'Away from mean' and \
-                row['pct_zscore'] not in np.arange(p_lower, p_upper):
+                not between_two_numbers(row['zscore_pct_class_township'], p_lower, p_upper):
                 value += ' swing'
     else:
         value = 'Not price outlier'
@@ -682,6 +627,10 @@ def z_normalize(df: pd.DataFrame, columns: list) -> pd.DataFrame:
     return df
 
 
+def z_normalize_groupby(s):
+    return zscore(s, nan_policy='omit')
+
+
 def primary_outlier(row,
                     thresholds: dict,
                     outliers: pd.DataFrame,
@@ -767,21 +716,14 @@ def outlier_type(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def outlier_description(row) -> str:
+def outlier_flag(row) -> str:
 
-    if row['outlier_type'] == 'Family Sale':
-        value = row['name_match'] + ' & ' + row['pricing']
-    if row['outlier_type'] == 'Non-person Sale':
-        value = row['transaction_type'] + ' & ' + row['pricing']
-    if 'Anomaly' in row['outlier_type']:
-        value = 'Anomaly' + ' & ' + row['pricing']
-    if row['outlier_type'] == 'Home Flip Sale':
-        value = row['short_owner'] + ' & ' + row['pricing']
+    if row['outlier_type'] == 'Not outlier':
+        value = 'Not outlier'
     else:
-        value = None
+        value = 'Outlier'
 
     return value
-
 
 
 def outlier_value(row: pd.Series, labels: dict) -> float:
@@ -1266,8 +1208,5 @@ def string_processing(df: pd.DataFrame) -> pd.DataFrame:
 
 
 columns = ['pct', 'counts']
-labels = {
-    'pct_zscore': 'Price Change Outlier',
-    'counts_zscore': 'Transaction Volatility Outlier'}
 
-go(columns, (2,2), ('township_code', 'class'), labels, 'flagged.csv')
+go(columns, (2,2), ('township_code', 'class'), 'flagged_redo.csv')
