@@ -11,6 +11,8 @@ from scipy.stats import zscore
 from sklearn.ensemble import IsolationForest
 from sklearn.decomposition import PCA
 
+SHORT_TERM_OWNER_THRESHOLD = 365 # 365 = 365 days or 1 year
+
 
 def go(columns: list, permut: tuple, groups: tuple, output_file: str):
 
@@ -21,14 +23,9 @@ def go(columns: list, permut: tuple, groups: tuple, output_file: str):
     df = string_processing(df)
 
     df = pricing_stats(df, permut, groups)
-    df['short_owner'] = df.apply(check_days, args=(365,), axis=1) # 365 = 365 days or 1 year
 
     # need all important info about transaction
     df = iso_forest(df, ['sale_price', 'price_per_sqft', 'days_since_last_transaction'] + columns)
-
-    df = outlier_type(df)
-
-    df['special_flags'] = df.apply(special_flag, axis=1)
 
     df = analyst_readable(df, groups)
 
@@ -42,7 +39,11 @@ def analyst_readable(df, groups):
     A function that helps make the resulting spreadsheet more readable for analysts.
     """
 
+    df['short_owner'] = df.apply(check_days, args=(SHORT_TERM_OWNER_THRESHOLD,), axis=1)
+
+    df = outlier_type(df)
     df['is_outlier'] = df.apply(outlier_flag, axis=1)
+    df['special_flags'] = df.apply(special_flag, axis=1)
 
     df.set_index('sale_key', inplace=True)
     outs = df[df['is_outlier'] == 'Outlier']
