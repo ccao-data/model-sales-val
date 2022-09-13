@@ -245,9 +245,6 @@ def pricing_stats(df: pd.DataFrame, permut: tuple, groups: tuple) -> pd.DataFram
     df.rename(columns={'sale_price_zscore': 'sale_price_deviation_county',
                        'price_per_sqft_zscore': 'price_per_sqft_deviation_county'}, inplace=True)
 
-    df = last_sale_price(df)
-    df['pct'] = df.apply(cgr, axis=1)
-
     prices = ['price_per_sqft_deviation_class_township', 'price_deviation_class_township', 'pct_deviation_class_township']
 
     df['price_deviation_class_township'] = df.groupby(list(groups))['sale_price'].apply(z_normalize_groupby)
@@ -372,6 +369,24 @@ def create_stats(df: pd.DataFrame, groups: tuple) -> pd.DataFrame:
     df = grouping_mean(df, groups)
     df = dup_stats(df, groups)
     df = transaction_days(df)
+    df = percent_change(df)
+
+    return df
+
+
+def percent_change(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Generates CGR for all records. Requires that transaction_days() has already been run.
+    Creates 'previous_price' column as intermediary to help calculate CGR.
+    Helper for create_stats().
+    Inputs:
+        df (pd.DataFrame): datarame to create CGR on.
+    Outputs:
+        df (pd.DataFrame): dataframe with CGR statistic and previous_price column
+    """
+
+    df['previous_price'] = df.sort_values('sale_date').groupby(['pin'])['sale_price'].shift(axis=0)
+    df['pct'] = df.apply(cgr, axis=1)
 
     return df
 
@@ -487,13 +502,6 @@ def get_movement(dups: pd.DataFrame, groups:tuple) -> pd.DataFrame:
                                         ['Away from mean', 'Towards mean'])
 
     return dups
-
-
-def last_sale_price(df: pd.DataFrame):
-
-    df['previous_price'] = df.sort_values('sale_date').groupby(['pin'])['sale_price'].shift(axis=0)
-
-    return df
 
 
 def cgr(row) -> float or np.nan:
