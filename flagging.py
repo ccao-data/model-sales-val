@@ -49,10 +49,12 @@ def analyst_readable(df, groups):
 
     df['price_per_sqft_deviation_class_township_percentile'] = outs.groupby(list(groups))['price_per_sqft_deviation_class_township'].rank(pct=True)
     df['price_deviation_class_township_percentile'] = outs.groupby(list(groups))['price_deviation_class_township'].rank(pct=True)
+    df['price_per_sqft_deviation_class_township_rank'] = outs.groupby(list(groups))['price_per_sqft_deviation_class_township'].rank()
+    df['price_deviation_class_township_rank'] = outs.groupby(list(groups))['price_deviation_class_township'].rank()
     df['outlier_description'] = df.apply(outlier_description, axis=1)
 
     df.reset_index(inplace=True)
-    
+
     df['pin'] = df['pin'].astype(str).str.pad(14,fillchar='0')
 
     df.sort_values(by=['outlier_type'], ascending=[True], inplace=True)
@@ -64,6 +66,7 @@ def analyst_readable(df, groups):
        'sale_price_deviation_county', 'price_per_sqft_deviation_county',
        'pct', 'pct_deviation_class_township',
        'price_deviation_class_township_percentile', 'price_per_sqft_deviation_class_township_percentile',
+       'price_per_sqft_deviation_class_township_rank', 'price_deviation_class_township_rank',
        'name_match', 'anomaly', 'short_owner', 'previous_price', 
        'is_sale_between_related_individuals_or_corporate_affiliates',
        'is_transfer_of_less_than_100_percent_interest',
