@@ -256,13 +256,8 @@ def pricing_stats(df: pd.DataFrame, permut: tuple, groups: tuple) -> pd.DataFram
 
     holds = get_thresh(df, prices, permut)
 
-    # only get the outliers for actual prices, we only want
-    # the price swings if it is also a price outlier
-    price_outs = over_std(df, 'township_code', prices[:2], permut)
-    price_outs = price_outs.sale_key.to_list()
-
-    df['pricing'] = df.apply(price_column, args=(holds, price_outs), axis=1)
-    df['which_price'] = df.apply(which_price, args=(holds, price_outs), axis=1)
+    df['pricing'] = df.apply(price_column, args=(holds,), axis=1)
+    df['which_price'] = df.apply(which_price, args=(holds,), axis=1)
 
     return df
 
@@ -287,17 +282,20 @@ def special_flag(row) -> str:
     return value
 
 
-def which_price(row, thresholds: dict, outliers: list) -> str:
+def which_price(row, thresholds: dict) -> str:
     """
     Determines whether sale_price, price_per_sqft, or both are outliers,
     and returns a string resembling it.
     Inputs:
         thresholds (dict): dict of thresholds from get_thresh
-        outlier (list): list of outliers from over_std
     Outputs:
         value (str): string saying which of these are outliers.
     """
-    if row['sale_key'] in outliers:
+
+    value = 'Non-outlier'
+
+    if thresholds.get('price_deviation_class_township').get((row['township_code'], row['class'])) and \
+        thresholds.get('price_per_sqft_deviation_class_township').get((row['township_code'], row['class'])):
         s_std, *s_std_range = thresholds.get('price_deviation_class_township').get((row['township_code'], row['class']))
         s_lower, s_upper = s_std_range
         sq_std, *sq_std_range = thresholds.get('price_per_sqft_deviation_class_township').get((row['township_code'], row['class']))
@@ -311,8 +309,6 @@ def which_price(row, thresholds: dict, outliers: list) -> str:
         elif not between_two_numbers(row['price_deviation_class_township'], s_lower, s_upper) and \
             not between_two_numbers(row['price_per_sqft_deviation_class_township'], sq_lower, sq_upper):
             value = '(raw & sqft)'
-    else:
-        value = 'Non-outlier'
 
     return value
 
@@ -324,17 +320,20 @@ def between_two_numbers(num: int or float, a: int or float, b: int or float):
         return False
 
 
-def price_column(row, thresholds: dict,  outliers: list) -> str:
+def price_column(row, thresholds: dict) -> str:
     """
     Determines whether the record is a high price outlier or a low price outlier.
     If the record is also a price change outlier, than add 'swing' to the string.
     Inputs:
         thresholds (dict): dict of standard deviation thresholds from get_thresh()
-        outliers (dict): list of outliers from over_std()
     Outputs:
         value (str): string showing what kind of price outlier the record is.
     """
-    if row['sale_key'] in outliers:
+    value = 'Not price outlier'
+    price = False
+
+    if thresholds.get('price_deviation_class_township').get((row['township_code'], row['class'])) and \
+        thresholds.get('price_per_sqft_deviation_class_township').get((row['township_code'], row['class'])):
         s_std, *s_std_range = thresholds.get('price_deviation_class_township').get((row['township_code'], row['class']))
         s_lower, s_upper = s_std_range
         sq_std, *sq_std_range = thresholds.get('price_per_sqft_deviation_class_township').get((row['township_code'], row['class']))
@@ -342,10 +341,12 @@ def price_column(row, thresholds: dict,  outliers: list) -> str:
 
         if row['price_deviation_class_township'] > s_upper or row['price_per_sqft_deviation_class_township'] > sq_upper:
             value = 'High price'
+            price = True
         elif row['price_deviation_class_township'] < s_lower or row['price_per_sqft_deviation_class_township'] < sq_lower:
             value = 'Low price'
+            price = True
 
-        if pd.notnull(row['pct_deviation_class_township']) and \
+        if price and pd.notnull(row['pct_deviation_class_township']) and \
             thresholds.get('pct_deviation_class_township').get((row['township_code'], row['class'])):
             # not every class/township combo has pct change info so we need this check
             p_std, *p_std_range = thresholds.get('pct_deviation_class_township').get((row['township_code'], row['class']))
@@ -353,8 +354,6 @@ def price_column(row, thresholds: dict,  outliers: list) -> str:
             if row['price_movement'] == 'Away from mean' and \
                 not between_two_numbers(row['pct_deviation_class_township'], p_lower, p_upper):
                 value += ' swing'
-    else:
-        value = 'Not price outlier'
 
     return value
 
@@ -577,33 +576,6 @@ def get_thresh(df: pd.DataFrame, cols: list, permut: tuple) -> dict:
         stds[col] = limits
 
     return stds
-
-
-def over_std(df: pd.DataFrame, group: str, cols: list, permuts: tuple) -> pd.DataFrame:
-    """
-    Returns a DataFrame that includes outliers for each column, for the given grouping
-    and std permutation.
-    Inputs:
-        df (pd.DataFrame): Dataframe to take columsn from.
-        group (str): How to group in groupby. Most likely 'township_code'.
-        cols (list): columns to get outliers for
-        permuts (tuple): std range
-    Outputs:
-        all_outs (pd.DataFrame): DataFrame containing all outliers for given parameters.
-    """
-    outties = []
-
-    for col in cols:
-        df[col] = df[col].astype(float)
-        if col == 'pct':
-            df = df[df.price_movement == 'Away from mean']
-        outties.append(
-            df.dropna(subset=[group, col])[df.groupby([group, 'class'])[col].apply(
-                is_outlier_groupby, permuts[0], permuts[1])])
-
-    all_outs = pd.concat(outties).drop_duplicates()
-
-    return all_outs
 
 
 def z_normalize(df: pd.DataFrame, columns: list) -> pd.DataFrame:
