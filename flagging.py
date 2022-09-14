@@ -35,7 +35,14 @@ def go(permut: tuple, groups: tuple, output_file: str):
 def outlier_taxonomy(df: pd.DataFrame, permut: tuple, groups: tuple):
     """
     Creates columns having to do with our chosen outlier taxonomy.
-    Ex: Family sale, Home flip sale, Non-person sale, High price (raw and or sqft), etc
+    Ex: Family sale, Home flip sale, Non-person sale, High price (raw and or sqft), etc.
+    Inputs:
+        df (pd.DataFrame): dataframe to create taxonomy on.
+        permut (tuple): permutation of std deviations
+        groups (tuple): columns to do grouping on.
+                        Probably 'township_code' and 'class'.
+    Ouputs:
+        df (pd.DataFrame): dataframe with outlier taxonomy
     """
 
     df['short_owner'] = df.apply(check_days, args=(SHORT_TERM_OWNER_THRESHOLD,), axis=1)
@@ -256,7 +263,8 @@ def pricing_info(df: pd.DataFrame, permut: tuple, groups: tuple) -> pd.DataFrame
     df.rename(columns={'sale_price_zscore': 'sale_price_deviation_county',
                        'price_per_sqft_zscore': 'price_per_sqft_deviation_county'}, inplace=True)
 
-    prices = ['price_per_sqft_deviation_class_township', 'price_deviation_class_township', 'pct_deviation_class_township']
+    prices = ['price_per_sqft_deviation_class_township', 
+              'price_deviation_class_township', 'pct_deviation_class_township']
 
     df['price_deviation_class_township'] = df.groupby(list(groups))['sale_price'].apply(z_normalize_groupby)
     df['price_per_sqft_deviation_class_township'] = df.groupby(list(groups))['price_per_sqft'].apply(z_normalize_groupby)
@@ -321,7 +329,7 @@ def which_price(row, thresholds: dict) -> str:
     return value
 
 
-def between_two_numbers(num: int or float, a: int or float, b: int or float):
+def between_two_numbers(num: int or float, a: int or float, b: int or float) -> bool:
     if num:
         return a < num and num < b
     else:
@@ -340,24 +348,32 @@ def price_column(row, thresholds: dict) -> str:
     value = 'Not price outlier'
     price = False
 
-    if thresholds.get('price_deviation_class_township').get((row['township_code'], row['class'])) and \
-        thresholds.get('price_per_sqft_deviation_class_township').get((row['township_code'], row['class'])):
-        s_std, *s_std_range = thresholds.get('price_deviation_class_township').get((row['township_code'], row['class']))
+    if thresholds.get('price_deviation_class_township').get(
+        (row['township_code'], row['class'])) and\
+        thresholds.get('price_per_sqft_deviation_class_township').get(
+            (row['township_code'], row['class'])):
+        s_std, *s_std_range = thresholds.get('price_deviation_class_township').get(
+            (row['township_code'], row['class']))
         s_lower, s_upper = s_std_range
-        sq_std, *sq_std_range = thresholds.get('price_per_sqft_deviation_class_township').get((row['township_code'], row['class']))
+        sq_std, *sq_std_range = thresholds.get('price_per_sqft_deviation_class_township').get(
+            (row['township_code'], row['class']))
         sq_lower, sq_upper = sq_std_range
 
-        if row['price_deviation_class_township'] > s_upper or row['price_per_sqft_deviation_class_township'] > sq_upper:
+        if row['price_deviation_class_township'] > s_upper or\
+            row['price_per_sqft_deviation_class_township'] > sq_upper:
             value = 'High price'
             price = True
-        elif row['price_deviation_class_township'] < s_lower or row['price_per_sqft_deviation_class_township'] < sq_lower:
+        elif row['price_deviation_class_township'] < s_lower or\
+            row['price_per_sqft_deviation_class_township'] < sq_lower:
             value = 'Low price'
             price = True
 
-        if price and pd.notnull(row['pct_deviation_class_township']) and \
-            thresholds.get('pct_deviation_class_township').get((row['township_code'], row['class'])):
+        if price and pd.notnull(row['pct_deviation_class_township']) and\
+            thresholds.get('pct_deviation_class_township').get(
+                (row['township_code'], row['class'])):
             # not every class/township combo has pct change info so we need this check
-            p_std, *p_std_range = thresholds.get('pct_deviation_class_township').get((row['township_code'], row['class']))
+            p_std, *p_std_range = thresholds.get('pct_deviation_class_township').get(
+                (row['township_code'], row['class']))
             p_lower, p_upper = p_std_range
             if row['price_movement'] == 'Away from mean' and \
                 not between_two_numbers(row['pct_deviation_class_township'], p_lower, p_upper):
@@ -420,24 +436,6 @@ def dup_stats(df: pd.DataFrame, groups: tuple) -> pd.DataFrame:
     df = pd.merge(df, dups, how='outer')
 
     return df
-
-
-def is_outlier_groupby(s: pd.Series, lower_lim : int, upper_lim: int) -> pd.DataFrame:
-    """
-    Finds values outside of std deviation range.
-    Function meant for use in groupby apply() only.
-    Inputs:
-        s: pandas row
-        lower_lim (int): lower std limit
-        upper_lim (int): upper std limit
-    Outputs:
-        dataframe with only entries between
-        lower_limit and upper_limit
-    """
-    lower_limit = s.mean() - (s.std(ddof=0) * lower_lim)
-    upper_limit = s.mean() + (s.std(ddof=0) * upper_lim)
-
-    return ~s.between(lower_limit, upper_limit)
 
 
 def price_sqft(df: pd.DataFrame) -> pd.DataFrame:
@@ -614,7 +612,17 @@ def z_normalize(df: pd.DataFrame, columns: list) -> pd.DataFrame:
     return df
 
 
-def z_normalize_groupby(s):
+def z_normalize_groupby(s: pd.Series):
+    """
+    Function used to z_normailize groups of records.
+    Pandas stiches it back together into a complete column.
+    Meant for groupby.apply().
+    Inputs:
+        s(pd.Series): grouped series from groupby.apply
+    Ouputs:
+        z_normalized series grouped by class and township
+        that is then stiched into complete column by pandas
+    """
     return zscore(s, nan_policy='omit')
 
 
@@ -661,32 +669,40 @@ def outlier_type(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def outlier_description(row):
-
+    """
+    Creates an column is an easily interpretable summary of
+    highly relevant information for the particular record.
+    Depends on the outlier taxonomy.
+    Meant for apply().
+    """
     if '(raw & sqft)' in row['which_price']:
-        price_expression = f"""raw price outlier of {round(row['price_deviation_class_township'], 1)} deviations away from the mean and a price per sqft outlier of {round(row['price_per_sqft_deviation_class_township'], 1)} deviations away from the mean"""
+        price_expression = f"raw price outlier of {round(row['price_deviation_class_township'], 1)}"\
+                           f" deviations away from the mean and a price per sqft outlier of {round(row['price_per_sqft_deviation_class_township'], 1)}"\
+                           f" deviations away from the mean"
     if '(raw)' in row['which_price']:
-        price_expression = f"""raw price outlier of {round(row['price_deviation_class_township'], 1)} deviations away from the mean"""
+        price_expression = f"raw price outlier of {round(row['price_deviation_class_township'], 1)} deviations away from the mean"
     if '(sqft)' in row['which_price']:
         price_expression = f"""price per sqft outlier of {round(row['price_per_sqft_deviation_class_township'], 1)} deviations away from the mean"""
 
     if 'Home flip sale' in row['outlier_type']:
-        value = f"""Likely home flip sale with {price_expression} The price changed from {format(row['previous_price'])} to {format(row['sale_price'])} and the previous owner owned the property for only {row['days_since_last_transaction']} days.
-        """
+        value = f"Likely home flip sale with {price_expression}"\
+                f" The price changed from {format(row['previous_price'])} to {format(row['sale_price'])}"\
+                f" and the previous owner owned the property for only {row['days_since_last_transaction']} days."
     elif 'Family sale' in row['outlier_type']:
-        value = f"""Likely family sale. We have identified a match between the names of the party's: '{row['name_match']}'. It is a {'high' if 'high' in row['outlier_type'] else 'low'} {price_expression}
-        """
+        value = f"Likely family sale. We have identified a match between the names of the party's: '{row['name_match']}'."\
+                f" It is a {'high' if 'high' in row['outlier_type'] else 'low'} {price_expression}"
     elif 'Non-person' in row['outlier_type']:
-        value = f"""Transaction where both buyer and seller were identified as legal entities. It is a {'high' if 'high' in row['outlier_type'] else 'low'} {price_expression}         
-        """
+        value = f"Transaction where both buyer and seller were identified as legal entities."\
+                f" It is a {'high' if 'high' in row['outlier_type'] else 'low'} {price_expression}"
     elif 'High price swing' in row['outlier_type']:
-        value = f"""Transaction is both a compound growth rate outlier {round(row['pct_deviation_class_township'], 1)} deviations away from the mean as well as a high {price_expression}
-        """
+        value = f"Transaction is both a compound growth rate outlier {round(row['pct_deviation_class_township'], 1)}"\
+                f" deviations away from the mean as well as a high {price_expression}"
     elif 'Low price swing' in row['outlier_type']:
-        value = f"""Transaction is both a compound growth rate outlier {round(row['pct_deviation_class_township'], 1)} deviations away from the mean as well as a low {price_expression}
-        """
+        value = f"Transaction is both a compound growth rate outlier"\
+                f" {round(row['pct_deviation_class_township'], 1)} deviations away from the mean as well as a low {price_expression}"
     elif 'Anomaly' in row['outlier_type']:
-        value = f"""Transaction was detected as anomalous by our anomaly algorithm and is a {'high' if 'high' in row['outlier_type'] else 'low'} {price_expression}
-        """
+        value = f"Transaction was detected as anomalous by our anomaly algorithm and is a"\
+                f" {'high' if 'high' in row['outlier_type'] else 'low'} {price_expression}"
     elif '(raw & sqft)' in row['outlier_type']:
         value = f"""Transaction is a {'high' if 'High' in row['outlier_type'] else 'low'} {price_expression}
         """
