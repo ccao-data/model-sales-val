@@ -14,7 +14,7 @@ from sklearn.decomposition import PCA
 SHORT_TERM_OWNER_THRESHOLD = 365 # 365 = 365 days or 1 year
 
 
-def go(columns: list, permut: tuple, groups: tuple, output_file: str):
+def go(permut: tuple, groups: tuple, output_file: str):
 
     df = read_data('sale_sample_18-21.parquet', 'cards.csv', 'char_sample.csv')
 
@@ -22,28 +22,38 @@ def go(columns: list, permut: tuple, groups: tuple, output_file: str):
 
     df = string_processing(df)
 
-    df = pricing_stats(df, permut, groups)
-
     # need all important info about transaction
-    df = iso_forest(df, ['sale_price', 'price_per_sqft', 'days_since_last_transaction'] + columns)
+    df = iso_forest(df, ['sale_price', 'price_per_sqft', 'days_since_last_transaction', 'pct', 'counts'])
+
+    df = outlier_taxonomy(df, permut, groups)
 
     df = analyst_readable(df, groups)
 
-    print(df.columns)
-
     df.to_csv(output_file, index=False)
+
+
+def outlier_taxonomy(df: pd.DataFrame, permut: tuple, groups: tuple):
+    """
+    Creates columns having to do with our chosen outlier taxonomy.
+    Ex: Family sale, Home flip sale, Non-person sale, High price (raw and or sqft), etc
+    """
+
+    df['short_owner'] = df.apply(check_days, args=(SHORT_TERM_OWNER_THRESHOLD,), axis=1)
+
+    df = pricing_info(df, permut, groups)
+
+    df = outlier_type(df)
+    df['is_outlier'] = df.apply(outlier_flag, axis=1)
+    df['special_flags'] = df.apply(special_flag, axis=1)
+
+    return df
 
 
 def analyst_readable(df, groups):
     """
     A function that helps make the resulting spreadsheet more readable for analysts.
+    Relies on our existing outlier taxonomy.
     """
-
-    df['short_owner'] = df.apply(check_days, args=(SHORT_TERM_OWNER_THRESHOLD,), axis=1)
-
-    df = outlier_type(df)
-    df['is_outlier'] = df.apply(outlier_flag, axis=1)
-    df['special_flags'] = df.apply(special_flag, axis=1)
 
     df.set_index('sale_key', inplace=True)
     outs = df[df['is_outlier'] == 'Outlier']
@@ -226,7 +236,7 @@ def read_data(sales_name: str, card_name: str, char_name: str) -> pd.DataFrame:
     return df
 
 
-def pricing_stats(df: pd.DataFrame, permut: tuple, groups: tuple) -> pd.DataFrame:
+def pricing_info(df: pd.DataFrame, permut: tuple, groups: tuple) -> pd.DataFrame:
     """
     Creates information about whether the price is an outlier, and its movement.
     Also fetches the sandard deviation for the record.
@@ -694,6 +704,11 @@ def outlier_description(row):
 
 
 def outlier_flag(row) -> str:
+    """
+    Creates a flag that shows whether the record is an
+    outlier (a special flag) according to our outlier taxonomy.
+    Meant for apply().
+    """
 
     if row['outlier_type'] == 'Not outlier':
         value = 'Not outlier'
@@ -750,7 +765,23 @@ def outlier_flag(row) -> str:
     """
 
 
-entity_keywords = r"llc| ll$| l$|l l c|estate|training|construction|building|masonry|apartments|plumbing|service|professional|roofing|advanced|office|\blaw\b|loan|legal|production|woodwork|concepts|corp| company| united|\binc\b|county|entertainment|community|heating|cooling|partners|equity|indsutries|series|revitalization|collection|agency|renovation|consulting|flippers|estates|\bthe \b|dept|funding|opportunity|improvements|servicing|equities|sale|judicial| in$|bank|\btrust\b|holding|investment|housing|properties|limited|realty|development|capital|management|developers|construction|rentals|group|investments|invest|residences|enterprise|enterprises|ventures|remodeling|specialists|homes|business|venture|restoration|renovations|maintenance|ltd|real estate|builders|buyers|property|financial|associates|consultants|international|acquisitions|credit|design|homeownership|solutions|home|diversified|assets|family|land|revocable|services|rehabbing|living|county of cook|fannie mae|land|veteran|mortgage|savings|lp$"
+entity_keywords = r"llc| ll$| l$|l l c|estate|training|construction|building|masonry|"\
+                  r"apartments|plumbing|service|professional|roofing|advanced|office|"\
+                  r"\blaw\b|loan|legal|production|woodwork|concepts|corp| company|"\
+                  r" united|\binc\b|county|entertainment|community|heating|cooling"\
+                  r"|partners|equity|indsutries|series|revitalization|collection|"\
+                  r"agency|renovation|consulting|flippers|estates|\bthe \b|dept|"\
+                  r"funding|opportunity|improvements|servicing|equities|sale|"\
+                  r"judicial| in$|bank|\btrust\b|holding|investment|housing"\
+                  r"|properties|limited|realty|development|capital|management"\
+                  r"|developers|construction|rentals|group|investments|invest|"\
+                  r"residences|enterprise|enterprises|ventures|remodeling|"\
+                  r"specialists|homes|business|venture|restoration|renovations"\
+                  r"|maintenance|ltd|real estate|builders|buyers|property|financial"\
+                  r"|associates|consultants|international|acquisitions|credit|design"\
+                  r"|homeownership|solutions|home|diversified|assets|family|land|"\
+                  r"revocable|services|rehabbing|living|county of cook|fannie mae|"\
+                  r"land|veteran|mortgage|savings|lp$"
 
 
 def get_id(row, col: str) -> str:
@@ -792,16 +823,19 @@ def get_id(row, col: str) -> str:
     if any(x in words for x in ['cirrus investment group l', 'cirrus investment group']):
         return 'cirrus investment group'
 
-    if any(x in words for x in ['fannie mae aka federal na',  'fannie mae a k a federal', 'federal national mortgage']):
+    if any(x in words for x in ['fannie mae aka federal na', 
+                                'fannie mae a k a federal', 'federal national mortgage']):
         return 'fannie mae'
 
-    if any(x in words for x in ['the judicial sales corpor', 'judicial sales corp', 'judicial sales corporatio', 'judicial sale corp', 'the judicial sales corp']):
+    if any(x in words for x in ['the judicial sales corpor', 'judicial sales corp',
+                                'judicial sales corporatio', 'judicial sale corp', 'the judicial sales corp']):
         return 'the judicial sales corporation'
 
     if any(x in words for x in ['jpmorgan chase bank n a', 'jpmorgan chase bank nati']):
         return 'jp morgan chase bank'
 
-    if any(x in words for x in ['wells fargo bank na',  'wells fargo bank n a',  'wells fargo bank nationa',  'wells fargo bank n a a']):
+    if any(x in words for x in ['wells fargo bank na',  'wells fargo bank n a', 
+                                'wells fargo bank nationa',  'wells fargo bank n a a']):
         return 'wells fargo bank national'
 
     if any(x in words for x in ['bayview loan servicing l',  'bayview loan servicing ll']):
@@ -816,7 +850,8 @@ def get_id(row, col: str) -> str:
     if any(x in words for x in ['ih2 property illinois lp', 'ih2 property illinois l']):
         return 'ih2 property illinois lp'
 
-    if any(x in words for x in ['secretary of housing and',  'the secretary of housing', 'secretary of housing ']):
+    if any(x in words for x in ['secretary of housing and', 
+                                'the secretary of housing', 'secretary of housing ']):
         return 'secretary of housing and urban development'
 
     if any(x in words for x in ['secretary of veterans aff', 'the secretary of veterans']):
@@ -825,21 +860,31 @@ def get_id(row, col: str) -> str:
     if any(x in words for x in ['bank of america n a', 'bank of america na', 'bank of america national',]):
         return 'bank of america national'
 
-    if any(x in words for x in ['us bank national association', 'u s bank national assoc', 'u s bank national associ', 'u s bank trust n a as', 'u s bank n a', 'us bank national associat', 'u s bank trust national']):
+    if any(x in words for x in ['us bank national association', 'u s bank national assoc',
+                                'u s bank national associ', 'u s bank trust n a as', 'u s bank n a',
+                                'us bank national associat', 'u s bank trust national']):
         return 'us bank national association'
 
-    words = re.sub('suc t$|as succ t$|successor tr$|successor tru$|successor trus$|successor trust$|successor truste$|successor trustee$|successor t$|as successor t$',
+    words = re.sub('suc t$|as succ t$|successor tr$|successor tru$|'\
+                    'successor trus$|successor trust$|successor truste$|'\
+                    'successor trustee$|successor t$|as successor t$',
                    'as successor trustee', words)
-    words = re.sub('as t$|as s t$|as sole t$|as tr$|as tru$|as trus$|as trust$|as truste$|as trustee$|as trustee o$|as trustee of$|trustee of$|trustee of$|tr$|tru$|trus$|truste$|trustee$|, t|, tr|, tru|, trus|, trust|, truste',
+    words = re.sub('as t$|as s t$|as sole t$|as tr$|as tru$|as trus$|as trust$|'\
+                    'as truste$|as trustee$|as trustee o$|as trustee of$|trustee of$|'\
+                    'trustee of$|tr$|tru$|trus$|truste$|trustee$|, t|, tr|, tru|, trus|, trust|, truste',
                    'as trustee', words)
-    words = re.sub('su$|suc$|succ$|succe$|succes$|success$|successo$|successor$|as s$|as su$|as suc$|as succ$|as succe$|as sucess$|as successo$|, s$|, su$|, suc$|, succ$|, succe$|, succes$|, success$|, successo$',
+    words = re.sub('su$|suc$|succ$|succe$|succes$|success$|successo$|successor$|as s$|as su$|'\
+                    'as suc$|as succ$|as succe$|as sucess$|as successo$|, s$|, su$|, suc$|, succ$|'\
+                    ', succe$|, succes$|, success$|, successo$',
                    'as successor', words)
 
-    if re.search(entity_keywords, words) or re.search(r'\d{4}|\d{3}', words) or re.search('as trustee$|as successor$|as successor trustee$', words):
+    if re.search(entity_keywords, words) or re.search(r'\d{4}|\d{3}', words) or \
+        re.search('as trustee$|as successor$|as successor trustee$', words):
         id = words
         return id
 
-    words = re.sub(' in$|indi$|indiv$|indivi$|indivi$|individ$|individu$|individua$|individual$|not i$|not ind$| ind$| inde$|indep$|indepe$|indepen$|independ$|independe$|independen$|independent$',
+    words = re.sub(' in$|indi$|indiv$|indivi$|indivi$|individ$|individu$|individua$|individual$'\
+                   '|not i$|not ind$| ind$| inde$|indep$|indepe$|indepen$|independ$|independe$|independen$|independent$',
                    '', words)
 
     tokens = split_logic(words)
@@ -868,7 +913,8 @@ def split_logic(words: str):
 
     words = re.sub(' as$| as $|as $','', words)
 
-    _and = re.search(r'\b and\b|\b an$\b|\b a$\b|f k a|\bfka\b| n k a|\bnka\b|\b aka\b|a k a|\b kna\b|k n a| f k$|n k$|a k$|\b not\b| married', words)
+    _and = re.search(r'\b and\b|\b an$\b|\b a$\b|f k a|\bfka\b| n k a|\bnka\b|'\
+                     r'\b aka\b|a k a|\b kna\b|k n a| f k$|n k$|a k$|\b not\b| married', words)
 
     if _and:
         tokens = words.split(_and.group())
@@ -890,7 +936,7 @@ def name_selector(tokens) -> str:
     """
     if tokens == 'Empty Name':
         return tokens
-
+    # Ex: John Smith Jr
     if tokens[-1] in ['jr', 'sr', 'ii', 'iii', 'iv', 'v']:
         tokens = tokens[:-1]
     #Ex: John Smith
@@ -1078,8 +1124,8 @@ def string_processing(df: pd.DataFrame) -> pd.DataFrame:
     df['seller_id'] = df.apply(get_id, args=('seller',), axis=1)
     df['buyer_category'] = df.apply(get_category, args=('buyer',), axis=1)
     df['seller_category'] = df.apply(get_category, args=('seller',), axis=1)
-    df['buyer_role'] = df.apply(get_role, args=('buyer',), axis=1)
-    df['seller_role'] = df.apply(get_role, args=('seller',), axis=1)
+    #df['buyer_role'] = df.apply(get_role, args=('buyer',), axis=1)
+    #df['seller_role'] = df.apply(get_role, args=('seller',), axis=1)
     df['buyer_id'] = df.apply(clean_id, args=('buyer',), axis=1)
     df['seller_id'] = df.apply(clean_id, args=('seller',), axis=1)
     df['transaction_type'] = df.apply(transaction_type, axis=1)
@@ -1090,7 +1136,4 @@ def string_processing(df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
-
-columns = ['pct', 'counts']
-
-go(columns, (2,2), ('township_code', 'class'), 'flagged_redo.csv')
+go((2,2), ('township_code', 'class'), 'flagged.csv')
