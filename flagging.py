@@ -3,6 +3,7 @@ This file contains all necessary functions to create a DataFrame ready to use fo
 non-arms length transaction detection using statistical and heurstic methods.
 """
 
+import argparse
 import pandas as pd
 import numpy as np
 import re
@@ -23,7 +24,7 @@ def go(permut: tuple, groups: tuple, output_file: str):
     df = string_processing(df)
 
     # need all important info about transaction
-    df = iso_forest(df, ['sale_price', 'price_per_sqft', 'days_since_last_transaction', 'pct', 'counts'])
+    df = iso_forest(df, groups, ['sale_price', 'price_per_sqft', 'days_since_last_transaction', 'pct', 'counts'])
 
     df = outlier_taxonomy(df, permut, groups)
 
@@ -139,10 +140,18 @@ def analyst_readable(df, groups):
     df.rename(columns={'counts': 'number_of_transactions',
                        'township_code': 'township'}, inplace=True)
 
+    df['sale_date'] = df['sale_date'].dt.strftime('%Y-%m-%d')
+    df['pct'] = df['pct'].fillna(0)
+    df['pct_deviation_class_township'] = df['pct_deviation_class_township'].fillna(0)
+    df['previous_price'] = df['previous_price'].fillna(0)
+    df['days_since_last_transaction'] = df['days_since_last_transaction'].fillna(0)
+    df['price_movement'] = df['price_movement'].fillna('First sale')
+
     return df
 
 
 def iso_forest(df: pd.DataFrame,
+               groups: tuple,
                columns: list,
                n_estimators: int = 1000,
                max_samples: int or float = .2) -> pd.DataFrame:
@@ -152,6 +161,7 @@ def iso_forest(df: pd.DataFrame,
     IsoForest model with given parameters.
     Inputs:
         df (pd.DataFrame): dataframe with data for IsoForest
+        groups (tuple): grouping for the data to input into the IsoForest
         columns (list): list with columns to run PCA/IsoForest on
         n_estimators (int): 
         max_samples(int or float): share of data to use as sample if float,
@@ -159,13 +169,16 @@ def iso_forest(df: pd.DataFrame,
     Outputs:
         df (pd.DataFrame): with 'anomaly' column from IsoForest.
     """
+    group1 = groups[0]
+    group2 = groups[1]
+
     df.set_index('sale_key', inplace=True)
 
     feed = pca(df, columns)
 
     feed.index = df.index
-    feed['township_code'] = df['township_code']
-    feed['class'] = df['class']
+    feed[group1] = df[group1]
+    feed[group2] = df[group2]
 
     isof = IsolationForest(n_estimators=n_estimators, max_samples=max_samples, bootstrap=True, random_state=42)
     df['anomaly'] = isof.fit_predict(feed)
@@ -263,7 +276,7 @@ def pricing_info(df: pd.DataFrame, permut: tuple, groups: tuple) -> pd.DataFrame
     df.rename(columns={'sale_price_zscore': 'sale_price_deviation_county',
                        'price_per_sqft_zscore': 'price_per_sqft_deviation_county'}, inplace=True)
 
-    prices = ['price_per_sqft_deviation_class_township', 
+    prices = ['price_per_sqft_deviation_class_township',
               'price_deviation_class_township', 'pct_deviation_class_township']
 
     df['price_deviation_class_township'] = df.groupby(list(groups))['sale_price'].apply(z_normalize_groupby)
@@ -278,10 +291,12 @@ def pricing_info(df: pd.DataFrame, permut: tuple, groups: tuple) -> pd.DataFrame
     return df
 
 
-def special_flag(row) -> str:
+def special_flag(row: pd.Series) -> str:
     """
     Creates column that checks whether there is a special flag for this record.
     Meant for apply().
+    Inputs:
+        row (pd.Series): from apply()
     Outputs:
         value (str): the special flag for the transaction.
     """
@@ -293,12 +308,12 @@ def special_flag(row) -> str:
     elif row['transaction_type'] == 'legal_entity-legal_entity':
         value = 'Non-person sale'
     else:
-        value = None
+        value = 'Not special'
 
     return value
 
 
-def which_price(row, thresholds: dict) -> str:
+def which_price(row: pd.Series, thresholds: dict) -> str:
     """
     Determines whether sale_price, price_per_sqft, or both are outliers,
     and returns a string resembling it.
@@ -336,7 +351,7 @@ def between_two_numbers(num: int or float, a: int or float, b: int or float) -> 
         return False
 
 
-def price_column(row, thresholds: dict) -> str:
+def price_column(row: pd.Series, thresholds: dict) -> str:
     """
     Determines whether the record is a high price outlier or a low price outlier.
     If the record is also a price change outlier, than add 'swing' to the string.
@@ -507,13 +522,13 @@ def get_movement(dups: pd.DataFrame, groups:tuple) -> pd.DataFrame:
 
     temp = dups.sort_values('sale_date').groupby(['pin'])[f'diff_from_{group1}_{group2}_mean_sale'].shift()
     dups['price_movement'] = dups[f'diff_from_{group1}_{group2}_mean_sale'].lt(temp).astype(float)
-    dups['price_movement'] = np.select([dups['price_movement'] == 0, dups['price_movement'] == 1],
-                                        ['Away from mean', 'Towards mean'])
+    dups['price_movement'] = np.select([(dups['price_movement'] == 0), (dups['price_movement'] == 1)],
+                                        ['Away from mean', 'Towards mean'], default='First sale')
 
     return dups
 
 
-def cgr(row) -> float or np.nan:
+def cgr(row: pd.Series) -> float or np.nan:
     """
     Calculate the compound growth rate where the previous transaction is the
     beginning value, the current price is the end value, and the number of periods
@@ -526,7 +541,6 @@ def cgr(row) -> float or np.nan:
     Outputs:
         value(float): CGR of record
     """
-
     if pd.notnull(row['previous_price']):
         time = row['days_since_last_transaction']
 
@@ -552,11 +566,21 @@ def transaction_days(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def check_days(row, threshold: int) -> str:
+def check_days(row: pd.Series, threshold: int) -> str:
+    """
+    Creates a label of whether or not the transaction
+    was only owned for a short term.
+    If owned for less than the threshold, is a short term owner.
+    Inputs:
+        row (pd.Series): from apply()
+        threshold (int): the threshold fo being a short term owner
+    Oututs:
+        value (str): whether is a short term owner
+    """
     if row['days_since_last_transaction'] < threshold:
         value = 'Short-term owner'
     else:
-        value = None
+        value = f'Over {threshold} days'
 
     return value
 
@@ -668,31 +692,38 @@ def outlier_type(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def outlier_description(row):
+def outlier_description(row: pd.Series) -> str:
     """
     Creates an column is an easily interpretable summary of
     highly relevant information for the particular record.
     Depends on the outlier taxonomy.
     Meant for apply().
+    Inputs:
+        row(pd.Series): from apply
+    Outputs:
+        value (str): description for the outlier
     """
+    likely_message_expression = "However, this name match occurs much more often than expected by random chance, and the parties may not be related."
+
     if '(raw & sqft)' in row['which_price']:
-        price_expression = f"raw price outlier of {round(row['price_deviation_class_township'], 1)}"\
-                           f" deviations away from the mean and a price per sqft outlier of {round(row['price_per_sqft_deviation_class_township'], 1)}"\
-                           f" deviations away from the mean"
+        price_expression = f"raw price of ${row['sale_price'] / 1000:,}K that is {round(row['price_deviation_class_township'], 1)}"\
+                           f" deviations away from the township/class mean and a price per sqft of ${round(row['price_per_sqft'], 1):,} that is {round(row['price_per_sqft_deviation_class_township'], 1)}"\
+                           f" deviations from township/class mean"
     if '(raw)' in row['which_price']:
-        price_expression = f"raw price outlier of {round(row['price_deviation_class_township'], 1)} deviations away from the mean"
+        price_expression = f"raw price of ${row['sale_price'] / 1000:,}K that is {round(row['price_deviation_class_township'], 1)} deviations from township/class mean"
     if '(sqft)' in row['which_price']:
-        price_expression = f"""price per sqft outlier of {round(row['price_per_sqft_deviation_class_township'], 1)} deviations away from the mean"""
+        price_expression = f"""price per sqft of ${round(row['price_per_sqft'], 1):,} that is {round(row['price_per_sqft_deviation_class_township'], 1)} deviations from township/class mean"""
 
     if 'Home flip sale' in row['outlier_type']:
         value = f"Likely home flip sale with {price_expression}"\
-                f" The price changed from {format(row['previous_price'])} to {format(row['sale_price'])}"\
+                f" The price changed from ${row['previous_price']/ 1000:,}K to ${row['sale_price'] / 1000:,}K"\
                 f" and the previous owner owned the property for only {row['days_since_last_transaction']} days."
     elif 'Family sale' in row['outlier_type']:
-        value = f"Likely family sale. We have identified a match between the names of the party's: '{row['name_match']}'."\
-                f" It is a {'high' if 'high' in row['outlier_type'] else 'low'} {price_expression}"
+        value = f"Likely family sale due to matching last name of: '{row['name_match']}'."\
+                f" {likely_message_expression if row['match_likely'] == 1 else ''}"\
+                f" It has a {'high' if 'high' in row['outlier_type'] else 'low'} {price_expression}"
     elif 'Non-person' in row['outlier_type']:
-        value = f"Transaction where both buyer and seller were identified as legal entities."\
+        value = f"Both buyer and seller were identified as legal entities."\
                 f" It is a {'high' if 'high' in row['outlier_type'] else 'low'} {price_expression}"
     elif 'High price swing' in row['outlier_type']:
         value = f"Transaction is both a compound growth rate outlier {round(row['pct_deviation_class_township'], 1)}"\
@@ -701,16 +732,16 @@ def outlier_description(row):
         value = f"Transaction is both a compound growth rate outlier"\
                 f" {round(row['pct_deviation_class_township'], 1)} deviations away from the mean as well as a low {price_expression}"
     elif 'Anomaly' in row['outlier_type']:
-        value = f"Transaction was detected as anomalous by our anomaly algorithm and is a"\
-                f" {'high' if 'high' in row['outlier_type'] else 'low'} {price_expression}"
+        value = f"Detected by anomaly algorithm with"\
+                f" {'high' if 'high' in row['outlier_type'] else 'Low'} {price_expression}"
     elif '(raw & sqft)' in row['outlier_type']:
-        value = f"""Transaction is a {'high' if 'High' in row['outlier_type'] else 'low'} {price_expression}
+        value = f"""{'High' if 'High' in row['outlier_type'] else 'Low'} {price_expression}
         """
     elif '(raw)' in row['outlier_type']:
-        value = f"""Transaction is a {'high' if 'High' in row['outlier_type'] else 'low'} {price_expression}
+        value = f"""{'High' if 'High' in row['outlier_type'] else 'Low'} {price_expression}
         """
     elif '(sqft)' in row['outlier_type']:
-        value = f"""Transaction is a {'high' if 'High' in row['outlier_type'] else 'low'} {price_expression}
+        value = f"""{'High' if 'High' in row['outlier_type'] else 'Low'} {price_expression}
         """
     else:
         value = 'Not outlier'
@@ -719,11 +750,15 @@ def outlier_description(row):
     return value
 
 
-def outlier_flag(row) -> str:
+def outlier_flag(row: pd.Series) -> str:
     """
     Creates a flag that shows whether the record is an
     outlier (a special flag) according to our outlier taxonomy.
     Meant for apply().
+    Inputs:
+        row (pd.Series): from apply()
+    Outputs:
+        value (str): whether record is outlier according to our taxonomy.
     """
 
     if row['outlier_type'] == 'Not outlier':
@@ -800,7 +835,7 @@ entity_keywords = r"llc| ll$| l$|l l c|estate|training|construction|building|mas
                   r"land|veteran|mortgage|savings|lp$"
 
 
-def get_id(row, col: str) -> str:
+def get_id(row: pd.Series, col: str) -> str:
     """
     Creates an ID from the buyer/seller name.
 
@@ -839,7 +874,7 @@ def get_id(row, col: str) -> str:
     if any(x in words for x in ['cirrus investment group l', 'cirrus investment group']):
         return 'cirrus investment group'
 
-    if any(x in words for x in ['fannie mae aka federal na', 
+    if any(x in words for x in ['fannie mae aka federal na',
                                 'fannie mae a k a federal', 'federal national mortgage']):
         return 'fannie mae'
 
@@ -850,7 +885,7 @@ def get_id(row, col: str) -> str:
     if any(x in words for x in ['jpmorgan chase bank n a', 'jpmorgan chase bank nati']):
         return 'jp morgan chase bank'
 
-    if any(x in words for x in ['wells fargo bank na',  'wells fargo bank n a', 
+    if any(x in words for x in ['wells fargo bank na',  'wells fargo bank n a',
                                 'wells fargo bank nationa',  'wells fargo bank n a a']):
         return 'wells fargo bank national'
 
@@ -866,14 +901,15 @@ def get_id(row, col: str) -> str:
     if any(x in words for x in ['ih2 property illinois lp', 'ih2 property illinois l']):
         return 'ih2 property illinois lp'
 
-    if any(x in words for x in ['secretary of housing and', 
+    if any(x in words for x in ['secretary of housing and',
                                 'the secretary of housing', 'secretary of housing ']):
         return 'secretary of housing and urban development'
 
     if any(x in words for x in ['secretary of veterans aff', 'the secretary of veterans']):
         return 'secretary of veterans affairs'
 
-    if any(x in words for x in ['bank of america n a', 'bank of america na', 'bank of america national',]):
+    if any(x in words for x in ['bank of america n a',
+                                'bank of america na', 'bank of america national',]):
         return 'bank of america national'
 
     if any(x in words for x in ['us bank national association', 'u s bank national assoc',
@@ -882,16 +918,17 @@ def get_id(row, col: str) -> str:
         return 'us bank national association'
 
     words = re.sub('suc t$|as succ t$|successor tr$|successor tru$|'\
-                    'successor trus$|successor trust$|successor truste$|'\
-                    'successor trustee$|successor t$|as successor t$',
+                   'successor trus$|successor trust$|successor truste$|'\
+                   'successor trustee$|successor t$|as successor t$',
                    'as successor trustee', words)
     words = re.sub('as t$|as s t$|as sole t$|as tr$|as tru$|as trus$|as trust$|'\
-                    'as truste$|as trustee$|as trustee o$|as trustee of$|trustee of$|'\
-                    'trustee of$|tr$|tru$|trus$|truste$|trustee$|, t|, tr|, tru|, trus|, trust|, truste',
+                   'as truste$|as trustee$|as trustee o$|as trustee of$|trustee of$|'\
+                   'trustee of$|tr$|tru$|trus$|truste$|trustee$|, t|, tr|, tru|, trus|'\
+                   ', trust|, truste',
                    'as trustee', words)
     words = re.sub('su$|suc$|succ$|succe$|succes$|success$|successo$|successor$|as s$|as su$|'\
-                    'as suc$|as succ$|as succe$|as sucess$|as successo$|, s$|, su$|, suc$|, succ$|'\
-                    ', succe$|, succes$|, success$|, successo$',
+                   'as suc$|as succ$|as succe$|as sucess$|as successo$|, s$|, su$|, suc$|, succ$|'\
+                   ', succe$|, succes$|, success$|, successo$',
                    'as successor', words)
 
     if re.search(entity_keywords, words) or re.search(r'\d{4}|\d{3}', words) or \
@@ -900,7 +937,8 @@ def get_id(row, col: str) -> str:
         return id
 
     words = re.sub(' in$|indi$|indiv$|indivi$|indivi$|individ$|individu$|individua$|individual$'\
-                   '|not i$|not ind$| ind$| inde$|indep$|indepe$|indepen$|independ$|independe$|independen$|independent$',
+                   '|not i$|not ind$| ind$| inde$|indep$|indepe$|indepen$|independ$|independe$'\
+                   '|independen$|independent$',
                    '', words)
 
     tokens = split_logic(words)
@@ -968,7 +1006,7 @@ def name_selector(tokens) -> str:
     return id
 
 
-def get_category(row, col: str) -> str:
+def get_category(row: pd.Series, col: str) -> str:
     """
     Gets category buyer/seller id. legal_entity if in entity keywords,
     person if otherwise.
@@ -992,7 +1030,7 @@ def get_category(row, col: str) -> str:
     return category
 
 
-def get_role(row, col: str) -> str:
+def get_role(row: pd.Series, col: str) -> str:
     """
     Picks the role th person is playing in the transaction off of the
     buyer/seller_id. Meant for apply()
@@ -1024,7 +1062,7 @@ def get_role(row, col: str) -> str:
     return role
 
 
-def clean_id(row, col: str) -> str:
+def clean_id(row: pd.Series, col: str) -> str:
     """
     Cleans id field after get_role() by removing role.
     Inputs:
@@ -1048,26 +1086,7 @@ def clean_id(row, col: str) -> str:
     return words
 
 
-def transaction_type(row) -> str:
-    """
-    Creates a column with transaction type.
-    Is buyer/seller category separated by hyphen.
-    Meant for apply().
-    Ex: person-person, legal-entity-person
-    Inputs:
-        row: from pandas dataframe
-    Outputs:
-        t_type (str): buyer/seller category separated by hypen.
-    """
-    buyer = row['buyer_category']
-    seller = row['seller_category']
-
-    t_type = buyer + '-' + seller
-
-    return t_type
-
-
-def create_judicial_flag(row) -> int:
+def create_judicial_flag(row: pd.Series) -> int:
     """
     Creates a column that contains 1 if sold from a judicial corp
     and 0 otherwise. Mean for use with apply().
@@ -1086,7 +1105,7 @@ def create_judicial_flag(row) -> int:
     return value
 
 
-def create_match_flag(row) -> str:
+def create_match_flag(row: pd.Series) -> str:
     """
     Creates a column that says whether the buyer/seller id match.
     Meant for apply().
@@ -1103,7 +1122,7 @@ def create_match_flag(row) -> str:
     return value
 
 
-def create_name_match(row) -> str:
+def create_name_match(row: pd.Series) -> str:
     """
     Creates a column that contains the actual string that was matched.
     Meant for apply().
@@ -1116,6 +1135,81 @@ def create_name_match(row) -> str:
         value = row['seller_id']
     else:
         value = 'No match'
+
+    return value
+
+
+def calc_name_occurences(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Calculates the expected number of occurences of a name matching with the same name
+    and the actual number of occcurences of each of these name matches.
+    Ex: probablity of 'garcia' matching with 'garcia' and
+    the actual number of times garcia was matched
+    Gives the is_match_likely apply() function required informtion.
+    Inputs:
+        df (pd.DataFrame): dataframe to calculate name probabilties for
+    Outputs:
+        df (pd.DataFrame): dataframe with 'actual_occurences' and
+                           'expected_occurences' column
+
+    """
+
+    buyers = df.buyer_id.value_counts().reset_index().set_index('index')
+    sellers = df.seller_id.value_counts().reset_index().set_index('index')
+
+    both = buyers.join(sellers)
+    both.fillna(0, inplace=True)
+    both['total'] = both['buyer_id'] + both['seller_id']
+    both.drop("Empty Name", axis=0, inplace=True)
+    both['prob'] = both['total'] / both['total'].sum()
+    both['prob_of_match'] = both['prob']**2
+    both['expected_occurences'] = both['prob_of_match'] * both['total'].sum()
+    both = both[['expected_occurences']]
+    both = both.reset_index()
+    both.rename(columns={'index':'name_match'}, inplace=True)
+
+    occur = df.name_match.value_counts().reset_index().set_index('index')
+    # drops the most frequently occuring: 'No match'
+    occur.drop('No match', axis=0, inplace=True)
+    occur = occur.reset_index()
+    occur.rename(columns={'name_match':'actual_occurences', 'index':'name_match'}, inplace=True)
+
+    df = df.merge(both, on='name_match', how='left')
+    df = df.merge(occur, on='name_match', how='left')
+
+    return df
+
+
+def is_match_likely(row: pd.Series) -> int:
+    """
+    Creates a column that contains 1 if name match is expected 5 times as often as
+    it occurs and 0 otherwise.
+
+    Matches of uncommon last names have very low expected occurences, they may be the only
+    record with that name. So doing 'actual_occurences > expected_occurences' goes off on just about
+    every uncommon last name that is likely a real match.
+
+    Conversely, matches of common last names have very high expected occurences.
+    In addition, what last name someone has is heavily influenced by where they are in the city,
+    and similar last name tend to culster together, therefore many name matches happen much
+    more than you would expect by pure chance.
+
+    So 'actual_occurences < expected_occurences' lets us see which names occur less
+    frequently than predicted, signalling that there is some spatial dependence.
+    The multiplier is essentially controlling for how much spatial dependence is acceptable.
+    Meant for use with apply().
+
+    Inputs:
+        row: from pandas dataframe
+    Outputs:
+        value (int): 1 if match occurs more than expected by pure chance,
+                     0 otherwise.
+    """
+    value = 0
+
+    if row['name_match'] != 'No match':
+        if row['actual_occurences'] < row['expected_occurences'] * 5:
+            value = 1
 
     return value
 
@@ -1140,16 +1234,56 @@ def string_processing(df: pd.DataFrame) -> pd.DataFrame:
     df['seller_id'] = df.apply(get_id, args=('seller',), axis=1)
     df['buyer_category'] = df.apply(get_category, args=('buyer',), axis=1)
     df['seller_category'] = df.apply(get_category, args=('seller',), axis=1)
-    #df['buyer_role'] = df.apply(get_role, args=('buyer',), axis=1)
-    #df['seller_role'] = df.apply(get_role, args=('seller',), axis=1)
+    # df['buyer_role'] = df.apply(get_role, args=('buyer',), axis=1)
+    # df['seller_role'] = df.apply(get_role, args=('seller',), axis=1)
     df['buyer_id'] = df.apply(clean_id, args=('buyer',), axis=1)
     df['seller_id'] = df.apply(clean_id, args=('seller',), axis=1)
-    df['transaction_type'] = df.apply(transaction_type, axis=1)
+    df['transaction_type'] = df['buyer_category'] + '-' + df['seller_category']
 
     df['is_judical_sale']  = df.apply(create_judicial_flag, axis=1)
-    #df['buyer_seller_match'] = df.apply(create_match_flag, axis=1)
     df['name_match'] = df.apply(create_name_match, axis=1)
+
+    df = calc_name_occurences(df)
+    df['match_likely'] = df.apply(is_match_likely, axis=1)
 
     return df
 
-go((2,2), ('township_code', 'class'), 'flagged.csv')
+
+if __name__ == "__main__":
+
+    def tuple_int(strings: str) -> tuple:
+        """
+        This is a function that takes the string input from --permut
+        and turns it into an actual tuple of numbers.
+        """
+        strings = strings.replace("(", "").replace(")", "")
+        mapped_int = map(int, strings.split(","))
+        return tuple(mapped_int)
+
+    def tuple_str(strings: str) -> tuple:
+        """
+        This is a function that takes the string input from --permut
+        and turns it into an actual tuple of strings.
+        """
+        strings = strings.replace("(", "").replace(")", "")
+        mapped_str = map(str, strings.split(","))
+        return tuple(mapped_str)
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--permut', dest='permut', required=True, type=tuple_int,
+                        help= """The standard deviation permuatation to be run, as a tuple sorrounded by quotes.
+                                 Ex: '(2,2)' to run with 2 standard deviations on both sides.
+                                 """)
+    parser.add_argument('--groups', dest='groups', required=True, type=tuple_str,
+                        help= """The columns to groupby when determining outliers.
+                                 If there is a geographic group, have it be the first element.
+                                 Ex: '('township_code, 'class')'
+                                 """)
+    parser.add_argument('--file', dest='file', required=True,
+                        help= """The name of the output file as a string
+                                 Ex: 'flagged.csv'
+                                 """)
+
+    args = parser.parse_args()
+
+    go(tuple(args.permut), tuple(args.groups), args.file)
