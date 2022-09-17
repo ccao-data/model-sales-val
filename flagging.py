@@ -46,13 +46,13 @@ def outlier_taxonomy(df: pd.DataFrame, permut: tuple, groups: tuple):
         df (pd.DataFrame): dataframe with outlier taxonomy
     """
 
-    df['short_owner'] = df.apply(check_days, args=(SHORT_TERM_OWNER_THRESHOLD,), axis=1)
+    df = check_days(df, SHORT_TERM_OWNER_THRESHOLD)
 
     df = pricing_info(df, permut, groups)
 
     df = outlier_type(df)
-    df['is_outlier'] = df.apply(outlier_flag, axis=1)
-    df['special_flags'] = df.apply(special_flag, axis=1)
+    df = outlier_flag(df)
+    df = special_flag(df)
 
     return df
 
@@ -163,7 +163,7 @@ def iso_forest(df: pd.DataFrame,
         df (pd.DataFrame): dataframe with data for IsoForest
         groups (tuple): grouping for the data to input into the IsoForest
         columns (list): list with columns to run PCA/IsoForest on
-        n_estimators (int): 
+        n_estimators (int): number of estimators in IsoForest
         max_samples(int or float): share of data to use as sample if float,
                                    number to use if int
     Outputs:
@@ -273,9 +273,6 @@ def pricing_info(df: pd.DataFrame, permut: tuple, groups: tuple) -> pd.DataFrame
 
     df = z_normalize(df, ['sale_price', 'price_per_sqft'])
 
-    df.rename(columns={'sale_price_zscore': 'sale_price_deviation_county',
-                       'price_per_sqft_zscore': 'price_per_sqft_deviation_county'}, inplace=True)
-
     prices = ['price_per_sqft_deviation_class_township',
               'price_deviation_class_township', 'pct_deviation_class_township']
 
@@ -291,26 +288,21 @@ def pricing_info(df: pd.DataFrame, permut: tuple, groups: tuple) -> pd.DataFrame
     return df
 
 
-def special_flag(row: pd.Series) -> str:
+def special_flag(df: pd.DataFrame) -> pd.DataFrame:
     """
     Creates column that checks whether there is a special flag for this record.
-    Meant for apply().
     Inputs:
-        row (pd.Series): from apply()
+        df (pd.DataFrame): dataframe to add flags onto
     Outputs:
-        value (str): the special flag for the transaction.
+        df (pd.DataFrame): dataframe with 'special_flags' column
     """
+    cond = [(df['name_match'] != 'No match'), (df['short_owner'] == 'Short-term owner'),
+            (df['transaction_type'] == 'legal_entity-legal_entity')]
+    labels = ['Family sale', 'Home flip sale', 'Non-person sale']
 
-    if row['name_match'] != 'No match':
-        value = 'Family sale'
-    elif row['short_owner'] == 'Short-term owner':
-        value = 'Home flip sale'
-    elif row['transaction_type'] == 'legal_entity-legal_entity':
-        value = 'Non-person sale'
-    else:
-        value = 'Not special'
+    df['special_flags'] = np.select(cond, labels, default = 'Not special')
 
-    return value
+    return df
 
 
 def which_price(row: pd.Series, thresholds: dict) -> str:
@@ -345,10 +337,7 @@ def which_price(row: pd.Series, thresholds: dict) -> str:
 
 
 def between_two_numbers(num: int or float, a: int or float, b: int or float) -> bool:
-    if num:
         return a < num and num < b
-    else:
-        return False
 
 
 def price_column(row: pd.Series, thresholds: dict) -> str:
@@ -420,6 +409,11 @@ def percent_change(df: pd.DataFrame) -> pd.DataFrame:
     """
     Generates CGR for all records. Requires that transaction_days() has already been run.
     Creates 'previous_price' column as intermediary to help calculate CGR.
+    Calculate the compound growth rate where the previous transaction is the
+    beginning value, the current price is the end value, and the number of periods
+    is the number of days since the last transaction.
+    This enables us to better compare percent change accross different time periods
+    as opposed to pandas pct_change() function which does not account for time period.
     Helper for create_stats().
     Inputs:
         df (pd.DataFrame): datarame to create CGR on.
@@ -428,7 +422,7 @@ def percent_change(df: pd.DataFrame) -> pd.DataFrame:
     """
 
     df['previous_price'] = df.sort_values('sale_date').groupby(['pin'])['sale_price'].shift(axis=0)
-    df['pct'] = df.apply(cgr, axis=1)
+    df['pct'] = ((df['sale_price'] / df['previous_price']) ** (1 / df['days_since_last_transaction'])) - 1
 
     return df
 
@@ -483,7 +477,6 @@ def grouping_mean(df: pd.DataFrame, groups: tuple) -> pd.DataFrame:
     group1 = groups[0]
     group2 = groups[1]
 
-    #df['pct'] = df.sort_values('sale_date').groupby('pin')['sale_price'].pct_change()
     group_mean = df.groupby([group1, group2])['sale_price'].mean()
     df.set_index([group1, group2], inplace=True)
     df[f'{group1}_{group2}_mean_sale'] = group_mean
@@ -528,29 +521,6 @@ def get_movement(dups: pd.DataFrame, groups:tuple) -> pd.DataFrame:
     return dups
 
 
-def cgr(row: pd.Series) -> float or np.nan:
-    """
-    Calculate the compound growth rate where the previous transaction is the
-    beginning value, the current price is the end value, and the number of periods
-    is the number of days since the last transaction.
-    This enables us to better compare percent change accross different time periods
-    as opposed to pandas pct_change() function which does not account for time period.
-    Meant for apply().
-    Inputs:
-        row: from apply()
-    Outputs:
-        value(float): CGR of record
-    """
-    if pd.notnull(row['previous_price']):
-        time = row['days_since_last_transaction']
-
-        value = ((row['sale_price'] / row['previous_price']) ** (1 / time)) - 1
-    else:
-        value = np.nan
-
-    return value
-
-
 def transaction_days(df: pd.DataFrame) -> pd.DataFrame:
     """
     For each record, gets number of days since the last transaction.
@@ -566,23 +536,21 @@ def transaction_days(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def check_days(row: pd.Series, threshold: int) -> str:
+def check_days(df: pd.DataFrame, threshold: int) -> pd.DataFrame:
     """
     Creates a label of whether or not the transaction
     was only owned for a short term.
     If owned for less than the threshold, is a short term owner.
     Inputs:
-        row (pd.Series): from apply()
+        df (pd.DataFrame): dataframe to have short term owners checked
         threshold (int): the threshold fo being a short term owner
     Oututs:
-        value (str): whether is a short term owner
+        df (pd.DataFrame): datafrme with 'short_owner' column
     """
-    if row['days_since_last_transaction'] < threshold:
-        value = 'Short-term owner'
-    else:
-        value = f'Over {threshold} days'
+    df['short_owner'] = np.select([(df['days_since_last_transaction'] < threshold)],
+                                  ['Short-term owner'], default = f'Over {threshold} days')
 
-    return value
+    return df
 
 
 def get_thresh(df: pd.DataFrame, cols: list, permut: tuple) -> dict:
@@ -631,7 +599,7 @@ def z_normalize(df: pd.DataFrame, columns: list) -> pd.DataFrame:
                            as 'column_name_zscore'
     """
     for col in columns:
-        df[col + '_zscore'] = zscore(df[col], nan_policy='omit')
+        df[col + '_deviation_county'] = zscore(df[col], nan_policy='omit')
 
     return df
 
@@ -654,7 +622,7 @@ def outlier_type(df: pd.DataFrame) -> pd.DataFrame:
     """
     Runs np.select that creates an outlier taxonomy.
     Inputs:
-        df (pd.DataFrame): dataframe with necessary columns created from previous apply() functions.
+        df (pd.DataFrame): dataframe with necessary columns created from previous functions.
     Outputs:
         df (pd.DataFrame): dataframe with 'outlier_type' column.
     """
@@ -746,27 +714,23 @@ def outlier_description(row: pd.Series) -> str:
     else:
         value = 'Not outlier'
 
-
     return value
 
 
-def outlier_flag(row: pd.Series) -> str:
+def outlier_flag(df: pd.DataFrame) -> pd.DataFrame:
     """
     Creates a flag that shows whether the record is an
     outlier (a special flag) according to our outlier taxonomy.
-    Meant for apply().
     Inputs:
-        row (pd.Series): from apply()
+        df (pd.DataFrame): dataframe to create outlier flag
     Outputs:
-        value (str): whether record is outlier according to our taxonomy.
+        df (pd.DataFrame): dataframe with 'is_outlier' column
     """
 
-    if row['outlier_type'] == 'Not outlier':
-        value = 'Not outlier'
-    else:
-        value = 'Outlier'
+    df['is_outlier'] = np.select([(df['outlier_type'] == 'Not outlier')],
+                                 ['Not outlier'], default= 'Outlier')
 
-    return value
+    return df
 
 
 # STRING CLEANUP
@@ -1151,9 +1115,7 @@ def calc_name_occurences(df: pd.DataFrame) -> pd.DataFrame:
     Outputs:
         df (pd.DataFrame): dataframe with 'actual_occurences' and
                            'expected_occurences' column
-
     """
-
     buyers = df.buyer_id.value_counts().reset_index().set_index('index')
     sellers = df.seller_id.value_counts().reset_index().set_index('index')
 
@@ -1243,8 +1205,8 @@ def string_processing(df: pd.DataFrame) -> pd.DataFrame:
     df['is_judical_sale']  = df.apply(create_judicial_flag, axis=1)
     df['name_match'] = df.apply(create_name_match, axis=1)
 
-    df = calc_name_occurences(df)
-    df['match_likely'] = df.apply(is_match_likely, axis=1)
+    #df = calc_name_occurences(df)
+    #df['match_likely'] = df.apply(is_match_likely, axis=1)
 
     return df
 
@@ -1271,12 +1233,11 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--permut', dest='permut', required=True, type=tuple_int,
-                        help= """The standard deviation permuatation to be run, as a tuple sorrounded by quotes.
+                        help= """The standard deviation permuatation to be run as a tuple sorrounded by quotes.
                                  Ex: '(2,2)' to run with 2 standard deviations on both sides.
                                  """)
     parser.add_argument('--groups', dest='groups', required=True, type=tuple_str,
                         help= """The columns to groupby when determining outliers.
-                                 If there is a geographic group, have it be the first element.
                                  Ex: '('township_code, 'class')'
                                  """)
     parser.add_argument('--file', dest='file', required=True,
