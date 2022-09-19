@@ -16,6 +16,23 @@ SHORT_TERM_OWNER_THRESHOLD = 365 # 365 = 365 days or 1 year
 
 
 def go(permut: tuple, groups: tuple, output_file: str):
+    """
+    This function runs all of our other functions in the correct sequence.
+
+    This function is accessed from the argparse interface found at the bottom of the file.
+    Example command:
+        python flagging.py --permut '(2,2)' --groups '('township_code','class')' --file 'flagged.csv'
+    Inputs:
+        permut (tuple): how many std deviations on either side to select as outliers.
+                        Ex: (2,2) selects outliers as being farther away than 2 
+                            std deviations on both sides.
+        groups (tuple): which groups to groupby when selecting outliers.
+                        Ex: (township_code,class)
+        output_file (str): name of output file.
+                            Ex: 'flagged.csv'
+    Outputs:
+        csv file with name passed from output_file in working directory
+    """
 
     df = read_data('sale_sample_18-21.parquet', 'cards.csv', 'char_sample.csv')
 
@@ -560,10 +577,11 @@ def get_thresh(df: pd.DataFrame, cols: list, permut: tuple) -> dict:
     Ex: stds['sale_price'][76, 203]
     Needed in order to keep track of specific thresholds for each township/class combo.
     Theoretically each std should be 1(because of z_normalization), but in practical terms
-    it is in a very very small range around 1, so using a uniform cutoff of 2 and -2 loses us some precision.
+    it is in a very very small range around 1, so using a uniform cutoff of 2 and -2
+    loses us some precision.
 
-    We also want to allow for some flexibility in how the thresholds are calculated; and this function allows for
-    more flexbility in the event of future changes.
+    We also want to allow for some flexibility in how the thresholds are calculated;
+    and this function allows for more flexbility in the event of future changes.
     Inputs:
         df (pd.DataFrame): Dataframe to create dictionary from.
         cols (list): list of columns to get standard deviations for.
@@ -585,7 +603,6 @@ def get_thresh(df: pd.DataFrame, cols: list, permut: tuple) -> dict:
         lower_limit = lower_limit.to_dict()
         upper_limit = upper_limit.to_dict()
         std = std.to_dict()
-        print(std)
 
         limits =  {x: (std.get(x, 0), lower_limit.get(x, 0), upper_limit.get(x, 0))
                 for x in set(std).union(upper_limit, lower_limit)}
@@ -682,12 +699,14 @@ def outlier_description(row: pd.Series) -> str:
 
     if '(raw & sqft)' in row['which_price']:
         price_expression = f"raw price of ${row['sale_price'] / 1000:,}K that is {round(row['price_deviation_class_township'], 1)}"\
-                           f" deviations away from the township/class mean and a price per sqft of ${round(row['price_per_sqft'], 1):,} that is {round(row['price_per_sqft_deviation_class_township'], 1)}"\
-                           f" deviations from township/class mean"
+                           f" deviations away from the township/class mean and a price per sqft of ${round(row['price_per_sqft'], 1):,}"\
+                           f" that is {round(row['price_per_sqft_deviation_class_township'], 1)} deviations from township/class mean"
     if '(raw)' in row['which_price']:
-        price_expression = f"raw price of ${row['sale_price'] / 1000:,}K that is {round(row['price_deviation_class_township'], 1)} deviations from township/class mean"
+        price_expression = f"raw price of ${row['sale_price'] / 1000:,}K that is {round(row['price_deviation_class_township'], 1)}"\
+                           f" deviations from township/class mean"
     if '(sqft)' in row['which_price']:
-        price_expression = f"""price per sqft of ${round(row['price_per_sqft'], 1):,} that is {round(row['price_per_sqft_deviation_class_township'], 1)} deviations from township/class mean"""
+        price_expression = f"price per sqft of ${round(row['price_per_sqft'], 1):,} that is"\
+                           f" {round(row['price_per_sqft_deviation_class_township'], 1)} deviations from township/class mean"
 
     if 'Home flip sale' in row['outlier_type']:
         value = f"Likely home flip sale with {price_expression}"\
