@@ -558,10 +558,16 @@ def get_thresh(df: pd.DataFrame, cols: list, permut: tuple) -> dict:
     Creates a nested dictionary where the top level key is a column
     and the 2nd-level key is a (township_code, class) combo.
     Ex: stds['sale_price'][76, 203]
+    Needed in order to keep track of specific thresholds for each township/class combo.
+    Theoretically each std should be 1(because of z_normalization), but in practical terms
+    it is in a very very small range around 1, so using a uniform cutoff of 2 and -2 loses us some precision.
+
+    We also want to allow for some flexibility in how the thresholds are calculated; and this function allows for
+    more flexbility in the event of future changes.
     Inputs:
         df (pd.DataFrame): Dataframe to create dictionary from.
         cols (list): list of columns to get standard deviations for.
-        permit (tuple): standard deviation range for lower_limit and upper_limit
+        permut (tuple): standard deviation range for lower_limit and upper_limit
                         First term is how many stndard deviations away on the left
                         Second term is how many standard deviations away on the right.
     Outputs:
@@ -579,6 +585,7 @@ def get_thresh(df: pd.DataFrame, cols: list, permut: tuple) -> dict:
         lower_limit = lower_limit.to_dict()
         upper_limit = upper_limit.to_dict()
         std = std.to_dict()
+        print(std)
 
         limits =  {x: (std.get(x, 0), lower_limit.get(x, 0), upper_limit.get(x, 0))
                 for x in set(std).union(upper_limit, lower_limit)}
