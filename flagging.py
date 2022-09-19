@@ -4,9 +4,9 @@ non-arms length transaction detection using statistical and heurstic methods.
 """
 
 import argparse
-import pandas as pd
-import numpy as np
 import re
+import numpy as np
+import pandas as pd
 
 from scipy.stats import zscore
 from sklearn.ensemble import IsolationForest
@@ -86,7 +86,7 @@ def analyst_readable(df, groups):
        'pct', 'pct_deviation_class_township',
        'price_deviation_class_township_percentile', 'price_per_sqft_deviation_class_township_percentile',
        'price_per_sqft_deviation_class_township_rank', 'price_deviation_class_township_rank',
-       'name_match', 'anomaly', 'short_owner', 'previous_price', 
+       'name_match', 'anomaly', 'short_owner', 'previous_price',
        'is_sale_between_related_individuals_or_corporate_affiliates',
        'is_transfer_of_less_than_100_percent_interest',
        'is_court_ordered_sale', 'is_sale_in_lieu_of_foreclosure',
@@ -96,7 +96,7 @@ def analyst_readable(df, groups):
        'is_buyer_a_real_estate_investment_trust', 'is_buyer_a_pension_fund',
        'is_buyer_an_adjacent_property_owner',
        'is_buyer_exercising_an_option_to_purchase',
-       'is_simultaneous_trade_of_property', 'is_sale_leaseback','is_judical_sale',
+       'is_simultaneous_trade_of_property', 'is_sale_leaseback','is_judicial_sale',
        'sale_type', 'price_movement', 'days_since_last_transaction',
        'transaction_type']]
     df['deed_type'] = np.select([(df['deed_type'] == '01'), (df['deed_type'] == '02'),
@@ -337,7 +337,7 @@ def which_price(row: pd.Series, thresholds: dict) -> str:
 
 
 def between_two_numbers(num: int or float, a: int or float, b: int or float) -> bool:
-        return a < num and num < b
+        return  a < num < b
 
 
 def price_column(row: pd.Series, thresholds: dict) -> str:
@@ -688,8 +688,8 @@ def outlier_description(row: pd.Series) -> str:
                 f" and the previous owner owned the property for only {row['days_since_last_transaction']} days."
     elif 'Family sale' in row['outlier_type']:
         value = f"Likely family sale due to matching last name of: '{row['name_match']}'."\
-                f" {likely_message_expression if row['match_likely'] == 1 else ''}"\
                 f" It has a {'high' if 'high' in row['outlier_type'] else 'low'} {price_expression}"
+                #f" {likely_message_expression if row['match_likely'] == 1 else ''}"\
     elif 'Non-person' in row['outlier_type']:
         value = f"Both buyer and seller were identified as legal entities."\
                 f" It is a {'high' if 'high' in row['outlier_type'] else 'low'} {price_expression}"
@@ -1050,23 +1050,20 @@ def clean_id(row: pd.Series, col: str) -> str:
     return words
 
 
-def create_judicial_flag(row: pd.Series) -> int:
+def create_judicial_flag(df: pd.DataFrame) -> pd.DataFrame:
     """
     Creates a column that contains 1 if sold from a judicial corp
     and 0 otherwise. Mean for use with apply().
     Inputs:
-        row: from pandas dataframe
+        df (pd.DataFrame): dataframe to create flag on
     Outputs:
-        value (int): 1 if judicial sale, 0 otherwise.
+        df (pd.DataFrame): dataframe with 'is_judicial_sale' column
     """
 
-    if row['seller_id'] == 'the judicial sale corporation' or \
-       row['seller_id'] == 'intercounty judicial sale':
-        value = 1
-    else:
-        value = 0
+    df['is_judicial_sale'] = np.select([(df['seller_id'] == 'the judicial sale corporation') | (df['seller_id'] == 'intercounty judicial sale')],
+                                        ['1'], default = '0' )
 
-    return value
+    return df
 
 
 def create_match_flag(row: pd.Series) -> str:
@@ -1202,7 +1199,7 @@ def string_processing(df: pd.DataFrame) -> pd.DataFrame:
     df['seller_id'] = df.apply(clean_id, args=('seller',), axis=1)
     df['transaction_type'] = df['buyer_category'] + '-' + df['seller_category']
 
-    df['is_judical_sale']  = df.apply(create_judicial_flag, axis=1)
+    df = create_judicial_flag(df)
     df['name_match'] = df.apply(create_name_match, axis=1)
 
     #df = calc_name_occurences(df)
