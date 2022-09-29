@@ -41,7 +41,7 @@ def go(permut: tuple, groups: tuple, output_file: str):
     df = string_processing(df)
 
     # need all important info about transaction
-    df = iso_forest(df, groups, ['sale_price', 'price_per_sqft', 'days_since_last_transaction', 'pct', 'counts'])
+    df = iso_forest(df, groups, ['sale_price', 'price_per_sqft', 'days_since_last_transaction', 'cgdr', 'counts'])
 
     df = outlier_taxonomy(df, permut, groups)
 
@@ -91,33 +91,23 @@ def analyst_readable(df, groups):
 
     df.reset_index(inplace=True)
 
-    df['pin'] = df['pin'].astype(str).str.pad(14,fillchar='0')
+    df['pin'] = df['pin'].astype(str).str.pad(14, fillchar='0')
+    df['pin'] = df['pin'].str.replace(r'^(\d{2})(\d{2})(\d{3})(\d{3})(\d+)$', r'\1-\2-\3-\4-\5')
 
     df.sort_values(by=['outlier_type'], ascending=[True], inplace=True)
 
-    df = df[['doc_no', 'deed_type', 'township_code','pin', 'class',
-       'sale_date', 'seller_name', 'buyer_name', 'outlier_type', 'outlier_description',
-       'pricing', 'special_flags', 'sale_price', 'price_per_sqft', 'sqft',
-       'price_deviation_class_township', 'price_per_sqft_deviation_class_township',
-       'sale_price_deviation_county', 'price_per_sqft_deviation_county',
-       'pct', 'pct_deviation_class_township',
-       'price_deviation_class_township_percentile', 'price_per_sqft_deviation_class_township_percentile',
-       'price_per_sqft_deviation_class_township_rank', 'price_deviation_class_township_rank',
-       'name_match', 'anomaly', 'short_owner', 'previous_price',
-       'is_sale_between_related_individuals_or_corporate_affiliates',
-       'is_transfer_of_less_than_100_percent_interest',
-       'is_court_ordered_sale', 'is_sale_in_lieu_of_foreclosure',
-       'is_short_sale', 'is_bank_reo_real_estate_owned', 'is_auction_sale',
-       #'is_seller_buyer_a_relocation_company',
-       'is_seller_buyer_a_financial_institution_or_government_agency',
-       'is_buyer_a_real_estate_investment_trust', 'is_buyer_a_pension_fund',
-       'is_buyer_an_adjacent_property_owner',
-       'is_buyer_exercising_an_option_to_purchase',
-       'is_simultaneous_trade_of_property', 'is_sale_leaseback','is_judicial_sale',
-       'sale_type', 'price_movement', 'days_since_last_transaction',
-       'transaction_type']]
+    df = df[['pin', 'doc_no', 'deed_type', 'township_code', 'class', 'sale_date',
+            'seller_name', 'buyer_name', 'outlier_type', 'outlier_description',
+            'sale_price', 'price_per_sqft', 'sqft', 'price_deviation_class_township',
+            'price_per_sqft_deviation_class_township', 'sale_price_deviation_county',
+            'price_per_sqft_deviation_county', 'pricing', 'special_flags',
+            'cgdr', 'cgdr_deviation_class_township', 'anomaly', 'price_movement',
+            'days_since_last_transaction', 'transaction_type', 
+            'price_per_sqft_deviation_class_township_percentile', 'price_deviation_class_township_percentile',
+            'price_deviation_class_township_rank', 'price_per_sqft_deviation_class_township_rank']]
+
     df['deed_type'] = np.select([(df['deed_type'] == '01'), (df['deed_type'] == '02'),
-                                (df['deed_type'] == '03'), (df['deed_type'] == '04'),
+                                 (df['deed_type'] == '03'), (df['deed_type'] == '04'),
                                  (df['deed_type'] == '05'), (df['deed_type'] == '06'),
                                  (df['deed_type'] == '99')],
                                  ['Warranty Deed', 'Trustee Deed', 
@@ -158,9 +148,9 @@ def analyst_readable(df, groups):
                        'township_code': 'township'}, inplace=True)
 
     df['sale_date'] = df['sale_date'].dt.strftime('%Y-%m-%d')
-    df['pct'] = df['pct'].fillna(0)
-    df['pct_deviation_class_township'] = df['pct_deviation_class_township'].fillna(0)
-    df['previous_price'] = df['previous_price'].fillna(0)
+    df['cgdr'] = df['cgdr'].fillna(0)
+    df['cgdr_deviation_class_township'] = df['cgdr_deviation_class_township'].fillna(0)
+    #df['previous_price'] = df['previous_price'].fillna(0)
     df['days_since_last_transaction'] = df['days_since_last_transaction'].fillna(0)
     df['price_movement'] = df['price_movement'].fillna('First sale')
 
@@ -291,11 +281,11 @@ def pricing_info(df: pd.DataFrame, permut: tuple, groups: tuple) -> pd.DataFrame
     df = z_normalize(df, ['sale_price', 'price_per_sqft'])
 
     prices = ['price_per_sqft_deviation_class_township',
-              'price_deviation_class_township', 'pct_deviation_class_township']
+              'price_deviation_class_township', 'cgdr_deviation_class_township']
 
     df['price_deviation_class_township'] = df.groupby(list(groups))['sale_price'].apply(z_normalize_groupby)
     df['price_per_sqft_deviation_class_township'] = df.groupby(list(groups))['price_per_sqft'].apply(z_normalize_groupby)
-    df['pct_deviation_class_township'] = df.groupby(list(groups))['pct'].apply(z_normalize_groupby)
+    df['cgdr_deviation_class_township'] = df.groupby(list(groups))['cgdr'].apply(z_normalize_groupby)
 
     holds = get_thresh(df, prices, permut)
 
@@ -354,7 +344,7 @@ def which_price(row: pd.Series, thresholds: dict) -> str:
 
 
 def between_two_numbers(num: int or float, a: int or float, b: int or float) -> bool:
-        return  a < num < b
+    return  a < num < b
 
 
 def price_column(row: pd.Series, thresholds: dict) -> str:
@@ -389,15 +379,15 @@ def price_column(row: pd.Series, thresholds: dict) -> str:
             value = 'Low price'
             price = True
 
-        if price and pd.notnull(row['pct_deviation_class_township']) and\
-            thresholds.get('pct_deviation_class_township').get(
+        if price and pd.notnull(row['cgdr_deviation_class_township']) and\
+            thresholds.get('cgdr_deviation_class_township').get(
                 (row['township_code'], row['class'])):
             # not every class/township combo has pct change info so we need this check
-            p_std, *p_std_range = thresholds.get('pct_deviation_class_township').get(
+            p_std, *p_std_range = thresholds.get('cgdr_deviation_class_township').get(
                 (row['township_code'], row['class']))
             p_lower, p_upper = p_std_range
             if row['price_movement'] == 'Away from mean' and \
-                not between_two_numbers(row['pct_deviation_class_township'], p_lower, p_upper):
+                not between_two_numbers(row['cgdr_deviation_class_township'], p_lower, p_upper):
                 value += ' swing'
 
     return value
@@ -439,7 +429,7 @@ def percent_change(df: pd.DataFrame) -> pd.DataFrame:
     """
 
     df['previous_price'] = df.sort_values('sale_date').groupby(['pin'])['sale_price'].shift(axis=0)
-    df['pct'] = ((df['sale_price'] / df['previous_price']) ** (1 / df['days_since_last_transaction'])) - 1
+    df['cgdr'] = ((df['sale_price'] / df['previous_price']) ** (1 / df['days_since_last_transaction'])) - 1
 
     return df
 
@@ -709,33 +699,33 @@ def outlier_description(row: pd.Series) -> str:
                            f" {round(row['price_per_sqft_deviation_class_township'], 1)} deviations from township/class mean"
 
     if 'Home flip sale' in row['outlier_type']:
-        value = f"Likely home flip sale with {price_expression}"\
+        value = f"Likely home flip sale with {price_expression}."\
                 f" The price changed from ${row['previous_price']/ 1000:,}K to ${row['sale_price'] / 1000:,}K"\
                 f" and the previous owner owned the property for only {row['days_since_last_transaction']} days."
     elif 'Family sale' in row['outlier_type']:
         value = f"Likely family sale due to matching last name of: '{row['name_match']}'."\
-                f" It has a {'high' if 'high' in row['outlier_type'] else 'low'} {price_expression}"
+                f" It has a {'high' if 'high' in row['outlier_type'] else 'low'} {price_expression}."
                 #f" {likely_message_expression if row['match_likely'] == 1 else ''}"\
     elif 'Non-person' in row['outlier_type']:
         value = f"Both buyer and seller were identified as legal entities."\
-                f" It is a {'high' if 'high' in row['outlier_type'] else 'low'} {price_expression}"
+                f" It is a {'high' if 'high' in row['outlier_type'] else 'low'} {price_expression}."
     elif 'High price swing' in row['outlier_type']:
-        value = f"Transaction is both a compound growth rate outlier {round(row['pct_deviation_class_township'], 1)}"\
-                f" deviations away from the mean as well as a high {price_expression}"
+        value = f"Transaction is both a compound growth rate outlier {round(row['cgdr_deviation_class_township'], 1)}"\
+                f" deviations away from the mean as well as a high {price_expression}."
     elif 'Low price swing' in row['outlier_type']:
         value = f"Transaction is both a compound growth rate outlier"\
-                f" {round(row['pct_deviation_class_township'], 1)} deviations away from the mean as well as a low {price_expression}"
+                f" {round(row['cgdr_deviation_class_township'], 1)} deviations away from the mean as well as a low {price_expression}."
     elif 'Anomaly' in row['outlier_type']:
         value = f"Detected by anomaly algorithm with"\
-                f" {'high' if 'high' in row['outlier_type'] else 'Low'} {price_expression}"
+                f" {'high' if 'high' in row['outlier_type'] else 'Low'} {price_expression}."
     elif '(raw & sqft)' in row['outlier_type']:
-        value = f"""{'High' if 'High' in row['outlier_type'] else 'Low'} {price_expression}
+        value = f"""{'High' if 'High' in row['outlier_type'] else 'Low'} {price_expression}.
         """
     elif '(raw)' in row['outlier_type']:
-        value = f"""{'High' if 'High' in row['outlier_type'] else 'Low'} {price_expression}
+        value = f"""{'High' if 'High' in row['outlier_type'] else 'Low'} {price_expression}.
         """
     elif '(sqft)' in row['outlier_type']:
-        value = f"""{'High' if 'High' in row['outlier_type'] else 'Low'} {price_expression}
+        value = f"""{'High' if 'High' in row['outlier_type'] else 'Low'} {price_expression}.
         """
     else:
         value = 'Not outlier'
