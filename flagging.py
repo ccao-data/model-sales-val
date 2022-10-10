@@ -21,20 +21,20 @@ def go(permut: tuple, groups: tuple, output_file: str):
 
     This function is accessed from the argparse interface found at the bottom of the file.
     Example command:
-        python flagging.py --permut '(2,2)' --groups '('township_code','class')' --file 'flagged.csv'
+        python flagging.py --permut '(2,2)' --groups '('township','class','year')' --file 'flagged.csv'
     Inputs:
         permut (tuple): how many std deviations on either side to select as outliers.
                         Ex: (2,2) selects outliers as being farther away than 2 
                             std deviations on both sides.
         groups (tuple): which groups to groupby when selecting outliers.
-                        Ex: (township_code,class)
+                        Ex: ('township','class','year')
         output_file (str): name of output file.
                             Ex: 'flagged.csv'
     Outputs:
         csv file with name passed from output_file in working directory
     """
 
-    df = read_data('sale_sample_18-21.parquet', 'cards.csv', 'char_sample.csv')
+    df = read_data('sale_sample_18-21.parquet', 'cards.csv', 'char_sample.csv', 'addrs4.csv')
 
     df = create_stats(df, groups)
 
@@ -50,6 +50,19 @@ def go(permut: tuple, groups: tuple, output_file: str):
     df.to_csv(output_file, index=False)
 
 
+def create_group_string(groups: tuple, sep: str) -> str:
+    """
+    Creates a string joined on a separator from the groups tuple.
+    For the purpose of making column names and descriptions.
+    Inputs:
+        groups (tuple): the columns being used in groupby()
+        sep (str): string to separate the groups with.
+    Outputs:
+        groups as a string joined by given separator
+    """
+    return sep.join(groups)
+
+
 def outlier_taxonomy(df: pd.DataFrame, permut: tuple, groups: tuple):
     """
     Creates columns having to do with our chosen outlier taxonomy.
@@ -58,7 +71,7 @@ def outlier_taxonomy(df: pd.DataFrame, permut: tuple, groups: tuple):
         df (pd.DataFrame): dataframe to create taxonomy on.
         permut (tuple): permutation of std deviations
         groups (tuple): columns to do grouping on.
-                        Probably 'township_code' and 'class'.
+                        Probably 'township' and 'class'.
     Ouputs:
         df (pd.DataFrame): dataframe with outlier taxonomy
     """
@@ -74,7 +87,7 @@ def outlier_taxonomy(df: pd.DataFrame, permut: tuple, groups: tuple):
     return df
 
 
-def analyst_readable(df, groups):
+def analyst_readable(df: pd.DataFrame, groups: tuple):
     """
     A function that helps make the resulting spreadsheet more readable for analysts.
     Relies on our existing outlier taxonomy.
@@ -82,12 +95,15 @@ def analyst_readable(df, groups):
 
     df.set_index('sale_key', inplace=True)
     outs = df[df['is_outlier'] == 'Outlier']
+    df['address'] = df['prop_address_full'] + ' ' + df['prop_address_city_name'] + ' ' + df['prop_address_zipcode_1'].fillna(0).astype(int).astype(str)
 
-    df['price_per_sqft_deviation_class_township_percentile'] = outs.groupby(list(groups))['price_per_sqft_deviation_class_township'].rank(pct=True)
-    df['price_deviation_class_township_percentile'] = outs.groupby(list(groups))['price_deviation_class_township'].rank(pct=True)
-    df['price_per_sqft_deviation_class_township_rank'] = outs.groupby(list(groups))['price_per_sqft_deviation_class_township'].rank()
-    df['price_deviation_class_township_rank'] = outs.groupby(list(groups))['price_deviation_class_township'].rank()
-    df['outlier_description'] = df.apply(outlier_description, axis=1)
+    group_string = create_group_string(groups, '_')
+
+    df[f'price_per_sqft_deviation_{group_string}_percentile'] = outs.groupby(list(groups))[f'price_per_sqft_deviation_{group_string}'].rank(pct=True)
+    df[f'price_deviation_{group_string}_percentile'] = outs.groupby(list(groups))[f'price_deviation_{group_string}'].rank(pct=True)
+    df[f'price_per_sqft_deviation_{group_string}_rank'] = outs.groupby(list(groups))[f'price_per_sqft_deviation_{group_string}'].rank()
+    df[f'price_deviation_{group_string}_rank'] = outs.groupby(list(groups))[f'price_deviation_{group_string}'].rank()
+    df['outlier_description'] = df.apply(outlier_description, args=(groups,), axis=1)
 
     df.reset_index(inplace=True)
 
@@ -96,15 +112,21 @@ def analyst_readable(df, groups):
 
     df.sort_values(by=['outlier_type'], ascending=[True], inplace=True)
 
-    df = df[['pin', 'doc_no', 'deed_type', 'township_code', 'class', 'sale_date',
+    df = df[['pin', 'address', 'doc_no', 'deed_type', 'township', 'class', 'sale_date',
             'seller_name', 'buyer_name', 'outlier_type', 'outlier_description',
-            'sale_price', 'price_per_sqft', 'sqft', 'price_deviation_class_township',
-            'price_per_sqft_deviation_class_township', 'sale_price_deviation_county',
-            'price_per_sqft_deviation_county', 'pricing', 'special_flags',
-            'cgdr', 'cgdr_deviation_class_township', 'anomaly', 'price_movement',
-            'days_since_last_transaction', 'transaction_type', 
-            'price_per_sqft_deviation_class_township_percentile', 'price_deviation_class_township_percentile',
-            'price_deviation_class_township_rank', 'price_per_sqft_deviation_class_township_rank']]
+            'sale_price', 'price_per_sqft', 'sqft', f'price_deviation_{group_string}',
+            f'price_per_sqft_deviation_{group_string}', 'sale_price_deviation_county',
+            'price_per_sqft_deviation_county',
+            f'mean_price_{group_string}',
+            f'mean_price_per_sqft_{group_string}',
+            f'deviation_{group_string}_mean_price',
+            f'deviation_{group_string}_mean_price_per_sqft', 'pricing', 'special_flags',
+            'cgdr', f'cgdr_deviation_{group_string}', 'anomaly', 'price_movement',
+            'days_since_last_transaction', 'transaction_type',
+            f'price_per_sqft_deviation_{group_string}_percentile',
+            f'price_deviation_{group_string}_percentile',
+            f'price_deviation_{group_string}_rank',
+            f'price_per_sqft_deviation_{group_string}_rank']]
 
     df['deed_type'] = np.select([(df['deed_type'] == '01'), (df['deed_type'] == '02'),
                                  (df['deed_type'] == '03'), (df['deed_type'] == '04'),
@@ -114,25 +136,25 @@ def analyst_readable(df, groups):
                                  'Quit Claim Deed','Executor Deed',
                                  'Other', 'Beneficial Intrst',
                                  'Unknown'])
-    townships = [(df['township_code'] == 10), (df['township_code'] == 11),
-                 (df['township_code'] == 12), (df['township_code'] == 13),
-                 (df['township_code'] == 14), (df['township_code'] == 15),
-                 (df['township_code'] == 16), (df['township_code'] == 17),
-                 (df['township_code'] == 18), (df['township_code'] == 19),
-                 (df['township_code'] == 20), (df['township_code'] == 21),
-                 (df['township_code'] == 22), (df['township_code'] == 23),
-                 (df['township_code'] == 24), (df['township_code'] == 25),
-                 (df['township_code'] == 26), (df['township_code'] == 27),
-                 (df['township_code'] == 28), (df['township_code'] == 29),
-                 (df['township_code'] == 30), (df['township_code'] == 31),
-                 (df['township_code'] == 32), (df['township_code'] == 33),
-                 (df['township_code'] == 34), (df['township_code'] == 35),
-                 (df['township_code'] == 36), (df['township_code'] == 37),
-                 (df['township_code'] == 38), (df['township_code'] == 39),
-                 (df['township_code'] == 70), (df['township_code'] == 71),
-                 (df['township_code'] == 72), (df['township_code'] == 73),
-                 (df['township_code'] == 74), (df['township_code'] == 75),
-                 (df['township_code'] == 76), (df['township_code'] == 77)]
+    townships = [(df['township'] == 10), (df['township'] == 11),
+                 (df['township'] == 12), (df['township'] == 13),
+                 (df['township'] == 14), (df['township'] == 15),
+                 (df['township'] == 16), (df['township'] == 17),
+                 (df['township'] == 18), (df['township'] == 19),
+                 (df['township'] == 20), (df['township'] == 21),
+                 (df['township'] == 22), (df['township'] == 23),
+                 (df['township'] == 24), (df['township'] == 25),
+                 (df['township'] == 26), (df['township'] == 27),
+                 (df['township'] == 28), (df['township'] == 29),
+                 (df['township'] == 30), (df['township'] == 31),
+                 (df['township'] == 32), (df['township'] == 33),
+                 (df['township'] == 34), (df['township'] == 35),
+                 (df['township'] == 36), (df['township'] == 37),
+                 (df['township'] == 38), (df['township'] == 39),
+                 (df['township'] == 70), (df['township'] == 71),
+                 (df['township'] == 72), (df['township'] == 73),
+                 (df['township'] == 74), (df['township'] == 75),
+                 (df['township'] == 76), (df['township'] == 77)]
     town_names = ['Barrington', 'Berwyn', 'Bloom','Bremen', 'Calumet', 'Cicero',
                   'Elk Grove', 'Evanston', 'Hanover', 'Lemont', 'Leyden', 'Lyons',
                   'Maine', 'New Trier', 'Niles', 'Northfield', 'Norwood Park',
@@ -142,14 +164,13 @@ def analyst_readable(df, groups):
                   'Lake', 'Lake View', 'North Chicago', 'Rogers Park', 'South Chicago',
                   'West Chicago']
 
-    df['township_code'] = np.select(townships, town_names)
+    df['township'] = np.select(townships, town_names)
 
-    df.rename(columns={'counts': 'number_of_transactions',
-                       'township_code': 'township'}, inplace=True)
+    df.rename(columns={'counts': 'number_of_transactions'}, inplace=True)
 
     df['sale_date'] = df['sale_date'].dt.strftime('%Y-%m-%d')
     df['cgdr'] = df['cgdr'].fillna(0)
-    df['cgdr_deviation_class_township'] = df['cgdr_deviation_class_township'].fillna(0)
+    df[f'cgdr_deviation_{group_string}'] = df[f'cgdr_deviation_{group_string}'].fillna(0)
     #df['previous_price'] = df['previous_price'].fillna(0)
     df['days_since_last_transaction'] = df['days_since_last_transaction'].fillna(0)
     df['price_movement'] = df['price_movement'].fillna('First sale')
@@ -176,16 +197,14 @@ def iso_forest(df: pd.DataFrame,
     Outputs:
         df (pd.DataFrame): with 'anomaly' column from IsoForest.
     """
-    group1 = groups[0]
-    group2 = groups[1]
 
     df.set_index('sale_key', inplace=True)
 
     feed = pca(df, columns)
 
     feed.index = df.index
-    feed[group1] = df[group1]
-    feed[group2] = df[group2]
+    for group in groups:
+        feed[group] = df[group]
 
     isof = IsolationForest(n_estimators=n_estimators, max_samples=max_samples, bootstrap=True, random_state=42)
     df['anomaly'] = isof.fit_predict(feed)
@@ -225,7 +244,7 @@ def pca(df:pd.DataFrame, columns: list) -> pd.DataFrame:
     return df
 
 
-def read_data(sales_name: str, card_name: str, char_name: str) -> pd.DataFrame:
+def read_data(sales_name: str, card_name: str, char_name: str, addr_names: str) -> pd.DataFrame:
     """
     Read in data from multiple sources and merge them.
     Inputs:
@@ -239,8 +258,10 @@ def read_data(sales_name: str, card_name: str, char_name: str) -> pd.DataFrame:
     sales = pd.read_parquet(sales_name)
     cards = pd.read_csv(card_name)
     char_sample = pd.read_csv(char_name, dtype={'class': str}) # also has 'EX' in column
+    addrs = pd.read_csv(addr_names)
 
     cards.drop_duplicates(inplace=True)
+    addrs.drop_duplicates(subset = ['pin'], inplace=True)
     # some are duplicates other than sqft and year built, same year and other info but diff sqft
     # so we drop it cuz this look anamolous - this also probably has to do with multi_cards?
     char_sample.drop_duplicates(subset=['year', 'pin', 'class'], inplace=True)
@@ -251,12 +272,13 @@ def read_data(sales_name: str, card_name: str, char_name: str) -> pd.DataFrame:
     sales['township_code'] = sales.township_code.astype(int)
 
     sales = pd.merge(sales, char_sample)
-    sales = pd.merge(sales, cards)
+    card_addr = pd.merge(cards, addrs)
+    sales = pd.merge(sales, card_addr)
 
     sales = sales[sales['is_multisale'] != '1']
     sales = sales[sales['card'] == 1]
 
-    sales.rename(columns = {'township_code_x': 'township_code'}, inplace=True)
+    sales.rename(columns = {'township_code': 'township'}, inplace=True)
 
     df = sales
 
@@ -269,7 +291,6 @@ def pricing_info(df: pd.DataFrame, permut: tuple, groups: tuple) -> pd.DataFrame
     Also fetches the sandard deviation for the record.
     pricing is whether it is a high/low outlier and whether it is a price swing.
     which_price is whether it is the raw price, price/sqft or both that are outliers.
-    std_deviation is the std deviation for the raw price for that records class/township.
     Inputs:
         df (pd.DataFrame): dataframe of sales
         permut (tuple): tuple of standard deviation boundaries.
@@ -277,20 +298,21 @@ def pricing_info(df: pd.DataFrame, permut: tuple, groups: tuple) -> pd.DataFrame
     Outputs:
         df (pd.DataFrame): dataframe with 3 extra columns of price info.
     """
+    group_string = create_group_string(groups, '_')
 
     df = z_normalize(df, ['sale_price', 'price_per_sqft'])
 
-    prices = ['price_per_sqft_deviation_class_township',
-              'price_deviation_class_township', 'cgdr_deviation_class_township']
+    prices = [f'price_per_sqft_deviation_{group_string}',
+              f'price_deviation_{group_string}', f'cgdr_deviation_{group_string}']
 
-    df['price_deviation_class_township'] = df.groupby(list(groups))['sale_price'].apply(z_normalize_groupby)
-    df['price_per_sqft_deviation_class_township'] = df.groupby(list(groups))['price_per_sqft'].apply(z_normalize_groupby)
-    df['cgdr_deviation_class_township'] = df.groupby(list(groups))['cgdr'].apply(z_normalize_groupby)
+    df[f'price_deviation_{group_string}'] = df.groupby(list(groups))['sale_price'].apply(z_normalize_groupby)
+    df[f'price_per_sqft_deviation_{group_string}'] = df.groupby(list(groups))['price_per_sqft'].apply(z_normalize_groupby)
+    df[f'cgdr_deviation_{group_string}'] = df.groupby(list(groups))['cgdr'].apply(z_normalize_groupby)
 
-    holds = get_thresh(df, prices, permut)
+    holds = get_thresh(df, prices, permut, groups)
 
-    df['pricing'] = df.apply(price_column, args=(holds,), axis=1)
-    df['which_price'] = df.apply(which_price, args=(holds,), axis=1)
+    df['pricing'] = df.apply(price_column, args=(holds, groups), axis=1)
+    df['which_price'] = df.apply(which_price, args=(holds, groups), axis=1)
 
     return df
 
@@ -312,7 +334,7 @@ def special_flag(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def which_price(row: pd.Series, thresholds: dict) -> str:
+def which_price(row: pd.Series, thresholds: dict, groups: tuple) -> str:
     """
     Determines whether sale_price, price_per_sqft, or both are outliers,
     and returns a string resembling it.
@@ -321,23 +343,24 @@ def which_price(row: pd.Series, thresholds: dict) -> str:
     Outputs:
         value (str): string saying which of these are outliers.
     """
-
     value = 'Non-outlier'
+    group_string = create_group_string(groups, '_')
+    key = tuple(row[group] for group in groups)
 
-    if thresholds.get('price_deviation_class_township').get((row['township_code'], row['class'])) and \
-        thresholds.get('price_per_sqft_deviation_class_township').get((row['township_code'], row['class'])):
-        s_std, *s_std_range = thresholds.get('price_deviation_class_township').get((row['township_code'], row['class']))
+    if thresholds.get(f'price_deviation_{group_string}').get(key) and \
+        thresholds.get(f'price_per_sqft_deviation_{group_string}').get(key):
+        s_std, *s_std_range = thresholds.get(f'price_deviation_{group_string}').get(key)
         s_lower, s_upper = s_std_range
-        sq_std, *sq_std_range = thresholds.get('price_per_sqft_deviation_class_township').get((row['township_code'], row['class']))
+        sq_std, *sq_std_range = thresholds.get(f'price_per_sqft_deviation_{group_string}').get(key)
         sq_lower, sq_upper = sq_std_range
-        if not between_two_numbers(row['price_deviation_class_township'], s_lower, s_upper) and \
-            between_two_numbers(row['price_per_sqft_deviation_class_township'], sq_lower, sq_upper):
+        if not between_two_numbers(row[f'price_deviation_{group_string}'], s_lower, s_upper) and \
+            between_two_numbers(row[f'price_per_sqft_deviation_{group_string}'], sq_lower, sq_upper):
             value = '(raw)'
-        elif between_two_numbers(row['price_deviation_class_township'], s_lower, s_upper) and \
-            not between_two_numbers(row['price_per_sqft_deviation_class_township'], sq_lower, sq_upper):
+        elif between_two_numbers(row[f'price_deviation_{group_string}'], s_lower, s_upper) and \
+            not between_two_numbers(row[f'price_per_sqft_deviation_{group_string}'], sq_lower, sq_upper):
             value = '(sqft)'
-        elif not between_two_numbers(row['price_deviation_class_township'], s_lower, s_upper) and \
-            not between_two_numbers(row['price_per_sqft_deviation_class_township'], sq_lower, sq_upper):
+        elif not between_two_numbers(row[f'price_deviation_{group_string}'], s_lower, s_upper) and \
+            not between_two_numbers(row[f'price_per_sqft_deviation_{group_string}'], sq_lower, sq_upper):
             value = '(raw & sqft)'
 
     return value
@@ -347,7 +370,7 @@ def between_two_numbers(num: int or float, a: int or float, b: int or float) -> 
     return  a < num < b
 
 
-def price_column(row: pd.Series, thresholds: dict) -> str:
+def price_column(row: pd.Series, thresholds: dict, groups: tuple) -> str:
     """
     Determines whether the record is a high price outlier or a low price outlier.
     If the record is also a price change outlier, than add 'swing' to the string.
@@ -359,35 +382,35 @@ def price_column(row: pd.Series, thresholds: dict) -> str:
     value = 'Not price outlier'
     price = False
 
-    if thresholds.get('price_deviation_class_township').get(
-        (row['township_code'], row['class'])) and\
-        thresholds.get('price_per_sqft_deviation_class_township').get(
-            (row['township_code'], row['class'])):
-        s_std, *s_std_range = thresholds.get('price_deviation_class_township').get(
-            (row['township_code'], row['class']))
+    group_string = create_group_string(groups, '_')
+    key = tuple(row[group] for group in groups)
+
+    if thresholds.get(f'price_deviation_{group_string}').get(key) and\
+        thresholds.get(f'price_per_sqft_deviation_{group_string}').get(key):
+
+        s_std, *s_std_range = thresholds.get(f'price_deviation_{group_string}').get(key)
         s_lower, s_upper = s_std_range
-        sq_std, *sq_std_range = thresholds.get('price_per_sqft_deviation_class_township').get(
-            (row['township_code'], row['class']))
+
+        sq_std, *sq_std_range = thresholds.get(f'price_per_sqft_deviation_{group_string}').get(key)
         sq_lower, sq_upper = sq_std_range
 
-        if row['price_deviation_class_township'] > s_upper or\
-            row['price_per_sqft_deviation_class_township'] > sq_upper:
+        if row[f'price_deviation_{group_string}'] > s_upper or\
+            row[f'price_per_sqft_deviation_{group_string}'] > sq_upper:
             value = 'High price'
             price = True
-        elif row['price_deviation_class_township'] < s_lower or\
-            row['price_per_sqft_deviation_class_township'] < sq_lower:
+        elif row[f'price_deviation_{group_string}'] < s_lower or\
+            row[f'price_per_sqft_deviation_{group_string}'] < sq_lower:
             value = 'Low price'
             price = True
 
-        if price and pd.notnull(row['cgdr_deviation_class_township']) and\
-            thresholds.get('cgdr_deviation_class_township').get(
-                (row['township_code'], row['class'])):
-            # not every class/township combo has pct change info so we need this check
-            p_std, *p_std_range = thresholds.get('cgdr_deviation_class_township').get(
-                (row['township_code'], row['class']))
+        if price and pd.notnull(row[f'cgdr_deviation_{group_string}']) and\
+            thresholds.get(f'cgdr_deviation_{group_string}').get(key):
+            # not every combo will have pct change info so we need this check
+            p_std, *p_std_range = thresholds.get(f'cgdr_deviation_{group_string}').get(key)
+
             p_lower, p_upper = p_std_range
             if row['price_movement'] == 'Away from mean' and \
-                not between_two_numbers(row['cgdr_deviation_class_township'], p_lower, p_upper):
+                not between_two_numbers(row[f'cgdr_deviation_{group_string}'], p_lower, p_upper):
                 value += ' swing'
 
     return value
@@ -398,13 +421,14 @@ def create_stats(df: pd.DataFrame, groups: tuple) -> pd.DataFrame:
     Create all statistical outlier measures.
     Inputs:
         df (pd.DataFrame): Dataframe to create statistics from
-        groups (tuple): grouping for groupby. Usually 'township_code' and 'class'
+        groups (tuple): grouping for groupby. Usually 'township' and 'class'
     Outputs:
         df(pd.DataFrame): dataframe with statistical measures calculated.
     """
 
     df = price_sqft(df)
     df = grouping_mean(df, groups)
+    df = deviation_dollars(df, groups)
     df = dup_stats(df, groups)
     df = transaction_days(df)
     df = percent_change(df)
@@ -442,7 +466,7 @@ def dup_stats(df: pd.DataFrame, groups: tuple) -> pd.DataFrame:
     Inputs:
         df (pd.DataFrame): dataframe with sales data
         groups (tuple): for get_movement groups
-    Outputs:
+    Outputs:mean
         df(pd.DataFrame): dataframe with sale counts and town_class movement columns.
     """
     dups = df[df.pin.duplicated(keep=False)]
@@ -471,6 +495,24 @@ def price_sqft(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def deviation_dollars(df: pd.DataFrame, groups: tuple) -> pd.DataFrame:
+    """
+    Creates the deviation in dollars of this record from the mean
+    sale_price and price_per_sqft for the groupby groups.
+    Inputs:
+        df (pd.DataFrame): dataframe to create deviations on
+        groups (tuple): tuple of groups being grouped by
+    Outputs:
+        df (pd.DataFrame): dataframe with deviation columns
+    """
+    group_string = create_group_string(groups, '_')
+
+    df[f'deviation_{group_string}_mean_price'] = df['sale_price'] - df[f'mean_price_{group_string}']
+    df[f'deviation_{group_string}_mean_price_per_sqft'] = df['price_per_sqft'] - df[f'mean_price_per_sqft_{group_string}']
+
+    return df
+
+
 def grouping_mean(df: pd.DataFrame, groups: tuple) -> pd.DataFrame:
     """
     Gets sale_price mean by two groupings. Usually town + class.
@@ -481,13 +523,14 @@ def grouping_mean(df: pd.DataFrame, groups: tuple) -> pd.DataFrame:
     Outputs:
         df (pd.DataFrame): dataframe with grouped by mean column
     """
-    group1 = groups[0]
-    group2 = groups[1]
+    group_string = create_group_string(groups, '_')
 
-    group_mean = df.groupby([group1, group2])['sale_price'].mean()
-    df.set_index([group1, group2], inplace=True)
-    df[f'{group1}_{group2}_mean_sale'] = group_mean
-    df[f'diff_from_{group1}_{group2}_mean_sale'] = abs(df[f'{group1}_{group2}_mean_sale'] - df['sale_price'])
+    group_mean = df.groupby(list(groups))['sale_price'].mean()
+    group_mean_sqft = df.groupby(list(groups))['price_per_sqft'].mean()
+    df.set_index(list(groups), inplace=True)
+    df[f'mean_price_{group_string}'] = group_mean
+    df[f'mean_price_per_sqft_{group_string}'] = group_mean_sqft
+
     df.reset_index(inplace=True)
 
     return df
@@ -517,11 +560,12 @@ def get_movement(dups: pd.DataFrame, groups:tuple) -> pd.DataFrame:
     Outputs:
         df (pd.DataFrame): duplicate records with new column
     """
-    group1 = groups[0]
-    group2 = groups[1]
+    group_string = create_group_string(groups, '_')
 
-    temp = dups.sort_values('sale_date').groupby(['pin'])[f'diff_from_{group1}_{group2}_mean_sale'].shift()
-    dups['price_movement'] = dups[f'diff_from_{group1}_{group2}_mean_sale'].lt(temp).astype(float)
+    dups[f'deviation_{group_string}_mean_price_abs'] = abs(dups[f'mean_price_{group_string}'] - dups['sale_price'])
+
+    temp = dups.sort_values('sale_date').groupby(['pin'])[f'deviation_{group_string}_mean_price_abs'].shift()
+    dups['price_movement'] = dups[f'deviation_{group_string}_mean_price_abs'].lt(temp).astype(float)
     dups['price_movement'] = np.select([(dups['price_movement'] == 0), (dups['price_movement'] == 1)],
                                         ['Away from mean', 'Towards mean'], default='First sale')
 
@@ -560,10 +604,10 @@ def check_days(df: pd.DataFrame, threshold: int) -> pd.DataFrame:
     return df
 
 
-def get_thresh(df: pd.DataFrame, cols: list, permut: tuple) -> dict:
+def get_thresh(df: pd.DataFrame, cols: list, permut: tuple, groups: tuple) -> dict:
     """
     Creates a nested dictionary where the top level key is a column
-    and the 2nd-level key is a (township_code, class) combo.
+    and the 2nd-level key is a (township, class) combo.
     Ex: stds['sale_price'][76, 203]
     Needed in order to keep track of specific thresholds for each township/class combo.
     Theoretically each std should be 1(because of z_normalization), but in practical terms
@@ -586,7 +630,7 @@ def get_thresh(df: pd.DataFrame, cols: list, permut: tuple) -> dict:
 
     for col in cols:
         df[col] = df[col].astype(float)
-        grouped = df.dropna(subset=['township_code', col]).groupby(['township_code', 'class'])[col]
+        grouped = df.dropna(subset=list(groups) + [col]).groupby(list(groups))[col]
         lower_limit = grouped.mean() - (grouped.std(ddof=0) * permut[0])
         upper_limit = grouped.mean() + (grouped.std(ddof=0) * permut[1])
         std = grouped.std(ddof=0)
@@ -674,7 +718,7 @@ def outlier_type(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def outlier_description(row: pd.Series) -> str:
+def outlier_description(row: pd.Series, groups: tuple) -> str:
     """
     Creates an column is an easily interpretable summary of
     highly relevant information for the particular record.
@@ -685,18 +729,20 @@ def outlier_description(row: pd.Series) -> str:
     Outputs:
         value (str): description for the outlier
     """
+    group_string = create_group_string(groups, '_')
+    combo_string = create_group_string(groups, '/')
     likely_message_expression = "However, this name match occurs much more often than expected by random chance, and the parties may not be related."
 
     if '(raw & sqft)' in row['which_price']:
-        price_expression = f"raw price of ${row['sale_price'] / 1000:,}K that is {round(row['price_deviation_class_township'], 1)}"\
-                           f" deviations away from the township/class mean and a price per sqft of ${round(row['price_per_sqft'], 1):,}"\
-                           f" that is {round(row['price_per_sqft_deviation_class_township'], 1)} deviations from township/class mean"
+        price_expression = f"raw price of ${row['sale_price'] / 1000:,}K that is {round(row[f'price_deviation_{group_string}'], 1)}"\
+                           f" deviations away from the {combo_string} mean and a price per sqft of ${round(row['price_per_sqft'], 1):,}"\
+                           f" that is {round(row[f'price_per_sqft_deviation_{group_string}'], 1)} deviations from {combo_string} mean"
     if '(raw)' in row['which_price']:
-        price_expression = f"raw price of ${row['sale_price'] / 1000:,}K that is {round(row['price_deviation_class_township'], 1)}"\
-                           f" deviations from township/class mean"
+        price_expression = f"raw price of ${row['sale_price'] / 1000:,}K that is {round(row[f'price_deviation_{group_string}'], 1)}"\
+                           f" deviations from {combo_string} mean"
     if '(sqft)' in row['which_price']:
         price_expression = f"price per sqft of ${round(row['price_per_sqft'], 1):,} that is"\
-                           f" {round(row['price_per_sqft_deviation_class_township'], 1)} deviations from township/class mean"
+                           f" {round(row[f'price_per_sqft_deviation_{group_string}'], 1)} deviations from {combo_string} mean"
 
     if 'Home flip sale' in row['outlier_type']:
         value = f"Likely home flip sale with {price_expression}."\
@@ -710,11 +756,11 @@ def outlier_description(row: pd.Series) -> str:
         value = f"Both buyer and seller were identified as legal entities."\
                 f" It is a {'high' if 'high' in row['outlier_type'] else 'low'} {price_expression}."
     elif 'High price swing' in row['outlier_type']:
-        value = f"Transaction is both a compound growth rate outlier {round(row['cgdr_deviation_class_township'], 1)}"\
+        value = f"Transaction is both a compound growth rate outlier {round(row[f'cgdr_deviation_{group_string}'], 1)}"\
                 f" deviations away from the mean as well as a high {price_expression}."
     elif 'Low price swing' in row['outlier_type']:
         value = f"Transaction is both a compound growth rate outlier"\
-                f" {round(row['cgdr_deviation_class_township'], 1)} deviations away from the mean as well as a low {price_expression}."
+                f" {round(row[f'cgdr_deviation_{group_string}'], 1)} deviations away from the mean as well as a low {price_expression}."
     elif 'Anomaly' in row['outlier_type']:
         value = f"Detected by anomaly algorithm with"\
                 f" {'high' if 'high' in row['outlier_type'] else 'Low'} {price_expression}."
@@ -1251,7 +1297,7 @@ if __name__ == "__main__":
                                  """)
     parser.add_argument('--groups', dest='groups', required=True, type=tuple_str,
                         help= """The columns to groupby when determining outliers.
-                                 Ex: '('township_code, 'class')'
+                                 Ex: '('township, 'class')'
                                  """)
     parser.add_argument('--file', dest='file', required=True,
                         help= """The name of the output file as a string
