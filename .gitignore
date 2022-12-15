@@ -1,8 +1,5 @@
-sale_sample_18-21.parquet
-townships.geojson
-parcels_geoinfo.csv
+*.parquet
+*.geojson
+*.csv
 __pycache__/
 ipynb_checkpoints
-char_sample.csv
-cards.csv
-flag_permutations.csv
