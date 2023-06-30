@@ -284,7 +284,7 @@ def percent_change(df: pd.DataFrame) -> pd.DataFrame:
         df (pd.DataFrame): dataframe with CGR statistic and previous_price column
     """
 
-    df['sv_previous_price'] = df.sort_values('meta_sale_date').groupby(['meta_pin'])['meta_sale_price'].shift(axis=0)
+    df['sv_previous_price'] = df.sort_values('meta_sale_date').groupby(['pin'])['meta_sale_price'].shift(axis=0)
     df['sv_cgdr'] = ((df['meta_sale_price'] / df['sv_previous_price']) ** (1 / df['sv_days_since_last_transaction'])) - 1
 
     return df
@@ -301,7 +301,7 @@ def dup_stats(df: pd.DataFrame, groups: tuple) -> pd.DataFrame:
     Outputs:mean
         df(pd.DataFrame): dataframe with sale counts and town_class movement columns.
     """
-    dups = df[df.meta_pin.duplicated(keep=False)]
+    dups = df[df.pin.duplicated(keep=False)]
     dups = get_sale_counts(dups)
     dups = get_movement(dups, groups)
 
@@ -375,7 +375,7 @@ def get_sale_counts(dups: pd.DataFrame) -> pd.DataFrame:
     Inputs:
         df (pd.DataFrame): pandsa dataframe
     """
-    v_counts = dups.meta_pin.value_counts().reset_index().rename(columns={'index':'meta_pin', 'meta_pin':'sv_sale_dup_counts'})
+    v_counts = dups.pin.value_counts().reset_index().rename(columns={'index':'pin', 'pin':'sv_sale_dup_counts'})
     dups = pd.merge(dups, v_counts, how='outer')
 
     return dups
@@ -396,7 +396,7 @@ def get_movement(dups: pd.DataFrame, groups:tuple) -> pd.DataFrame:
 
     dups[f'sv_deviation_{group_string}_mean_price_abs'] = abs(dups[f'sv_mean_price_{group_string}'] - dups['meta_sale_price'])
 
-    temp = dups.sort_values('meta_sale_date').groupby(['meta_pin'])[f'sv_deviation_{group_string}_mean_price_abs'].shift()
+    temp = dups.sort_values('meta_sale_date').groupby(['pin'])[f'sv_deviation_{group_string}_mean_price_abs'].shift()
     dups['sv_price_movement'] = dups[f'sv_deviation_{group_string}_mean_price_abs'].lt(temp).astype(float)
     dups['sv_price_movement'] = np.select([(dups['sv_price_movement'] == 0), (dups['sv_price_movement'] == 1)],
                                         ['Away from mean', 'Towards mean'], default='First sale')
@@ -414,7 +414,7 @@ def transaction_days(df: pd.DataFrame) -> pd.DataFrame:
     """
 
     df['sv_days_since_last_transaction'] = \
-    df.sort_values('meta_sale_date').groupby('meta_pin')['meta_sale_date'].diff().apply(lambda x: x.days)
+    df.sort_values('meta_sale_date').groupby('pin')['meta_sale_date'].diff().apply(lambda x: x.days)
 
     return df
 
