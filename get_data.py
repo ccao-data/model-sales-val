@@ -106,11 +106,13 @@ SELECT
     sale.sale_price AS meta_sale_price,
     sale.sale_date AS meta_sale_date,
     sale.doc_no AS meta_sale_document_num,
-    sale.deed_type AS meta_sale_deed_type,
     sale.seller_name AS meta_sale_seller_name,
     sale.buyer_name AS meta_sale_buyer_name,
-    sale.sale_filter_is_outlier AS sv_is_ptax203_outlier,
-    res.*
+    res.class AS class,
+    res.township_code AS township_code,
+    res.year AS year,
+    res.pin AS pin,
+    res.char_bldg_sf AS char_bldg_sf
 FROM default.vw_card_res_char res
 INNER JOIN default.vw_pin_sale sale
     ON sale.pin = res.pin
