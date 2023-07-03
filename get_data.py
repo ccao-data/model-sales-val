@@ -97,7 +97,7 @@ def run_query_get_result(
     QueryExecutionId = QueryExecutionId
     )
     print(response['QueryExecution']['Status']['State'])
-    print(response['QueryExecution']['Status']['StateChangeReason'])
+    #print(response['QueryExecution']['Status']['StateChangeReason'])
 
     return data_object
 
@@ -133,8 +133,7 @@ data_object = run_query_get_result(
     s3_prefix
 )
 
-
-
-
 target = 's3://'+ s3_bucket + '/' + data_object.key
 pull = pd.read_csv(target)
+
+pull.to_csv('training_data.csv', index=False)

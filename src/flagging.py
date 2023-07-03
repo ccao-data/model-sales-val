@@ -14,6 +14,38 @@ from sklearn.decomposition import PCA
 SHORT_TERM_OWNER_THRESHOLD = 365 # 365 = 365 days or 1 year
 
 
+def go(df: pd.DataFrame, 
+       groups: tuple,
+       iso_forest_cols: list,
+       dev_bounds: tuple):
+    """
+    This function runs all of our other functions in the correct sequence.
+    Args read in from a yaml file.
+
+    Inputs:
+        df (pandas dataframe):
+        groups (tuple):
+        iso_forest (list):
+        dev_bounds (tuple):
+
+    Outputs:
+        df (pandas dataframe):
+    """
+    print('1')
+    df = create_stats(df,  groups) # 'year', 'township_code', 'class'
+    print('2')
+    df = string_processing(df)
+    print('3')
+    df = iso_forest(df, groups, iso_forest_cols)
+    print('4')
+    df = outlier_taxonomy(df, dev_bounds, groups)
+    print('5')
+
+    return df
+
+
+
+
 def create_group_string(groups: tuple, sep: str) -> str:
     """
     Creates a string joined on a separator from the groups tuple.
@@ -305,6 +337,7 @@ def dup_stats(df: pd.DataFrame, groups: tuple) -> pd.DataFrame:
     dups = get_sale_counts(dups)
     dups = get_movement(dups, groups)
 
+
     df = pd.merge(df, dups, how='outer')
 
     return df
@@ -375,8 +408,12 @@ def get_sale_counts(dups: pd.DataFrame) -> pd.DataFrame:
     Inputs:
         df (pd.DataFrame): pandsa dataframe
     """
-    v_counts = dups.pin.value_counts().reset_index().rename(columns={'index':'pin', 'pin':'sv_sale_dup_counts'})
-    dups = pd.merge(dups, v_counts, how='outer')
+    v_counts = (dups.pin
+                .value_counts()
+                .reset_index()
+                .rename(columns={'count':'sv_sale_dup_counts'})
+                )
+    dups = pd.merge(dups, v_counts)
 
     return dups
 
@@ -413,8 +450,11 @@ def transaction_days(df: pd.DataFrame) -> pd.DataFrame:
         df (pd.DataFrame): DataFrame with new column
     """
 
-    df['sv_days_since_last_transaction'] = \
-    df.sort_values('meta_sale_date').groupby('pin')['meta_sale_date'].diff().apply(lambda x: x.days)
+    df['sv_days_since_last_transaction'] = (
+        df.sort_values('meta_sale_date')
+          .groupby('pin')['meta_sale_date']
+          .diff().apply(lambda x: x.days)
+        )
 
     return df
 
