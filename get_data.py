@@ -108,6 +108,7 @@ SELECT
     sale.doc_no AS meta_sale_document_num,
     sale.seller_name AS meta_sale_seller_name,
     sale.buyer_name AS meta_sale_buyer_name,
+    sale.sale_filter_is_outlier,
     res.class AS class,
     res.township_code AS township_code,
     res.year AS year,
@@ -135,7 +136,10 @@ data_object = run_query_get_result(
     s3_prefix
 )
 
+
+"""
 target = 's3://'+ s3_bucket + '/' + data_object.key
 pull = pd.read_csv(target)
 
 pull.to_csv('training_data.csv', index=False)
+"""
