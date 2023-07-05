@@ -31,15 +31,15 @@ def go(df: pd.DataFrame,
     Outputs:
         df (pandas dataframe):
     """
-    print('1')
+    print('Initialize')
     df = create_stats(df,  groups) # 'year', 'township_code', 'class'
-    print('2')
+    print('create_stats() done')
     df = string_processing(df)
-    print('3')
+    print('string_processing() done')
     df = iso_forest(df, groups, iso_forest_cols)
-    print('4')
+    print('iso_forest() done')
     df = outlier_taxonomy(df, dev_bounds, groups)
-    print('5')
+    print('outlier_taxonomy() done\nfinished')
 
     return df
 
