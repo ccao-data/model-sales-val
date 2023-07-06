@@ -3,13 +3,15 @@ import subprocess as sp
 import numpy as np
 import os
 import yaml
+from pyathena import connect
+from pyathena.pandas.util import as_pandas
+
+# set working to root, to pull from src
+root = sp.getoutput('git rev-parse --show-toplevel')
+os.chdir(root)
 
 # import flagging functions
 from src import flagging as flg
-
-# set working to root, to pull from source
-root = sp.getoutput('git rev-parse --show-toplevel')
-os.chdir(root)
 
 # inputs yaml as inputs
 with open("inputs.yaml", 'r') as stream:
@@ -19,14 +21,53 @@ with open("inputs.yaml", 'r') as stream:
     except yaml.YAMLError as exc:
         print(exc)
 
+# connect to athena
+conn = connect(
+    s3_staging_dir=os.getenv('AWS_ATHENA_S3_STAGING_DIR'),
+    region_name=os.getenv('AWS_REGION')
+)
 
-s3_file = "s3://ccao-data-warehouse-us-east-1/sale/val_test/d8947f0d-89d4-4114-ab88-6c9739951e95.csv"
-df = pd.read_csv(s3_file)
+SQL_QUERY = """
+SELECT
+    sale.sale_price AS meta_sale_price,
+    sale.sale_date AS meta_sale_date,
+    sale.doc_no AS meta_sale_document_num,
+    sale.seller_name AS meta_sale_seller_name,
+    sale.buyer_name AS meta_sale_buyer_name,
+    sale.sale_filter_is_outlier,
+    res.class AS class,
+    res.township_code AS township_code,
+    res.year AS year,
+    res.pin AS pin,
+    res.char_bldg_sf AS char_bldg_sf
+FROM default.vw_card_res_char res
+INNER JOIN default.vw_pin_sale sale
+    ON sale.pin = res.pin
+    AND sale.year = res.year
+WHERE (res.year
+    BETWEEN '2014'
+    AND '2022')
+AND NOT sale.is_multisale
+AND Year(sale.sale_date) >= 2014
+"""
 
-# ----- data type conversion problems -----
-df['meta_sale_date'] = pd.to_datetime(df['meta_sale_date'])
+# execute query and return as pandas df
+cursor = conn.cursor()
+cursor.execute(SQL_QUERY)
+metadata = cursor.description
+df = as_pandas(cursor)
+
+# Fonvert column types
+def sql_type_to_pd_type(sql_type):
+    """
+    This function translates SQL data types to equivalent pandas dtypes.
+    """
+    if sql_type in ['decimal']:
+        return 'float64'
+    
+
+df = df.astype({col[0]: sql_type_to_pd_type(col[1]) for col in metadata})
 df = df[df['class'] != 'EX'] #incorporate into athena pull?
-# --------
 
 # run outlier flagging methodology 
 df_flag = flg.go(df=df, 

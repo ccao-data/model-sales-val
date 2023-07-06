@@ -20,14 +20,15 @@ def go(df: pd.DataFrame,
        dev_bounds: tuple):
     """
     This function runs all of our other functions in the correct sequence.
-    Args read in from a yaml file.
 
     Inputs:
-        df (pandas dataframe):
-        groups (tuple):
-        iso_forest (list):
-        dev_bounds (tuple):
-
+        df (pandas dataframe): data used to perform the outlier calculation
+        groups (tuple): which groups to groupby when selecting outliers.
+                        Ex: ('township','class','year')
+        iso_forest (list): list with columns to run PCA/IsoForest on
+        dev_bounds (tuple): how many std deviations on either side to select as outliers.
+                            Ex: (2,2) selects outliers as being farther away than 2 
+                                std deviations on both sides.
     Outputs:
         df (pandas dataframe):
     """
