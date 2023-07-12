@@ -1,10 +1,12 @@
 import pandas as pd
-import subprocess as sp
 import numpy as np
+import subprocess as sp
 import os
 import yaml
+import s3fs
 from pyathena import connect
 from pyathena.pandas.util import as_pandas
+import awswrangler as wr
 
 # set working to root, to pull from src
 root = sp.getoutput('git rev-parse --show-toplevel')
@@ -17,7 +19,6 @@ from src import flagging as flg
 with open("inputs.yaml", 'r') as stream:
     try:
         inputs = yaml.safe_load(stream)
-        print(inputs)
     except yaml.YAMLError as exc:
         print(exc)
 
@@ -28,6 +29,12 @@ conn = connect(
 )
 
 SQL_QUERY = """
+SELECT * 
+FROM sale.val_test
+"""
+
+"""
+SQL_QUERY = 
 SELECT
     sale.sale_price AS meta_sale_price,
     sale.sale_date AS meta_sale_date,
@@ -57,7 +64,10 @@ cursor.execute(SQL_QUERY)
 metadata = cursor.description
 df = as_pandas(cursor)
 
-# Fonvert column types
+
+
+
+# Convert column types
 def sql_type_to_pd_type(sql_type):
     """
     This function translates SQL data types to equivalent pandas dtypes.
@@ -85,3 +95,12 @@ df_final = (df_flag
               np.where((df['sv_outlier_type'] == "Not outlier") & df['sale_filter_is_outlier'], 
                         "PTAX-203 flag", df['sv_outlier_type']))
       .assign(sv_is_outlier = lambda df: df['sv_outlier_type'] != "Not outlier"))
+
+
+"""
+wr.s3.to_parquet(
+    df=df_final[cols_to_write],
+    path=s3_file_path
+)
+"""
+

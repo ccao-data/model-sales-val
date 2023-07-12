@@ -132,7 +132,6 @@ def pca(df:pd.DataFrame, columns: list) -> pd.DataFrame:
     Outputs:
         df (pd.DataFrame): dataframe of principal components
     """
-
     feed_data = df[columns]
     feed_data = feed_data.fillna(0)
     feed_data = feed_data.replace([np.inf, -np.inf], 0)
@@ -338,9 +337,8 @@ def dup_stats(df: pd.DataFrame, groups: tuple) -> pd.DataFrame:
     dups = get_sale_counts(dups)
     dups = get_movement(dups, groups)
 
-
     df = pd.merge(df, dups, how='outer')
-
+    
     return df
 
 
@@ -407,13 +405,14 @@ def get_sale_counts(dups: pd.DataFrame) -> pd.DataFrame:
     Calculates how many times transactions occured for a gieven property.
     Helper for dup_stats()
     Inputs:
-        df (pd.DataFrame): pandsa dataframe
+        df (pd.DataFrame): pandsa dataframe4
     """
     v_counts = (dups.pin
                 .value_counts()
                 .reset_index()
                 .rename(columns={'count':'sv_sale_dup_counts'})
                 )
+    
     dups = pd.merge(dups, v_counts)
 
     return dups
