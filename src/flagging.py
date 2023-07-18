@@ -337,6 +337,15 @@ def dup_stats(df: pd.DataFrame, groups: tuple) -> pd.DataFrame:
     dups = get_sale_counts(dups)
     dups = get_movement(dups, groups)
 
+    print('df before merge in dup_stats -----')
+    print(df.columns)
+    print(df.shape)
+
+
+    print('dups merge before stats -----')
+    print(dups.columns)
+    print(dups.shape)
+
     df = pd.merge(df, dups, how='outer')
     
     return df
@@ -411,8 +420,15 @@ def get_sale_counts(dups: pd.DataFrame) -> pd.DataFrame:
                 .value_counts()
                 .reset_index()
                 .rename(columns={'count':'sv_sale_dup_counts'})
+                #.rename(columns={'index':'pin', 'pin':'sv_sale_dup_counts'})
                 )
-    
+    print('get sale counts, before pd.merge, v_counts ------')
+    print(v_counts.columns)
+    print(v_counts.shape)
+
+    print('get sale counts, before pd.merge, dups ------')
+    print(dups.columns)
+    print(dups.shape)
     dups = pd.merge(dups, v_counts)
 
     return dups
@@ -438,6 +454,9 @@ def get_movement(dups: pd.DataFrame, groups:tuple) -> pd.DataFrame:
     dups['sv_price_movement'] = np.select([(dups['sv_price_movement'] == 0), (dups['sv_price_movement'] == 1)],
                                         ['Away from mean', 'Towards mean'], default='First sale')
 
+    print('dups ebfore get movement --------')
+    print(dups.columns)
+    print(dups.shape)
     return dups
 
 
@@ -601,7 +620,7 @@ def outlier_flag(df: pd.DataFrame) -> pd.DataFrame:
     """
 
     df['sv_is_outlier'] = np.select([(df['sv_outlier_type'] == 'Not outlier')],
-                                 ['Not outlier'], default='Outlier')
+                                 [0], default=1)
 
     return df
 

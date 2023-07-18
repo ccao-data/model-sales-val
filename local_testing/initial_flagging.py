@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 import subprocess as sp
 import os
+import datetime
+import pytz
 import yaml
 from pyathena import connect
 from pyathena.pandas.util import as_pandas
@@ -10,6 +12,9 @@ import awswrangler as wr
 # set working to root, to pull from src
 root = sp.getoutput('git rev-parse --show-toplevel')
 os.chdir(root)
+
+# set time for run_id
+chicago_tz = pytz.timezone('America/Chicago')
 
 # import flagging functions
 from src import flagging as flg
@@ -48,19 +53,28 @@ WHERE (res.year
     BETWEEN '2014'
     AND '2022')
 AND NOT sale.is_multisale
+AND NOT res.pin_is_multicard
 AND Year(sale.sale_date) >= 2014
+AND Year(sale.sale_date) <= 2022
 """
 
 # execute query and return as pandas df
 cursor = conn.cursor()
 cursor.execute(SQL_QUERY)
 metadata = cursor.description
-df = as_pandas(cursor)
+df_ingest = as_pandas(cursor)
 
+# ---------------
+# subset years for testing
+# ---------------
 
-#
-# Flagging -------
-#
+mask = df_ingest['meta_sale_date'].dt.year < 2020
+df = df_ingest.loc[mask]
+df_masked = df
+
+# ----
+# intitial flagging
+# ----
 
 # Convert column types
 def sql_type_to_pd_type(sql_type):
@@ -74,49 +88,45 @@ def sql_type_to_pd_type(sql_type):
 df = df.astype({col[0]: sql_type_to_pd_type(col[1]) for col in metadata})
 df = df[df['class'] != 'EX'] #incorporate into athena pull?
 
-# run outlier flagging methodology 
+# run outlier heuristic flagging methodology 
 df_flag = flg.go(df=df, 
                  groups=tuple(inputs['stat_groups']),
                  iso_forest_cols=inputs['iso_forest'],
                  dev_bounds=tuple(inputs['dev_bounds']))
 
-# utilize ptaxsim to complete
+
+
+# utilize ptaxsim, complete binary columns 
 df_final = (df_flag
       .rename(columns={'sv_is_outlier': 'sv_is_autoval_outlier'})
       .assign(sv_is_autoval_outlier = lambda df: df['sv_is_autoval_outlier'] == "Outlier")
       .assign(sv_is_outlier = lambda df:
                df['sv_is_autoval_outlier'] | df['sale_filter_is_outlier'])
+      # incorporate PTAX in sv_outlier_type
       .assign(sv_outlier_type = lambda df: 
               np.where((df['sv_outlier_type'] == "Not outlier") & df['sale_filter_is_outlier'], 
                         "PTAX-203 flag", df['sv_outlier_type']))
-      .assign(sv_is_outlier = lambda df: df['sv_outlier_type'] != "Not outlier"))
+      # change sv_is_outlier to binary
+      .assign(sv_is_outlier = lambda df: (df['sv_outlier_type'] != "Not outlier").astype(int))
+      # ptax binary
+      .assign(sv_is_ptax_outlier = lambda df: 
+              np.where(df['sv_outlier_type'] == "PTAX-203 flag", 1, 0))
+      # heuristics flagging binary column
+      .assign(sv_is_outlier_heuristics = lambda df:
+              np.where((df['sv_outlier_type'] != 'PTAX-203 flag') & (df['sv_is_outlier'] == 1), 1, 0))
+              # current time
+      .assign(run_id = datetime.datetime.now(chicago_tz).strftime('%Y-%m-%d_%H:%M'))
+            )
 
-# partially flag and subset
-mask = df_final['year'] != '2014'
-df_final.loc[mask, 'sv_is_outlier'] = np.nan
-df_final.loc[mask, 'sv_special_flags'] = np.nan
-df_final.loc[mask, 'sv_outlier_type'] = np.nan
-
-df_final = df_final[['meta_sale_document_num', 'year', 'township_code', 'class',
-'meta_sale_price', 'meta_sale_date', 'meta_sale_seller_name',
-'meta_sale_buyer_name', 'sale_filter_is_outlier', 'pin', 'char_bldg_sf',
-'sv_outlier_type', 'sv_special_flags', 'sv_is_outlier']]
-
-#
-# place in bucket for crawler to pick up
-#
+cols_to_write = ['run_id', 'meta_sale_document_num', 'sv_is_outlier', 'sv_is_ptax_outlier',
+       'sv_is_outlier_heuristics', 'sv_outlier_type']
 
 bucket = 's3://ccao-data-warehouse-us-east-1/sale/val_test/'
 file_name = 'sales_val_test.parquet'
 s3_file_path = bucket + file_name
 
 wr.s3.to_parquet(
-    df=df_final,
+    df=df_final[cols_to_write],
     path=s3_file_path
 )
-
-
-
-
-
 
