@@ -31,9 +31,30 @@ conn = connect(
     s3_staging_dir=os.getenv('AWS_ATHENA_S3_STAGING_DIR'),
     region_name=os.getenv('AWS_REGION')
 )
-
+"""
+This query grabs all data needed to flag unflagged values.
+It takes 8 months of data prior to the earliest unflagged sale up
+to the month data of the latest unflagged sale
+"""
 SQL_QUERY = """
-SELECT
+WITH NA_Dates AS (
+    SELECT
+        MIN(DATE_TRUNC('MONTH', sale.sale_date)) - INTERVAL '8' MONTH AS StartDate,
+        MAX(DATE_TRUNC('MONTH', sale.sale_date)) AS EndDate
+    FROM default.vw_card_res_char res
+    INNER JOIN default.vw_pin_sale sale
+        ON sale.pin = res.pin
+        AND sale.year = res.year
+    LEFT JOIN sale.val_test test
+        ON test.meta_sale_document_num = sale.doc_no
+    WHERE test.sv_is_outlier IS NULL
+        AND sale.sale_date >= DATE '2014-01-01'
+        AND sale.sale_date <= DATE '2017-12-31'
+        AND NOT sale.is_multisale
+        AND NOT res.pin_is_multicard
+)
+
+SELECT 
     sale.sale_price AS meta_sale_price,
     sale.sale_date AS meta_sale_date,
     sale.doc_no AS meta_sale_document_num,
@@ -44,21 +65,26 @@ SELECT
     res.township_code AS township_code,
     res.year AS year,
     res.pin AS pin,
-    res.char_bldg_sf AS char_bldg_sf
+    res.char_bldg_sf AS char_bldg_sf,
+    test.run_id,
+    test.sv_is_outlier,
+    test.sv_is_ptax_outlier,
+    test.sv_is_outlier_heuristics,
+    test.sv_outlier_type
 FROM default.vw_card_res_char res
 INNER JOIN default.vw_pin_sale sale
     ON sale.pin = res.pin
     AND sale.year = res.year
-WHERE (res.year
-    BETWEEN '2014'
-    AND '2022')
-AND NOT sale.is_multisale
+LEFT JOIN sale.val_test test
+    ON test.meta_sale_document_num = sale.doc_no
+INNER JOIN NA_Dates
+    ON sale.sale_date BETWEEN NA_Dates.StartDate AND NA_Dates.EndDate
+WHERE NOT sale.is_multisale
 AND NOT res.pin_is_multicard
-AND Year(sale.sale_date) >= 2014
-AND Year(sale.sale_date) <= 2022
 """
 
-SQL_QUERY_VAL_TEST = """
+
+SQL_QUERY_SALES_VAL = """
 SELECT *
 FROM sale.val_test
 """
@@ -67,7 +93,15 @@ FROM sale.val_test
 # execute queries and return as pandas df
 # ----
 
+# instantiate cursor
 cursor = conn.cursor()
+
+# grab existing sales avl table for later join
+cursor.execute(SQL_QUERY_SALES_VAL)
+df_ingest_sales_val = as_pandas(cursor)
+df_sales_val = df_ingest_sales_val
+
+# get data needed to flag non-flagged data
 cursor.execute(SQL_QUERY)
 metadata = cursor.description
 df_ingest_full = as_pandas(cursor)
@@ -84,36 +118,45 @@ def sql_type_to_pd_type(sql_type):
 df = df.astype({col[0]: sql_type_to_pd_type(col[1]) for col in metadata})
 df = df[df['class'] != 'EX'] #incorporate into athena pull?
 
-cursor.execute(SQL_QUERY_VAL_TEST)
-df_ingest_val_test = as_pandas(cursor)
-df_val_test = df_ingest_val_test
 
-merged_df = pd.merge(df_ingest_full, df_val_test, on='meta_sale_document_num', how='left', indicator=True)
-"""
-# check for NAs ----- weird NAs coming up here, small number in completed years
-pd.set_option('display.max_columns', 20)
-merged_df.groupby(merged_df['meta_sale_date'].dt.year)['sv_is_outlier'].apply(lambda x: x.isna().sum())
-df_ingest_val_test.groupby(df_ingest_val_test['meta_sale_date'].dt.year)['sv_is_outlier'].apply(lambda x: x.isna().sum())
-merged_df[merged_df['meta_sale_date'].dt.year.isin(merged_df[merged_df['sv_is_outlier'].isna()]['meta_sale_date'].dt.year.unique())]
-"""
+# - - - - - - - - 
+# creating rolling window
+# - - - - - - - -
+max_date = df['meta_sale_date'].max()
 
-
+df_to_flag = (
+    # creates dt column with 9 month dates
+    df.assign(rolling_window=df['meta_sale_date']
+              .apply(lambda x: pd.date_range(start=x, 
+                                             periods=9, 
+                                             freq='M')))
+    # expand rolling_windows dates to individual rows
+    .explode('rolling_window')
+    # tag original observations 
+    .assign(original_observation = lambda df: df['meta_sale_date'].dt.month == df['rolling_window'].dt.month)
+    # simplify to month level
+    .assign(rolling_window=lambda df: df['rolling_window'].dt.to_period('M'))
+    # filter such that rolling_window isn't extrapolated into future, we are concerned with historic and present-month data
+    .loc[lambda df: df['rolling_window'] <= max_date.to_period('M')]
+    # back to float for flagging script 
+    .assign(rolling_window=lambda df: df['rolling_window']
+            .apply(lambda x: x.strftime('%Y%m')).astype(float))
+)
 
 # ----
 # re-flagging
 # ----
-
-
-# gather years needed for re-flagging
-na_rows = merged_df[merged_df['sv_is_outlier'].isna()]
-years_to_tag = na_rows.year.unique().tolist()
-df_to_flag = df[df.year.isin(years_to_tag)]
 
 # run outlier heuristic flagging methodology 
 df_flag = flg.go(df=df_to_flag, 
                  groups=tuple(inputs['stat_groups']),
                  iso_forest_cols=inputs['iso_forest'],
                  dev_bounds=tuple(inputs['dev_bounds']))
+
+# remove duplicate rows
+df_flag = df_flag[df_flag['original_observation']]
+# discard pre-2014 data
+df_flag = df_flag[df_flag['meta_sale_date'] >= '2014-01-01']
 
 # utilize ptaxsim, complete binary columns 
 df_final = (df_flag
@@ -137,9 +180,14 @@ df_final = (df_flag
       .assign(run_id = datetime.datetime.now(chicago_tz).strftime('%Y-%m-%d_%H:%M'))
             )
 
+
+# - - - - -
+# append newly flagged sales to existing sales_val table
+# - - - - -
+
 cols_to_write = ['run_id', 'meta_sale_document_num', 'sv_is_outlier', 'sv_is_ptax_outlier',
        'sv_is_outlier_heuristics', 'sv_outlier_type']
 
 # append unseen rows to sales_val table
-rows_to_append = df_final[~df_final['meta_sale_document_num'].isin(df_val_test['meta_sale_document_num'])]
-sales_val_updated = pd.concat([df_val_test, rows_to_append[cols_to_write]], ignore_index=True)
+rows_to_append = df_final[~df_final['meta_sale_document_num'].isin(df_sales_val['meta_sale_document_num'])]
+sales_val_updated = pd.concat([df_sales_val, rows_to_append[cols_to_write]], ignore_index=True)

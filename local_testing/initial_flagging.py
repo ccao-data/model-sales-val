@@ -49,13 +49,11 @@ FROM default.vw_card_res_char res
 INNER JOIN default.vw_pin_sale sale
     ON sale.pin = res.pin
     AND sale.year = res.year
-WHERE (res.year
-    BETWEEN '2014'
-    AND '2022')
+WHERE (sale.sale_date
+    BETWEEN DATE '2013-05-01'
+    AND DATE '2015-12-31')
 AND NOT sale.is_multisale
 AND NOT res.pin_is_multicard
-AND Year(sale.sale_date) >= 2014
-AND Year(sale.sale_date) <= 2022
 """
 
 # execute query and return as pandas df
@@ -72,21 +70,53 @@ mask = df_ingest['meta_sale_date'].dt.year < 2020
 df = df_ingest.loc[mask]
 df_masked = df
 
+# -----
+# cleaning and stuff
+# -----
+
+def sql_type_to_pd_type(sql_type):
+    """
+    This function translates SQL data types to equivalent 
+    pandas dtypes, using athena parquet metadata
+    """
+    if sql_type in ['decimal']:
+        return 'float64'
+
+
+df = df.astype({col[0]: sql_type_to_pd_type(col[1]) for col in metadata})
+df = df[df['class'] != 'EX'] #incorporate into athena pull?
+
+# - - - - - - - - 
+# creating rolling window
+# - - - - - - - -
+max_date = df['meta_sale_date'].max()
+
+df = (
+    # creates dt column with 9 month dates
+    df.assign(rolling_window=df['meta_sale_date']
+              .apply(lambda x: pd.date_range(start=x, 
+                                             periods=9, 
+                                             freq='M')))
+    # expand rolling_windows dates to individual rows
+    .explode('rolling_window')
+    # tag original observations 
+    .assign(original_observation = lambda df: df['meta_sale_date'].dt.month == df['rolling_window'].dt.month)
+    # simplify to month level
+    .assign(rolling_window=lambda df: df['rolling_window'].dt.to_period('M'))
+    # filter such that rolling_window isn't extrapolated into future, we are concerned with historic and present-month data
+    .loc[lambda df: df['rolling_window'] <= max_date.to_period('M')]
+    # back to float for flagging script 
+    .assign(rolling_window=lambda df: df['rolling_window']
+            .apply(lambda x: x.strftime('%Y%m')).astype(float))
+)
+
+
+
 # ----
 # intitial flagging
 # ----
 
-# Convert column types
-def sql_type_to_pd_type(sql_type):
-    """
-    This function translates SQL data types to equivalent pandas dtypes.
-    """
-    if sql_type in ['decimal']:
-        return 'float64'
-    
 
-df = df.astype({col[0]: sql_type_to_pd_type(col[1]) for col in metadata})
-df = df[df['class'] != 'EX'] #incorporate into athena pull?
 
 # run outlier heuristic flagging methodology 
 df_flag = flg.go(df=df, 
@@ -94,6 +124,10 @@ df_flag = flg.go(df=df,
                  iso_forest_cols=inputs['iso_forest'],
                  dev_bounds=tuple(inputs['dev_bounds']))
 
+# remove duplicate rows
+df_flag = df_flag[df_flag['original_observation']]
+# discard pre-2014 data
+df_flag = df_flag[df_flag['meta_sale_date'] >= '2014-01-01']
 
 
 # utilize ptaxsim, complete binary columns 
