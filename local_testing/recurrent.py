@@ -34,7 +34,7 @@ conn = connect(
 """
 This query grabs all data needed to flag unflagged values.
 It takes 8 months of data prior to the earliest unflagged sale up
-to the month data of the latest unflagged sale
+to the monthly data of the latest unflagged sale
 """
 SQL_QUERY = """
 WITH NA_Dates AS (
@@ -53,7 +53,6 @@ WITH NA_Dates AS (
         AND NOT sale.is_multisale
         AND NOT res.pin_is_multicard
 )
-
 SELECT 
     sale.sale_price AS meta_sale_price,
     sale.sale_date AS meta_sale_date,
@@ -116,7 +115,9 @@ def sql_type_to_pd_type(sql_type):
     
 
 df = df.astype({col[0]: sql_type_to_pd_type(col[1]) for col in metadata})
-df = df[df['class'] != 'EX'] #incorporate into athena pull?
+
+# exempt sale handling
+df['class'] = df['class'].replace('EX', 999)
 
 
 # - - - - - - - - 
@@ -176,10 +177,16 @@ df_final = (df_flag
       # heuristics flagging binary column
       .assign(sv_is_outlier_heuristics = lambda df:
               np.where((df['sv_outlier_type'] != 'PTAX-203 flag') & (df['sv_is_outlier'] == 1), 1, 0))
-              # current time
+      # current time
       .assign(run_id = datetime.datetime.now(chicago_tz).strftime('%Y-%m-%d_%H:%M'))
             )
 
+# maunually assign EX sales to non-outlier, and change from 999 back to 'EX'
+df_final.loc[df_final['class'] == 999, 'sv_is_outlier'] = 0
+df_final.loc[df_final['class'] == 999, 'sv_is_ptax_outlier'] = 0
+df_final.loc[df_final['class'] == 999, 'sv_is_outlier_heuristics'] = 0
+df_final.loc[df_final['class'] == 999, 'sv_outlier_type'] = 'Not Outlier'
+df_final.loc[df_final['class'] == 999, 'class'] = 'EX'
 
 # - - - - -
 # append newly flagged sales to existing sales_val table

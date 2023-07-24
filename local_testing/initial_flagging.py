@@ -50,10 +50,18 @@ INNER JOIN default.vw_pin_sale sale
     ON sale.pin = res.pin
     AND sale.year = res.year
 WHERE (sale.sale_date
-    BETWEEN DATE '2013-05-01'
-    AND DATE '2015-12-31')
+    BETWEEN DATE '2018-05-01'
+    AND DATE '2022-12-31')
 AND NOT sale.is_multisale
 AND NOT res.pin_is_multicard
+"""
+
+"""
+WHERE sale.sale_date >= DATE '2013-05-01'
+
+WHERE (sale.sale_date
+    BETWEEN DATE '2013-05-01'
+    AND DATE '2015-12-31')
 """
 
 # execute query and return as pandas df
@@ -61,17 +69,10 @@ cursor = conn.cursor()
 cursor.execute(SQL_QUERY)
 metadata = cursor.description
 df_ingest = as_pandas(cursor)
-
-# ---------------
-# subset years for testing
-# ---------------
-
-mask = df_ingest['meta_sale_date'].dt.year < 2020
-df = df_ingest.loc[mask]
-df_masked = df
+df = df_ingest
 
 # -----
-# cleaning and stuff
+# data cleaning
 # -----
 
 def sql_type_to_pd_type(sql_type):
@@ -79,12 +80,17 @@ def sql_type_to_pd_type(sql_type):
     This function translates SQL data types to equivalent 
     pandas dtypes, using athena parquet metadata
     """
+
+    # this is used to fix dtype so there is not error thrown in 
+    # deviation_dollars() in flagging.py on line 375
     if sql_type in ['decimal']:
         return 'float64'
 
 
 df = df.astype({col[0]: sql_type_to_pd_type(col[1]) for col in metadata})
-df = df[df['class'] != 'EX'] #incorporate into athena pull?
+
+# exempt sale handling
+df['class'] = df['class'].replace('EX', 999)
 
 # - - - - - - - - 
 # creating rolling window
@@ -110,13 +116,9 @@ df = (
             .apply(lambda x: x.strftime('%Y%m')).astype(float))
 )
 
-
-
-# ----
+# - - - -
 # intitial flagging
-# ----
-
-
+# - - - -
 
 # run outlier heuristic flagging methodology 
 df_flag = flg.go(df=df, 
@@ -128,7 +130,6 @@ df_flag = flg.go(df=df,
 df_flag = df_flag[df_flag['original_observation']]
 # discard pre-2014 data
 df_flag = df_flag[df_flag['meta_sale_date'] >= '2014-01-01']
-
 
 # utilize ptaxsim, complete binary columns 
 df_final = (df_flag
@@ -151,6 +152,13 @@ df_final = (df_flag
               # current time
       .assign(run_id = datetime.datetime.now(chicago_tz).strftime('%Y-%m-%d_%H:%M'))
             )
+
+# maunually assign EX sales to non-outlier, and change from 999 back to 'EX'
+df_final.loc[df_final['class'] == 999, 'sv_is_outlier'] = 0
+df_final.loc[df_final['class'] == 999, 'sv_is_ptax_outlier'] = 0
+df_final.loc[df_final['class'] == 999, 'sv_is_outlier_heuristics'] = 0
+df_final.loc[df_final['class'] == 999, 'sv_outlier_type'] = 'Not Outlier'
+df_final.loc[df_final['class'] == 999, 'class'] = 'EX'
 
 cols_to_write = ['run_id', 'meta_sale_document_num', 'sv_is_outlier', 'sv_is_ptax_outlier',
        'sv_is_outlier_heuristics', 'sv_outlier_type']
