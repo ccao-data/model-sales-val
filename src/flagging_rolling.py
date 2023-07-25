@@ -11,7 +11,7 @@ from scipy.stats import zscore
 from sklearn.ensemble import IsolationForest
 from sklearn.decomposition import PCA
 
-SHORT_TERM_OWNER_THRESHOLD = 274 # 365 = 365 days or 1 year
+SHORT_TERM_OWNER_THRESHOLD = 365 # 365 = 365 days or 1 year
 
 
 def go(df: pd.DataFrame, 
@@ -310,15 +310,26 @@ def percent_change(df: pd.DataFrame) -> pd.DataFrame:
     This enables us to better compare percent change accross different time periods
     as opposed to pandas pct_change() function which does not account for time period.
     Helper for create_stats().
+
+    Dataframe is subset to work with a rolling window grouping.
+
     Inputs:
         df (pd.DataFrame): datarame to create CGR on.
     Outputs:
         df (pd.DataFrame): dataframe with CGR statistic and previous_price column
     """
 
-    df['sv_previous_price'] = df.sort_values('meta_sale_date').groupby(['pin'])['meta_sale_price'].shift(axis=0)
-    df['sv_cgdr'] = ((df['meta_sale_price'] / df['sv_previous_price']) ** (1 / df['sv_days_since_last_transaction'])) - 1
+    original_df = df[df['original_observation'] == True].copy()
+    original_df['sv_previous_price'] = (original_df
+                                        .sort_values('meta_sale_date')
+                                        .groupby(['pin'])['meta_sale_price']
+                                        .shift(axis=0))
+    original_df['sv_cgdr'] = (((original_df['meta_sale_price'] /
+                                 original_df['sv_previous_price'])** 
+                                 (1 / original_df['sv_days_since_last_transaction'])) - 1)
 
+    df = pd.merge(df, original_df[['sv_previous_price', 'sv_cgdr']],
+                   left_index=True, right_index=True, how='left')
     return df
 
 
@@ -445,17 +456,23 @@ def get_movement(dups: pd.DataFrame, groups:tuple) -> pd.DataFrame:
 def transaction_days(df: pd.DataFrame) -> pd.DataFrame:
     """
     For each record, gets number of days since the last transaction.
+    Data frame is subset to work with a rolling window grouping.
+
     Inputs:
         df (pd.DataFrame): DataFrame with a sale_date column in datetime
     Outputs:
         df (pd.DataFrame): DataFrame with new column
     """
 
-    df['sv_days_since_last_transaction'] = (
-        df.sort_values('meta_sale_date')
-          .groupby('pin')['meta_sale_date']
-          .diff().apply(lambda x: x.days)
-        )
+    original_df = df[df['original_observation'] == True].copy()
+    original_df['sv_days_since_last_transaction'] = (
+        original_df.sort_values('meta_sale_date')
+                   .groupby('pin')['meta_sale_date']
+                   .diff().apply(lambda x: x.days)
+    )
+
+    df = pd.merge(df, original_df[['sv_days_since_last_transaction']], 
+                  left_index=True, right_index=True, how='left')
 
     return df
 
