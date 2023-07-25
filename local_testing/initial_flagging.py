@@ -17,7 +17,7 @@ os.chdir(root)
 chicago_tz = pytz.timezone('America/Chicago')
 
 # import flagging functions
-from src import flagging as flg
+from src import flagging_rolling as flg
 
 # inputs yaml as inputs
 with open("inputs.yaml", 'r') as stream:
@@ -51,7 +51,7 @@ INNER JOIN default.vw_pin_sale sale
     AND sale.year = res.year
 WHERE (sale.sale_date
     BETWEEN DATE '2018-05-01'
-    AND DATE '2022-12-31')
+    AND DATE '2020-12-31')
 AND NOT sale.is_multisale
 AND NOT res.pin_is_multicard
 """
@@ -90,7 +90,8 @@ def sql_type_to_pd_type(sql_type):
 df = df.astype({col[0]: sql_type_to_pd_type(col[1]) for col in metadata})
 
 # exempt sale handling
-df['class'] = df['class'].replace('EX', 999)
+exempt_data = df[df['class'] == 'EX']
+df = df[df['class'] != 'EX'] 
 
 # - - - - - - - - 
 # creating rolling window
@@ -106,7 +107,7 @@ df = (
     # expand rolling_windows dates to individual rows
     .explode('rolling_window')
     # tag original observations 
-    .assign(original_observation = lambda df: df['meta_sale_date'].dt.month == df['rolling_window'].dt.month)
+    .assign(original_observation=lambda df: df['meta_sale_date'].dt.month == df['rolling_window'].dt.month)
     # simplify to month level
     .assign(rolling_window=lambda df: df['rolling_window'].dt.to_period('M'))
     # filter such that rolling_window isn't extrapolated into future, we are concerned with historic and present-month data
@@ -149,26 +150,28 @@ df_final = (df_flag
       # heuristics flagging binary column
       .assign(sv_is_outlier_heuristics = lambda df:
               np.where((df['sv_outlier_type'] != 'PTAX-203 flag') & (df['sv_is_outlier'] == 1), 1, 0))
-              # current time
-      .assign(run_id = datetime.datetime.now(chicago_tz).strftime('%Y-%m-%d_%H:%M'))
-            )
+              )
 
-# maunually assign EX sales to non-outlier, and change from 999 back to 'EX'
-df_final.loc[df_final['class'] == 999, 'sv_is_outlier'] = 0
-df_final.loc[df_final['class'] == 999, 'sv_is_ptax_outlier'] = 0
-df_final.loc[df_final['class'] == 999, 'sv_is_outlier_heuristics'] = 0
-df_final.loc[df_final['class'] == 999, 'sv_outlier_type'] = 'Not Outlier'
-df_final.loc[df_final['class'] == 999, 'class'] = 'EX'
+# manually impute ex values as non-outliers
+exempt_to_append = exempt_data.meta_sale_document_num.reset_index().drop(columns='index')
+exempt_to_append['sv_is_outlier'] = 0
+exempt_to_append['sv_is_ptax_outlier'] = 0
+exempt_to_append['sv_is_outlier_heuristics'] = 0
+exempt_to_append['sv_outlier_type'] = 'Not Outlier'
 
-cols_to_write = ['run_id', 'meta_sale_document_num', 'sv_is_outlier', 'sv_is_ptax_outlier',
-       'sv_is_outlier_heuristics', 'sv_outlier_type']
+cols_to_write = [ 'meta_sale_document_num', 'sv_is_outlier',
+    'sv_is_ptax_outlier','sv_is_outlier_heuristics', 'sv_outlier_type']
+
+# merge exempt values and assign run_id
+df_to_write = pd.concat([df_final[cols_to_write], exempt_to_append])
+df_to_write['run_id'] = datetime.datetime.now(chicago_tz).strftime('%Y-%m-%d_%H:%M')
 
 bucket = 's3://ccao-data-warehouse-us-east-1/sale/val_test/'
 file_name = 'sales_val_test.parquet'
 s3_file_path = bucket + file_name
 
 wr.s3.to_parquet(
-    df=df_final[cols_to_write],
+    df=df_to_write,
     path=s3_file_path
 )
 
