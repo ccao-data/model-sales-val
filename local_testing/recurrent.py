@@ -17,7 +17,7 @@ os.chdir(root)
 chicago_tz = pytz.timezone('America/Chicago')
 
 # import flagging functions
-from src import flagging as flg
+from src import flagging_rolling as flg
 
 # inputs yaml as inputs
 with open("inputs.yaml", 'r') as stream:
@@ -48,8 +48,8 @@ WITH NA_Dates AS (
     LEFT JOIN sale.val_test test
         ON test.meta_sale_document_num = sale.doc_no
     WHERE test.sv_is_outlier IS NULL
-        AND sale.sale_date >= DATE '2014-01-01'
-        AND sale.sale_date <= DATE '2017-12-31'
+        AND sale.sale_date >= DATE '2018-01-01'
+        AND sale.sale_date <= DATE '2021-12-31'
         AND NOT sale.is_multisale
         AND NOT res.pin_is_multicard
 )
@@ -117,8 +117,8 @@ def sql_type_to_pd_type(sql_type):
 df = df.astype({col[0]: sql_type_to_pd_type(col[1]) for col in metadata})
 
 # exempt sale handling
-df['class'] = df['class'].replace('EX', 999)
-
+exempt_data = df[df['class'] == 'EX']
+df = df[df['class'] != 'EX'] 
 
 # - - - - - - - - 
 # creating rolling window
@@ -177,24 +177,26 @@ df_final = (df_flag
       # heuristics flagging binary column
       .assign(sv_is_outlier_heuristics = lambda df:
               np.where((df['sv_outlier_type'] != 'PTAX-203 flag') & (df['sv_is_outlier'] == 1), 1, 0))
-      # current time
-      .assign(run_id = datetime.datetime.now(chicago_tz).strftime('%Y-%m-%d_%H:%M'))
             )
 
-# maunually assign EX sales to non-outlier, and change from 999 back to 'EX'
-df_final.loc[df_final['class'] == 999, 'sv_is_outlier'] = 0
-df_final.loc[df_final['class'] == 999, 'sv_is_ptax_outlier'] = 0
-df_final.loc[df_final['class'] == 999, 'sv_is_outlier_heuristics'] = 0
-df_final.loc[df_final['class'] == 999, 'sv_outlier_type'] = 'Not Outlier'
-df_final.loc[df_final['class'] == 999, 'class'] = 'EX'
+# manually impute ex values as non-outliers
+exempt_to_append = exempt_data.meta_sale_document_num.reset_index().drop(columns='index')
+exempt_to_append['sv_is_outlier'] = 0
+exempt_to_append['sv_is_ptax_outlier'] = 0
+exempt_to_append['sv_is_outlier_heuristics'] = 0
+exempt_to_append['sv_outlier_type'] = 'Not Outlier'
+
+cols_to_write = ['meta_sale_document_num', 'sv_is_outlier', 
+                 'sv_is_ptax_outlier', 'sv_is_outlier_heuristics', 'sv_outlier_type']
+
+# merge exempt values and assign run_id
+df_to_write = pd.concat([df_final[cols_to_write], exempt_to_append])
+df_to_write['run_id'] = datetime.datetime.now(chicago_tz).strftime('%Y-%m-%d_%H:%M')
 
 # - - - - -
 # append newly flagged sales to existing sales_val table
 # - - - - -
 
-cols_to_write = ['run_id', 'meta_sale_document_num', 'sv_is_outlier', 'sv_is_ptax_outlier',
-       'sv_is_outlier_heuristics', 'sv_outlier_type']
-
 # append unseen rows to sales_val table
-rows_to_append = df_final[~df_final['meta_sale_document_num'].isin(df_sales_val['meta_sale_document_num'])]
-sales_val_updated = pd.concat([df_sales_val, rows_to_append[cols_to_write]], ignore_index=True)
+rows_to_append = df_to_write[~df_to_write['meta_sale_document_num'].isin(df_sales_val['meta_sale_document_num'])]
+sales_val_updated = pd.concat([df_sales_val, rows_to_append], ignore_index=True)
