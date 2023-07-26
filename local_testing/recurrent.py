@@ -82,7 +82,6 @@ WHERE NOT sale.is_multisale
 AND NOT res.pin_is_multicard
 """
 
-
 SQL_QUERY_SALES_VAL = """
 SELECT *
 FROM sale.val_test
@@ -95,7 +94,7 @@ FROM sale.val_test
 # instantiate cursor
 cursor = conn.cursor()
 
-# grab existing sales avl table for later join
+# grab existing sales val table for later join
 cursor.execute(SQL_QUERY_SALES_VAL)
 df_ingest_sales_val = as_pandas(cursor)
 df_sales_val = df_ingest_sales_val
@@ -108,8 +107,12 @@ df = df_ingest_full
 
 def sql_type_to_pd_type(sql_type):
     """
-    This function translates SQL data types to equivalent pandas dtypes.
+    This function translates SQL data types to equivalent 
+    pandas dtypes, using athena parquet metadata
     """
+
+    # this is used to fix dtype so there is not error thrown in 
+    # deviation_dollars() in flagging script on line 375
     if sql_type in ['decimal']:
         return 'float64'
     
@@ -198,5 +201,10 @@ df_to_write['run_id'] = datetime.datetime.now(chicago_tz).strftime('%Y-%m-%d_%H:
 # - - - - -
 
 # append unseen rows to sales_val table
-rows_to_append = df_to_write[~df_to_write['meta_sale_document_num'].isin(df_sales_val['meta_sale_document_num'])]
+rows_to_append = (df_to_write[~df_to_write['meta_sale_document_num']
+                              .isin(df_sales_val['meta_sale_document_num'])])
 sales_val_updated = pd.concat([df_sales_val, rows_to_append], ignore_index=True)
+
+# - - - - 
+# rewrite parquet to bucket with newly flagged values
+# - - - -

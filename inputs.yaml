@@ -8,7 +8,7 @@ run_note: >
   First Draft with sales vale pipeline removal
 
 stat_groups: [
-  "year",
+  "rolling_window",
   "township_code",
   "class"
 ]
