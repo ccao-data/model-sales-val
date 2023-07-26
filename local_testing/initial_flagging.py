@@ -49,19 +49,9 @@ FROM default.vw_card_res_char res
 INNER JOIN default.vw_pin_sale sale
     ON sale.pin = res.pin
     AND sale.year = res.year
-WHERE (sale.sale_date
-    BETWEEN DATE '2018-05-01'
-    AND DATE '2020-12-31')
+WHERE sale.sale_date >= DATE '2013-05-01'
 AND NOT sale.is_multisale
 AND NOT res.pin_is_multicard
-"""
-
-"""
-WHERE sale.sale_date >= DATE '2013-05-01'
-
-WHERE (sale.sale_date
-    BETWEEN DATE '2013-05-01'
-    AND DATE '2015-12-31')
 """
 
 # execute query and return as pandas df
@@ -82,7 +72,7 @@ def sql_type_to_pd_type(sql_type):
     """
 
     # this is used to fix dtype so there is not error thrown in 
-    # deviation_dollars() in flagging.py on line 375
+    # deviation_dollars() in flagging script on line 375
     if sql_type in ['decimal']:
         return 'float64'
 
