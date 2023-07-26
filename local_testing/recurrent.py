@@ -8,19 +8,25 @@ import yaml
 from pyathena import connect
 from pyathena.pandas.util import as_pandas
 import awswrangler as wr
+import boto3
 
-# set working to root, to pull from src
-root = sp.getoutput('git rev-parse --show-toplevel')
-os.chdir(root)
+
+# Create clients
+s3 = boto3.client('s3')
+glue_client = boto3.client('glue', region_name='us-east-1')
 
 # set time for run_id
 chicago_tz = pytz.timezone('America/Chicago')
 
-# import flagging functions
-from src import flagging_rolling as flg
+# import flagging functions and yaml file from s3 
+s3.download_file('ccao-glue-assets-us-east-1', 'scripts/sales-val/flagging.py', '/tmp/flagging.py')
+s3.download_file('ccao-glue-assets-us-east-1', 'scripts/sales-val/inputs.yaml', '/tmp/inputs.yaml')
 
-# inputs yaml as inputs
-with open("inputs.yaml", 'r') as stream:
+# Load the python script
+exec(open("/tmp/flagging.py").read())
+
+# load yaml
+with open("/tmp/inputs.yaml", 'r') as stream:
     try:
         inputs = yaml.safe_load(stream)
     except yaml.YAMLError as exc:
@@ -28,9 +34,10 @@ with open("inputs.yaml", 'r') as stream:
 
 # connect to athena
 conn = connect(
-    s3_staging_dir=os.getenv('AWS_ATHENA_S3_STAGING_DIR'),
-    region_name=os.getenv('AWS_REGION')
+    s3_staging_dir='s3://ccao-athena-results-us-east-1',
+    region_name='us-east-1'
 )
+
 """
 This query grabs all data needed to flag unflagged values.
 It takes 8 months of data prior to the earliest unflagged sale up
@@ -84,7 +91,7 @@ AND NOT res.pin_is_multicard
 
 SQL_QUERY_SALES_VAL = """
 SELECT *
-FROM sale.val_test
+FROM sale.flag
 """
 
 # ----
@@ -152,7 +159,7 @@ df_to_flag = (
 # ----
 
 # run outlier heuristic flagging methodology 
-df_flag = flg.go(df=df_to_flag, 
+df_flag = go(df=df_to_flag, 
                  groups=tuple(inputs['stat_groups']),
                  iso_forest_cols=inputs['iso_forest'],
                  dev_bounds=tuple(inputs['dev_bounds']))
@@ -208,3 +215,12 @@ sales_val_updated = pd.concat([df_sales_val, rows_to_append], ignore_index=True)
 # - - - - 
 # rewrite parquet to bucket with newly flagged values
 # - - - -
+
+bucket = 's3://ccao-data-warehouse-us-east-1/sale/flag/'
+file_name = 'part-0.parquet'
+s3_file_path = bucket + file_name
+
+wr.s3.to_parquet(
+    df=sales_val_updated,
+    path=s3_file_path
+)
