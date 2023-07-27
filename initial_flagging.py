@@ -17,8 +17,6 @@ os.chdir(root)
 # Set time for run_id
 chicago_tz = pytz.timezone('America/Chicago')
 
-# Import flagging functions
-
 # Inputs yaml as inputs
 with open("inputs.yaml", 'r') as stream:
     try:
