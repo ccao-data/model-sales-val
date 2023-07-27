@@ -1,3 +1,4 @@
+from src import flagging_rolling as flg
 import awswrangler as wr
 import os
 import datetime
@@ -17,7 +18,6 @@ os.chdir(root)
 chicago_tz = pytz.timezone('America/Chicago')
 
 # Import flagging functions
-from src import flagging_rolling as flg
 
 # Inputs yaml as inputs
 with open("inputs.yaml", 'r') as stream:
@@ -49,9 +49,17 @@ FROM default.vw_card_res_char res
 INNER JOIN default.vw_pin_sale sale
     ON sale.pin = res.pin
     AND sale.year = res.year
-WHERE sale.sale_date >= DATE '2013-01-01'
+WHERE (sale.sale_date
+    BETWEEN DATE '2019-02-01'
+    AND DATE '2021-12-31')
 AND NOT sale.is_multisale
 AND NOT res.pin_is_multicard
+"""
+
+"""
+WHERE (sale.sale_date
+    BETWEEN DATE '2018-05-01'
+    AND DATE '2020-12-31')
 """
 
 # Execute query and return as pandas df
@@ -64,6 +72,7 @@ df = df_ingest
 # -----
 # Data cleaning
 # -----
+
 
 def sql_type_to_pd_type(sql_type):
     """
@@ -100,7 +109,8 @@ df = (
     .assign(original_observation=lambda df: df['meta_sale_date'].dt.month == df['rolling_window'].dt.month)
     # Simplify to month level
     .assign(rolling_window=lambda df: df['rolling_window'].dt.to_period('M'))
-    # Filter such that rolling_window isn't extrapolated into future, we are concerned with historic and present-month data
+    # Filter such that rolling_window isn't extrapolated into future, we are
+    # concerned with historic and present-month data
     .loc[lambda df: df['rolling_window'] <= max_date.to_period('M')]
     # Back to float for flagging script
     .assign(rolling_window=lambda df: df['rolling_window']
@@ -120,27 +130,27 @@ df_flag = flg.go(df=df,
 # Remove duplicate rows
 df_flag = df_flag[df_flag['original_observation']]
 # Discard pre-2014 data
-df_flag = df_flag[df_flag['meta_sale_date'] >= '2014-01-01']
+df_flag = df_flag[df_flag['meta_sale_date'] >= '2020-01-01']
 
 # Utilize PTAX-203, complete binary columns
 df_final = (df_flag
-      .rename(columns={'sv_is_outlier': 'sv_is_autoval_outlier'})
-      .assign(sv_is_autoval_outlier = lambda df: df['sv_is_autoval_outlier'] == "Outlier")
-      .assign(sv_is_outlier = lambda df:
-               df['sv_is_autoval_outlier'] | df['sale_filter_is_outlier'])
-      # Incorporate PTAX in sv_outlier_type
-      .assign(sv_outlier_type = lambda df:
-              np.where((df['sv_outlier_type'] == "Not outlier") & df['sale_filter_is_outlier'],
-                        "PTAX-203 flag", df['sv_outlier_type']))
-      # Change sv_is_outlier to binary
-      .assign(sv_is_outlier = lambda df: (df['sv_outlier_type'] != "Not outlier").astype(int))
-      # PTAX-203 binary
-      .assign(sv_is_ptax_outlier = lambda df:
-              np.where(df['sv_outlier_type'] == "PTAX-203 flag", 1, 0))
-      # Heuristics flagging binary column
-      .assign(sv_is_heuristic_outlier = lambda df:
-              np.where((df['sv_outlier_type'] != 'PTAX-203 flag') & (df['sv_is_outlier'] == 1), 1, 0))
-              )
+            .rename(columns={'sv_is_outlier': 'sv_is_autoval_outlier'})
+            .assign(sv_is_autoval_outlier=lambda df: df['sv_is_autoval_outlier'] == "Outlier")
+            .assign(sv_is_outlier=lambda df:
+                    df['sv_is_autoval_outlier'] | df['sale_filter_is_outlier'])
+            # Incorporate PTAX in sv_outlier_type
+            .assign(sv_outlier_type=lambda df:
+                    np.where((df['sv_outlier_type'] == "Not outlier") & df['sale_filter_is_outlier'],
+                             "PTAX-203 flag", df['sv_outlier_type']))
+            # Change sv_is_outlier to binary
+            .assign(sv_is_outlier=lambda df: (df['sv_outlier_type'] != "Not outlier").astype(int))
+            # PTAX-203 binary
+            .assign(sv_is_ptax_outlier=lambda df:
+                    np.where(df['sv_outlier_type'] == "PTAX-203 flag", 1, 0))
+            # Heuristics flagging binary column
+            .assign(sv_is_heuristic_outlier=lambda df:
+                    np.where((df['sv_outlier_type'] != 'PTAX-203 flag') & (df['sv_is_outlier'] == 1), 1, 0))
+            )
 
 # Manually impute ex values as non-outliers
 exempt_to_append = exempt_data.meta_sale_document_num.reset_index().drop(columns='index')
@@ -149,12 +159,17 @@ exempt_to_append['sv_is_ptax_outlier'] = 0
 exempt_to_append['sv_is_heuristic_outlier'] = 0
 exempt_to_append['sv_outlier_type'] = 'Not Outlier'
 
-cols_to_write = [ 'meta_sale_document_num', 'sv_is_outlier',
-    'sv_is_ptax_outlier','sv_is_heuristic_outlier', 'sv_outlier_type']
+cols_to_write = [
+    'meta_sale_document_num',
+    'sv_is_outlier',
+    'sv_is_ptax_outlier',
+    'sv_is_heuristic_outlier',
+    'sv_outlier_type']
 
 # Merge exempt values and assign run_id
 df_to_write = pd.concat([df_final[cols_to_write], exempt_to_append])
-df_to_write['run_id'] = datetime.datetime.now(chicago_tz).strftime('%Y-%m-%d_%H:%M')
+df_to_write['run_id'] = datetime.datetime.now(
+    chicago_tz).strftime('%Y-%m-%d_%H:%M')
 
 bucket = 's3://ccao-data-warehouse-us-east-1/sale/flag/'
 file_name = 'initial-run.parquet'
