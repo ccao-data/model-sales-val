@@ -16,14 +16,17 @@ s3 = boto3.client('s3')
 # Set timezone for run_id
 chicago_tz = pytz.timezone('America/Chicago')
 
-# Import flagging functions and yaml file from s3
-s3.download_file('ccao-glue-assets-us-east-1', 'scripts/sales-val/flagging.py', '/tmp/flagging.py')
-s3.download_file('ccao-glue-assets-us-east-1', 'scripts/sales-val/inputs.yaml', '/tmp/inputs.yaml')
-
 # Load in glue job parameters
 args = getResolvedOptions(sys.argv,
                           ['region_name',
-                           's3_staging_dir'])
+                           's3_staging_dir',
+                           's3_glue_bucket',
+                           'flagging_script_key',
+                           'yaml_script_key'])
+
+# Import flagging functions and yaml file from s3
+s3.download_file(args['s3_glue_bucket'], args['flagging_script_key'], '/tmp/flagging.py')
+s3.download_file(args['s3_glue_bucket'], args['yaml_script_key'], '/tmp/inputs.yaml')
 
 # Load the python script and yaml
 exec(open("/tmp/flagging.py").read())
