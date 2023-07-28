@@ -4,7 +4,9 @@ import datetime
 import numpy as np
 import pandas as pd
 import pytz
+import sys
 import yaml
+from awsglue.utils import getResolvedOptions
 from pyathena import connect
 from pyathena.pandas.util import as_pandas
 
@@ -18,6 +20,11 @@ chicago_tz = pytz.timezone('America/Chicago')
 s3.download_file('ccao-glue-assets-us-east-1', 'scripts/sales-val/flagging.py', '/tmp/flagging.py')
 s3.download_file('ccao-glue-assets-us-east-1', 'scripts/sales-val/inputs.yaml', '/tmp/inputs.yaml')
 
+# Load in glue job parameters
+args = getResolvedOptions(sys.argv,
+                          ['region_name',
+                           's3_staging_dir'])
+
 # Load the python script and yaml
 exec(open("/tmp/flagging.py").read())
 with open("/tmp/inputs.yaml", 'r') as stream:
@@ -28,8 +35,8 @@ with open("/tmp/inputs.yaml", 'r') as stream:
 
 # Connect to athena
 conn = connect(
-    s3_staging_dir='s3://ccao-athena-results-us-east-1',
-    region_name='us-east-1'
+    s3_staging_dir=args['s3_staging_dir'],
+    region_name=args['region_name']
 )
 
 """
@@ -49,7 +56,7 @@ WITH NA_Dates AS (
     LEFT JOIN sale.flag flag
         ON flag.meta_sale_document_num = sale.doc_no
     WHERE flag.sv_is_outlier IS NULL
-        AND sale.sale_date >= DATE '2021-02-01'
+        AND sale.sale_date >= DATE '2021-01-01'
         AND NOT sale.is_multisale
         AND NOT res.pin_is_multicard
 )
