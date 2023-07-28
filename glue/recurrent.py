@@ -49,7 +49,7 @@ WITH NA_Dates AS (
     LEFT JOIN sale.flag flag
         ON flag.meta_sale_document_num = sale.doc_no
     WHERE flag.sv_is_outlier IS NULL
-        AND sale.sale_date >= DATE '2013-01-01'
+        AND sale.sale_date >= DATE '2020-02-01'
         AND NOT sale.is_multisale
         AND NOT res.pin_is_multicard
 )
@@ -161,7 +161,7 @@ df_flag = go(df=df_to_flag,
 df_flag = df_flag[df_flag['original_observation']]
 
 # Discard pre-2014 data
-df_flag = df_flag[df_flag['meta_sale_date'] >= '2014-01-01']
+df_flag = df_flag[df_flag['meta_sale_date'] >= '2021-01-01']
 
 # Utilize PTAX-203, complete binary columns 
 df_final = (df_flag
@@ -179,7 +179,7 @@ df_final = (df_flag
       .assign(sv_is_ptax_outlier = lambda df: 
               np.where(df['sv_outlier_type'] == "PTAX-203 flag", 1, 0))
       # Heuristics flagging binary column
-      .assign(sv_is_outlier_heuristics = lambda df:
+      .assign(sv_is_heuristic_outlier = lambda df:
               np.where((df['sv_outlier_type'] != 'PTAX-203 flag') & (df['sv_is_outlier'] == 1), 1, 0))
             )
 
@@ -200,7 +200,8 @@ df_to_write['run_id'] = run_id
 
 # Filter to keep only flags not already present in the flag table
 rows_to_append = (df_to_write[~df_to_write['meta_sale_document_num']
-                              .isin(df_sales_val['meta_sale_document_num'])])
+                              .isin(df_sales_val['meta_sale_document_num'])]
+                              .reset_index(drop=True))
 
 # - - - - 
 # Write parquet to bucket with newly flagged values

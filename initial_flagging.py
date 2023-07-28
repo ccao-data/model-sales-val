@@ -48,7 +48,7 @@ INNER JOIN default.vw_pin_sale sale
     ON sale.pin = res.pin
     AND sale.year = res.year
 WHERE (sale.sale_date
-    BETWEEN DATE '2019-02-01'
+    BETWEEN DATE '2020-02-01'
     AND DATE '2021-12-31')
 AND NOT sale.is_multisale
 AND NOT res.pin_is_multicard
@@ -128,7 +128,7 @@ df_flag = flg.go(df=df,
 # Remove duplicate rows
 df_flag = df_flag[df_flag['original_observation']]
 # Discard pre-2014 data
-df_flag = df_flag[df_flag['meta_sale_date'] >= '2020-01-01']
+df_flag = df_flag[df_flag['meta_sale_date'] >= '2021-01-01']
 
 # Utilize PTAX-203, complete binary columns
 df_final = (df_flag
@@ -165,7 +165,7 @@ cols_to_write = [
     'sv_outlier_type']
 
 # Merge exempt values and assign run_id
-df_to_write = pd.concat([df_final[cols_to_write], exempt_to_append])
+df_to_write = pd.concat([df_final[cols_to_write], exempt_to_append]).reset_index(drop=True)
 df_to_write['run_id'] = datetime.datetime.now(
     chicago_tz).strftime('%Y-%m-%d_%H:%M')
 
