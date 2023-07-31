@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import pytz
 import sys
+import yaml
 from awsglue.utils import getResolvedOptions
 from pyathena import connect
 from pyathena.pandas.util import as_pandas
