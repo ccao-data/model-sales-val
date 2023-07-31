@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 import pytz
 import sys
-import yaml
 from awsglue.utils import getResolvedOptions
 from pyathena import connect
 from pyathena.pandas.util import as_pandas
@@ -29,15 +28,9 @@ args = getResolvedOptions(sys.argv,
 
 # Import flagging functions and yaml file from s3
 s3.download_file(args['s3_glue_bucket'], args['flagging_script_key'], '/tmp/flagging.py')
-s3.download_file('ccao-glue-assets-us-east-1', 'scripts/sales-val/inputs.yaml', '/tmp/inputs.yaml')
 
 # Load the python script and yaml
 exec(open("/tmp/flagging.py").read())
-with open("/tmp/inputs.yaml", 'r') as stream:
-    try:
-        inputs = yaml.safe_load(stream)
-    except yaml.YAMLError as exc:
-        print(exc)
 
 # Connect to athena
 conn = connect(
@@ -170,30 +163,9 @@ else:
     # Re-flagging
     # ----
     
-    # testing types
-    print('YAML DATA ------')
-    print(f"stat_groups: { tuple(inputs['stat_groups'])}")
-    print(f"stat_groups type: {type( tuple(inputs['stat_groups']))}")
-    print(f"iso_forest: {inputs['iso_forest']}")
-    print(f"iso_forest type: {type(inputs['iso_forest'])}")
-    print(f"dev_bounds: {tuple(inputs['dev_bounds'])}")
-    print(f"dev_bounds type: {type(tuple(inputs['dev_bounds']))}")
-    print(type(tuple(inputs['dev_bounds'])[0]))
-
     stat_groups_input = tuple(args['stat_groups'].split(','))
     iso_forest_input = args['iso_forest'].split(',')
     dev_bounds_input = tuple(map(int, args['dev_bounds'].split(',')))
-        
-    # testing types
-    print("GLUE ENV DATA ----")
-    print(f"stat_groups: {stat_groups_input}")
-    print(f"stat_groups type: {type(stat_groups_input)}")
-    print(f"iso_forest: {iso_forest_input}")
-    print(f"iso_forest type: {type(iso_forest_input)}")
-    print(f"dev_bounds: {dev_bounds_input}")
-    print(f"dev_bounds type: {type(dev_bounds_input)}")
-    print(type(tuple(dev_bounds_input)[0]))
-
 
     # Run outlier heuristic flagging methodology 
     df_flag = go(df=df_to_flag, 
