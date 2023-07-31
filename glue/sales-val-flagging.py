@@ -197,9 +197,9 @@ else:
 
     # Run outlier heuristic flagging methodology 
     df_flag = go(df=df_to_flag, 
-                    groups=stat_groups,
-                    iso_forest_cols=iso_forest,
-                    dev_bounds=dev_bounds)
+                    groups=stat_groups_input,
+                    iso_forest_cols=iso_forest_input,
+                    dev_bounds=dev_bounds_input)
     
     # Remove duplicate rows
     df_flag = df_flag[df_flag['original_observation']]
