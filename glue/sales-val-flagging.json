@@ -18,7 +18,10 @@
     "--TempDir" : "s3://ccao-glue-assets-us-east-1/temporary/",
     "--yaml_script_key" : "scripts/sales-val/inputs.yaml",
     "--s3_staging_dir" : "s3://ccao-athena-results-us-east-1",
-    "--flagging_script_key" : "scripts/sales-val/flagging.py"
+    "--flagging_script_key" : "scripts/sales-val/flagging.py",
+    "--stat_groups" : "rolling_window,township_code,class",
+    "--iso_forest" : "meta_sale_price,sv_price_per_sqft,sv_days_since_last_transaction,sv_cgdr,sv_sale_dup_counts",
+    "--dev_bounds" : "2,3" 
   },
   "maxRetries" : 0,
   "allocatedCapacity" : 0,
