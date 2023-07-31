@@ -166,7 +166,16 @@ else:
     stat_groups = tuple(args['stat_groups'].split(','))
     iso_forest = args['iso_forest'].split(',')
     dev_bounds = tuple(map(int, args['dev_bounds'].split(',')))
-    
+        
+    # testing types
+    print(f"stat_groups: {stat_groups}")
+    print(f"stat_groups type: {type(stat_groups)}")
+    print(f"iso_forest: {iso_forest}")
+    print(f"iso_forest type: {type(iso_forest)}")
+    print(f"dev_bounds: {dev_bounds}")
+    print(f"dev_bounds type: {type(dev_bounds)}")
+
+
     # Run outlier heuristic flagging methodology 
     df_flag = go(df=df_to_flag, 
                     groups=stat_groups,
