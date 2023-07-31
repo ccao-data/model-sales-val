@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 import pytz
 import sys
-import yaml
 from awsglue.utils import getResolvedOptions
 from pyathena import connect
 from pyathena.pandas.util import as_pandas
@@ -22,19 +21,16 @@ args = getResolvedOptions(sys.argv,
                            's3_staging_dir',
                            's3_glue_bucket',
                            'flagging_script_key',
-                           'yaml_script_key'])
+                           'yaml_script_key',
+                           'stat_groups',
+                           'iso_forest',
+                           'dev_bounds'])
 
 # Import flagging functions and yaml file from s3
 s3.download_file(args['s3_glue_bucket'], args['flagging_script_key'], '/tmp/flagging.py')
-s3.download_file(args['s3_glue_bucket'], args['yaml_script_key'], '/tmp/inputs.yaml')
 
 # Load the python script and yaml
 exec(open("/tmp/flagging.py").read())
-with open("/tmp/inputs.yaml", 'r') as stream:
-    try:
-        inputs = yaml.safe_load(stream)
-    except yaml.YAMLError as exc:
-        print(exc)
 
 # Connect to athena
 conn = connect(
@@ -167,11 +163,15 @@ else:
     # Re-flagging
     # ----
     
+    stat_groups = tuple(args['stat_groups'].split(','))
+    iso_forest = args['iso_forest'].split(',')
+    dev_bounds = tuple(map(int, args['dev_bounds'].split(',')))
+    
     # Run outlier heuristic flagging methodology 
     df_flag = go(df=df_to_flag, 
-                     groups=tuple(inputs['stat_groups']),
-                     iso_forest_cols=inputs['iso_forest'],
-                     dev_bounds=tuple(inputs['dev_bounds']))
+                    groups=stat_groups,
+                    iso_forest_cols=iso_forest,
+                    dev_bounds=dev_bounds)
     
     # Remove duplicate rows
     df_flag = df_flag[df_flag['original_observation']]
