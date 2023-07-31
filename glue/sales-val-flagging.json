@@ -20,7 +20,7 @@
     "--s3_staging_dir" : "s3://ccao-athena-results-us-east-1",
     "--flagging_script_key" : "scripts/sales-val/flagging.py"
   },
-  "maxRetries" : 0,
+  "maxRetries" : 1,
   "allocatedCapacity" : 0,
   "timeout" : 2880,
   "maxCapacity" : 1.0,
