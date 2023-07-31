@@ -180,19 +180,19 @@ else:
     print(f"dev_bounds type: {type(tuple(inputs['dev_bounds']))}")
     print(type(tuple(inputs['dev_bounds'])[0]))
 
-    stat_groups = tuple(args['stat_groups'].split(','))
-    iso_forest = args['iso_forest'].split(',')
-    dev_bounds = tuple(map(int, args['dev_bounds'].split(',')))
+    stat_groups_input = tuple(args['stat_groups'].split(','))
+    iso_forest_input = args['iso_forest'].split(',')
+    dev_bounds_input = tuple(map(int, args['dev_bounds'].split(',')))
         
     # testing types
     print("GLUE ENV DATA ----")
-    print(f"stat_groups: {stat_groups}")
-    print(f"stat_groups type: {type(stat_groups)}")
-    print(f"iso_forest: {iso_forest}")
-    print(f"iso_forest type: {type(iso_forest)}")
-    print(f"dev_bounds: {dev_bounds}")
-    print(f"dev_bounds type: {type(dev_bounds)}")
-    print(type(tuple(dev_bounds)[0]))
+    print(f"stat_groups: {stat_groups_input}")
+    print(f"stat_groups type: {type(stat_groups_input)}")
+    print(f"iso_forest: {iso_forest_input}")
+    print(f"iso_forest type: {type(iso_forest_input)}")
+    print(f"dev_bounds: {dev_bounds_input}")
+    print(f"dev_bounds type: {type(dev_bounds_input)}")
+    print(type(tuple(dev_bounds_input)[0]))
 
 
     # Run outlier heuristic flagging methodology 
