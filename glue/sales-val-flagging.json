@@ -1,0 +1,35 @@
+{
+  "name" : "sales-val-flagging",
+  "description" : "",
+  "role" : "arn:aws:iam::783398787602:role/ccao-glue-service-role-write",
+  "executionProperty" : {
+    "maxConcurrentRuns" : 1
+  },
+  "command" : {
+    "name" : "pythonshell",
+    "scriptLocation" : "s3://ccao-glue-assets-us-east-1/scripts/sales-val/sales-val-flagging.py",
+    "pythonVersion" : "3.9"
+  },
+  "defaultArguments" : {
+    "--s3_glue_bucket" : "ccao-glue-assets-us-east-1",
+    "--enable-job-insights" : "false",
+    "--region_name" : "us-east-1",
+    "--job-language" : "python",
+    "--TempDir" : "s3://ccao-glue-assets-us-east-1/temporary/",
+    "--yaml_script_key" : "scripts/sales-val/inputs.yaml",
+    "--s3_staging_dir" : "s3://ccao-athena-results-us-east-1",
+    "--flagging_script_key" : "scripts/sales-val/flagging.py"
+  },
+  "maxRetries" : 0,
+  "allocatedCapacity" : 0,
+  "timeout" : 2880,
+  "maxCapacity" : 1.0,
+  "glueVersion" : "3.0",
+  "executionClass" : "STANDARD",
+  "sourceControlDetails" : {
+    "provider" : "GITHUB",
+    "repository" : "model-sales-val",
+    "branch" : "main",
+    "folder" : "glue"
+  }
+}
