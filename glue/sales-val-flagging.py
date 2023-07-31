@@ -178,7 +178,7 @@ else:
     print(f"iso_forest type: {type(inputs['iso_forest'])}")
     print(f"dev_bounds: {tuple(inputs['dev_bounds'])}")
     print(f"dev_bounds type: {type(tuple(inputs['dev_bounds']))}")
-    print(type(tuple(inputs['dev_bounds'][0])))
+    print(type(tuple(inputs['dev_bounds'])[0]))
 
     stat_groups = tuple(args['stat_groups'].split(','))
     iso_forest = args['iso_forest'].split(',')
@@ -192,7 +192,7 @@ else:
     print(f"iso_forest type: {type(iso_forest)}")
     print(f"dev_bounds: {dev_bounds}")
     print(f"dev_bounds type: {type(dev_bounds)}")
-    print(type(tuple(dev_bounds[0])))
+    print(type(tuple(dev_bounds)[0]))
 
 
     # Run outlier heuristic flagging methodology 
