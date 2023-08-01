@@ -1,4 +1,5 @@
 from src import flagging_rolling as flg
+from src.flagging_rolling import SHORT_TERM_OWNER_THRESHOLD
 import awswrangler as wr
 import os
 import datetime
@@ -166,7 +167,7 @@ cols_to_write = [
 
 # Merge exempt values and assign run_id
 run_id = datetime.datetime.now(
-    chicago_tz).strftime('%Y-%m-%d_%H:%M')
+    chicago_tz).strftime('%Y-%m-%d_%H:%M') # add random word here or something
 df_to_write = pd.concat([df_final[cols_to_write], exempt_to_append]).reset_index(drop=True)
 df_to_write['run_id'] = run_id
 
@@ -200,9 +201,6 @@ def get_group_means(df: pd.DataFrame, groups: list, means_col: str) -> dict :
     """
     cols = groups + [means_col]
     df_to_dict = df.drop_duplicates(subset=means_col, keep='first')[cols]
-
-    # Convert the first part of the key to integer before converting to string
-    #df_to_dict[groups[0]] = df_to_dict[groups[0]].astype(int)
     
     # Create the 'key' column by concatenating the columns in inputs['stat_groups']
     df_to_dict['key'] = df_to_dict[groups].astype(str).apply('-'.join, axis=1)
@@ -210,10 +208,6 @@ def get_group_means(df: pd.DataFrame, groups: list, means_col: str) -> dict :
 
     return result_dict
 
-
-get_group_means(df=df_final, 
-                groups=inputs['stat_groups'], 
-                means_col='sv_mean_price_rolling_window_township_code_class')
 
 # Parameters table
 new_sales_flagged = df_to_write.shape[0]
@@ -223,6 +217,13 @@ short_term_owner_threshold = SHORT_TERM_OWNER_THRESHOLD
 iso_forest_cols = inputs['iso_forest']
 stat_groups = inputs['stat_groups']
 dev_bounds = inputs['dev_bounds']
+mean_price = get_group_means(df=df_final, 
+                             groups=inputs['stat_groups'], 
+                             means_col='sv_mean_price_rolling_window_township_code_class')
+mean_price_per_sqft = get_group_means(df=df_final, 
+                             groups=inputs['stat_groups'], 
+                             means_col='sv_mean_price_per_sqft_rolling_window_township_code_class')
+
 
 parameter_dict_to_df = {
     "run_id": [run_id],
@@ -232,7 +233,9 @@ parameter_dict_to_df = {
     "short_term_owner_threshold" : [short_term_owner_threshold],
     "iso_forest_cols" : [iso_forest_cols],
     "stat_groups": [stat_groups],
-    "dev_bounds": [dev_bounds]
+    "dev_bounds": [dev_bounds],
+    "price_group_means": [mean_price],
+    "price_group_means_sqft": [mean_price_per_sqft]
 }
 
 pd.DataFrame(parameter_dict_to_df)
