@@ -184,32 +184,8 @@ wr.s3.to_parquet(
 )
 
 # - - - - -
-# Metadata
+# Metadata / Params / Means
 # - - - - -
-
-def get_group_means(df: pd.DataFrame, groups: list, means_col: str) -> dict :
-    """
-    This function gets all group means from the flagging script, for a 
-    given column. 
-
-    Inputs:
-        df: dataframe after outlier analysis has been performed
-        groups: groups used to run the flagging script
-        means_col: column for which we want the means
-
-    Outputs:
-        result_dict: a dictionary with key as specific grouping and 
-        value as the corresponding mean
-    """
-    cols = groups + [means_col]
-    df_to_dict = df.drop_duplicates(subset=means_col, keep='first')[cols]
-    
-    # Create the 'key' column by concatenating the columns in inputs['stat_groups']
-    df_to_dict['key'] = df_to_dict[groups].astype(str).apply('-'.join, axis=1)
-    result_dict = dict(zip(df_to_dict['key'], df_to_dict[means_col].round(1)))
-
-    return result_dict
-
 
 # Parameters table
 new_sales_flagged = df_to_write.shape[0]
@@ -219,13 +195,6 @@ short_term_owner_threshold = SHORT_TERM_OWNER_THRESHOLD
 iso_forest_cols = inputs['iso_forest']
 stat_groups = inputs['stat_groups']
 dev_bounds = inputs['dev_bounds']
-mean_price = get_group_means(df=df_final, 
-                             groups=inputs['stat_groups'], 
-                             means_col='sv_mean_price_rolling_window_township_code_class')
-mean_price_per_sqft = get_group_means(df=df_final, 
-                             groups=inputs['stat_groups'], 
-                             means_col='sv_mean_price_per_sqft_rolling_window_township_code_class')
-
 
 parameter_dict_to_df = {
     "run_id": [run_id],
@@ -235,9 +204,7 @@ parameter_dict_to_df = {
     "short_term_owner_threshold" : [short_term_owner_threshold],
     "iso_forest_cols" : [iso_forest_cols],
     "stat_groups": [stat_groups],
-    "dev_bounds": [dev_bounds],
-    "price_group_means": [mean_price],
-    "price_group_means_sqft": [mean_price_per_sqft]
+    "dev_bounds": [dev_bounds]
 }
 
 df_parameters = pd.DataFrame(parameter_dict_to_df)
@@ -248,6 +215,33 @@ s3_file_path = bucket + file_name
 
 wr.s3.to_parquet(
     df=df_parameters,
+    path=s3_file_path
+)
+
+# Means Table
+"""
+sv_mean_price_rolling_window_township_code_class
+sv_mean_price_per_sqft_rolling_window_township_code_class
+"""
+unique_groups = (df_final
+                 .drop_duplicates(subset=inputs['stat_groups'],
+                                  keep='first')
+                 .reset_index(drop=True))
+
+cols_to_write_means = [
+    'rolling_window','township_code','class', 
+    'sv_mean_price_rolling_window_township_code_class',
+    'sv_mean_price_per_sqft_rolling_window_township_code_class']
+
+df_means = unique_groups[cols_to_write_means]
+df_means['run_id'] = run_id
+
+bucket = 's3://ccao-data-warehouse-us-east-1/sale/mean/'
+file_name =  run_id + '.parquet'
+s3_file_path = bucket + file_name
+
+wr.s3.to_parquet(
+    df=df_means,
     path=s3_file_path
 )
 
