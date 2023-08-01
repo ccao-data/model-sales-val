@@ -32,6 +32,11 @@ s3.download_file(args['s3_glue_bucket'], args['flagging_script_key'], '/tmp/flag
 # Load the python script and yaml
 exec(open("/tmp/flagging.py").read())
 
+# Test variable ingestion
+sys.path.append('/tmp')
+import flagging
+print(flagging.SHORT_TERM_OWNER_THRESHOLD)
+
 # Connect to athena
 conn = connect(
     s3_staging_dir=args['s3_staging_dir'],
