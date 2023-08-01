@@ -8,9 +8,11 @@ import sys
 from awsglue.utils import getResolvedOptions
 from pyathena import connect
 from pyathena.pandas.util import as_pandas
+from random_word import RandomWords
 
-# Create S3 client
+# Create clients
 s3 = boto3.client('s3')
+glue = boto3.client('glue')
 
 # Set timezone for run_id
 chicago_tz = pytz.timezone('America/Chicago')
@@ -210,7 +212,10 @@ else:
                      'sv_is_ptax_outlier', 'sv_is_heuristic_outlier', 'sv_outlier_type']
     
     # Merge exempt values and assign run_id
-    run_id = datetime.datetime.now(chicago_tz).strftime('%Y-%m-%d_%H:%M')
+    r = RandomWords()
+    random_word_id = r.get_random_word()
+    timestamp = datetime.datetime.now(chicago_tz).strftime('%Y-%m-%d_%H:%M')
+    run_id = random_word_id + '-' + timestamp
     df_to_write = pd.concat([df_final[cols_to_write], exempt_to_append])
     df_to_write['run_id'] = run_id
     
@@ -229,5 +234,87 @@ else:
     
     wr.s3.to_parquet(
         df=rows_to_append,
+        path=s3_file_path
+    )
+    
+    # - - - - -
+    # Metadata / Params / Means
+    # - - - - -
+
+    # Parameters table
+    new_sales_flagged = df_to_write.shape[0]
+    earliest_sale_ingest = df_ingest_full.meta_sale_date.min()
+    latest_sale_ingest = df_ingest_full.meta_sale_date.max()
+    short_term_owner_threshold = SHORT_TERM_OWNER_THRESHOLD
+    iso_forest_cols = args['iso_forest'].split(',')
+    stat_groups = args['stat_groups'].split(',')
+    dev_bounds = map(int, args['dev_bounds'].split(','))
+
+    parameter_dict_to_df = {
+        "run_id": [run_id],
+        "new_sales_flagged": [new_sales_flagged],
+        "earliest_data_ingest": [earliest_sale_ingest],
+        "latest_data_ingest": [latest_sale_ingest],
+        "short_term_owner_threshold" : [short_term_owner_threshold],
+        "iso_forest_cols" : [iso_forest_cols],
+        "stat_groups": [stat_groups],
+        "dev_bounds": [dev_bounds]
+    }
+
+    df_parameters = pd.DataFrame(parameter_dict_to_df)
+
+    bucket = 's3://ccao-data-warehouse-us-east-1/sale/parameter/'
+    file_name = run_id + '.parquet'
+    s3_file_path = bucket + file_name
+
+    wr.s3.to_parquet(
+        df=df_parameters,
+        path=s3_file_path
+    )
+
+
+    # Means Table
+    unique_groups = (df_final
+                    .drop_duplicates(subset=args['stat_groups'].split(','),
+                                     keep='first')
+                    .reset_index(drop=True))
+
+    cols_to_write_means = [
+        'rolling_window','township_code','class', 
+        'sv_mean_price_rolling_window_township_code_class',
+        'sv_mean_price_per_sqft_rolling_window_township_code_class']
+
+    df_means = unique_groups[cols_to_write_means]
+    df_means['run_id'] = run_id
+
+    bucket = 's3://ccao-data-warehouse-us-east-1/sale/mean/'
+    file_name =  run_id + '.parquet'
+    s3_file_path = bucket + file_name
+
+    wr.s3.to_parquet(
+        df=df_means,
+        path=s3_file_path
+    )
+
+    
+    # Metadata table
+    job_name = 'sales-val-flagging'
+    response = glue.get_job(JobName=job_name)
+    commit_sha = response['Job']['SourceControlDetails']['LastCommitId']
+
+    metadata_dict_to_df = {
+        "run_id": [run_id],
+        "long_commit_sha": commit_sha,
+        "short_commit_sha": commit_sha[0:8]
+    }
+
+    df_metadata = pd.DataFrame(metadata_dict_to_df)
+
+    bucket = 's3://ccao-data-warehouse-us-east-1/sale/metadata/'
+    file_name =  run_id + '.parquet'
+    s3_file_path = bucket + file_name
+
+    wr.s3.to_parquet(
+        df=df_metadata,
         path=s3_file_path
     )
