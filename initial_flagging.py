@@ -48,8 +48,8 @@ INNER JOIN default.vw_pin_sale sale
     ON sale.pin = res.pin
     AND sale.year = res.year
 WHERE (sale.sale_date
-    BETWEEN DATE '2020-02-01'
-    AND DATE '2021-12-31')
+    BETWEEN DATE '2018-02-01'
+    AND DATE '2020-12-31')
 AND NOT sale.is_multisale
 AND NOT res.pin_is_multicard
 """
@@ -128,7 +128,7 @@ df_flag = flg.go(df=df,
 # Remove duplicate rows
 df_flag = df_flag[df_flag['original_observation']]
 # Discard pre-2014 data
-df_flag = df_flag[df_flag['meta_sale_date'] >= '2021-01-01']
+df_flag = df_flag[df_flag['meta_sale_date'] >= '2019-01-01']
 
 # Utilize PTAX-203, complete binary columns
 df_final = (df_flag
@@ -165,15 +165,85 @@ cols_to_write = [
     'sv_outlier_type']
 
 # Merge exempt values and assign run_id
-df_to_write = pd.concat([df_final[cols_to_write], exempt_to_append]).reset_index(drop=True)
-df_to_write['run_id'] = datetime.datetime.now(
+run_id = datetime.datetime.now(
     chicago_tz).strftime('%Y-%m-%d_%H:%M')
+df_to_write = pd.concat([df_final[cols_to_write], exempt_to_append]).reset_index(drop=True)
+df_to_write['run_id'] = run_id
 
 bucket = 's3://ccao-data-warehouse-us-east-1/sale/flag/'
 file_name = 'initial-run.parquet'
 s3_file_path = bucket + file_name
 
+
 wr.s3.to_parquet(
     df=df_to_write,
     path=s3_file_path
 )
+
+# - - - - -
+# Metadata
+# - - - - -
+
+def get_group_means(df: pd.DataFrame, groups: list, means_col: str) -> dict :
+    """
+    This function gets all group means from the flagging script, for a 
+    given column. 
+
+    Inputs:
+        df: dataframe after outlier analysis has been performed
+        groups: groups used to run the flagging script
+        means_col: column for which we want the means
+
+    Outputs:
+        result_dict: a dictionary with key as specific grouping and 
+        value as the corresponding mean
+    """
+    cols = groups + [means_col]
+    df_to_dict = df.drop_duplicates(subset=means_col, keep='first')[cols]
+
+    # Convert the first part of the key to integer before converting to string
+    df_to_dict[groups[0]] = df_to_dict[groups[0]].astype(int)
+    
+    # Create the 'key' column by concatenating the columns in inputs['stat_groups']
+    df_to_dict['key'] = df_to_dict[groups].astype(str).apply('-'.join, axis=1)
+    result_dict = dict(zip(df_to_dict['key'], df_to_dict[means_col]))
+
+    return result_dict
+
+
+get_group_means(df=df_final, 
+                groups=inputs['stat_groups'], 
+                means_col='sv_mean_price_rolling_window_township_code_class')
+
+# Parameters table
+new_sales_flagged = df_to_write.shape[0]
+earliest_sale_ingest = df_ingest.meta_sale_date.min()
+latest_sale_ingest = df_ingest.meta_sale_date.max()
+short_term_owner_threshold = SHORT_TERM_OWNER_THRESHOLD
+iso_forest_cols = inputs['iso_forest']
+stat_groups = inputs['stat_groups']
+dev_bounds = inputs['dev_bounds']
+
+parameter_dict_to_df = {
+    "run_id": [run_id],
+    "new_sales_flagged": [new_sales_flagged],
+    "earliest_data_ingest": [earliest_sale_ingest],
+    "latest_data_ingest": [latest_sale_ingest],
+    "short_term_owner_threshold" : [short_term_owner_threshold],
+    "iso_forest_cols" : [iso_forest_cols],
+    "stat_groups": [stat_groups],
+    "dev_bounds": [dev_bounds]
+}
+
+pd.DataFrame(parameter_dict_to_df)
+
+
+# Metadata table
+commit_sha = sp.getoutput('git rev-parse HEAD')
+# add start time, end time, short/long sha
+
+metadata_dict_to_df = {
+    "run_id": [run_id],
+    "commit-sha": commit_sha
+
+}
