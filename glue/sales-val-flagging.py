@@ -29,9 +29,8 @@ args = getResolvedOptions(sys.argv,
 # Import flagging functions and yaml file from s3
 s3.download_file(args['s3_glue_bucket'], args['flagging_script_key'], '/tmp/flagging.py')
 
-# Load the python script and yaml
+# Load the python flagging script
 exec(open("/tmp/flagging.py").read())
-print(SHORT_TERM_OWNER_THRESHOLD)
 
 # Connect to athena
 conn = connect(
@@ -157,7 +156,7 @@ else:
         .loc[lambda df: df['rolling_window'] <= max_date.to_period('M')]
         # Back to float for flagging script 
         .assign(rolling_window=lambda df: df['rolling_window']
-                .apply(lambda x: x.strftime('%Y%m')).astype(float))
+                .apply(lambda x: x.strftime('%Y%m')).astype(int))
     )
     
     # ----

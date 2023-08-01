@@ -48,8 +48,8 @@ INNER JOIN default.vw_pin_sale sale
     ON sale.pin = res.pin
     AND sale.year = res.year
 WHERE (sale.sale_date
-    BETWEEN DATE '2018-02-01'
-    AND DATE '2020-12-31')
+    BETWEEN DATE '2019-02-01'
+    AND DATE '2021-12-31')
 AND NOT sale.is_multisale
 AND NOT res.pin_is_multicard
 """
@@ -112,7 +112,7 @@ df = (
     .loc[lambda df: df['rolling_window'] <= max_date.to_period('M')]
     # Back to float for flagging script
     .assign(rolling_window=lambda df: df['rolling_window']
-            .apply(lambda x: x.strftime('%Y%m')).astype(float))
+            .apply(lambda x: x.strftime('%Y%m')).astype(int))
 )
 
 # - - - -
@@ -128,7 +128,7 @@ df_flag = flg.go(df=df,
 # Remove duplicate rows
 df_flag = df_flag[df_flag['original_observation']]
 # Discard pre-2014 data
-df_flag = df_flag[df_flag['meta_sale_date'] >= '2019-01-01']
+df_flag = df_flag[df_flag['meta_sale_date'] >= '2020-01-01']
 
 # Utilize PTAX-203, complete binary columns
 df_final = (df_flag
@@ -202,7 +202,7 @@ def get_group_means(df: pd.DataFrame, groups: list, means_col: str) -> dict :
     df_to_dict = df.drop_duplicates(subset=means_col, keep='first')[cols]
 
     # Convert the first part of the key to integer before converting to string
-    df_to_dict[groups[0]] = df_to_dict[groups[0]].astype(int)
+    #df_to_dict[groups[0]] = df_to_dict[groups[0]].astype(int)
     
     # Create the 'key' column by concatenating the columns in inputs['stat_groups']
     df_to_dict['key'] = df_to_dict[groups].astype(str).apply('-'.join, axis=1)
