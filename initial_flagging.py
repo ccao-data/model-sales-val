@@ -10,6 +10,7 @@ import subprocess as sp
 import yaml
 from pyathena import connect
 from pyathena.pandas.util import as_pandas
+from random_word import RandomWords
 
 # Set working to root, to pull from src
 root = sp.getoutput('git rev-parse --show-toplevel')
@@ -166,15 +167,16 @@ cols_to_write = [
     'sv_outlier_type']
 
 # Merge exempt values and assign run_id
-run_id = datetime.datetime.now(
-    chicago_tz).strftime('%Y-%m-%d_%H:%M') # add random word here or something
+r = RandomWords()
+random_word_id = r.get_random_word()
+timestamp = datetime.datetime.now(chicago_tz).strftime('%Y-%m-%d_%H:%M')
+run_id = random_word_id + '-' + timestamp
 df_to_write = pd.concat([df_final[cols_to_write], exempt_to_append]).reset_index(drop=True)
 df_to_write['run_id'] = run_id
 
 bucket = 's3://ccao-data-warehouse-us-east-1/sale/flag/'
 file_name = 'initial-run.parquet'
 s3_file_path = bucket + file_name
-
 
 wr.s3.to_parquet(
     df=df_to_write,
@@ -247,6 +249,9 @@ commit_sha = sp.getoutput('git rev-parse HEAD')
 
 metadata_dict_to_df = {
     "run_id": [run_id],
-    "commit-sha": commit_sha
-
+    "long_commit_sha": commit_sha,
+    "short_commit_sha": commit_sha[0:8]
 }
+
+pd.DataFrame(metadata_dict_to_df)
+
