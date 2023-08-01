@@ -206,7 +206,7 @@ def get_group_means(df: pd.DataFrame, groups: list, means_col: str) -> dict :
     
     # Create the 'key' column by concatenating the columns in inputs['stat_groups']
     df_to_dict['key'] = df_to_dict[groups].astype(str).apply('-'.join, axis=1)
-    result_dict = dict(zip(df_to_dict['key'], df_to_dict[means_col]))
+    result_dict = dict(zip(df_to_dict['key'], df_to_dict[means_col].round(1)))
 
     return result_dict
 
@@ -240,12 +240,20 @@ parameter_dict_to_df = {
     "price_group_means_sqft": [mean_price_per_sqft]
 }
 
-pd.DataFrame(parameter_dict_to_df)
+df_parameters = pd.DataFrame(parameter_dict_to_df)
+
+bucket = 's3://ccao-data-warehouse-us-east-1/sale/parameter/'
+file_name = run_id + '.parquet'
+s3_file_path = bucket + file_name
+
+wr.s3.to_parquet(
+    df=df_parameters,
+    path=s3_file_path
+)
 
 
 # Metadata table
 commit_sha = sp.getoutput('git rev-parse HEAD')
-# add start time, end time, short/long sha
 
 metadata_dict_to_df = {
     "run_id": [run_id],
@@ -253,5 +261,14 @@ metadata_dict_to_df = {
     "short_commit_sha": commit_sha[0:8]
 }
 
-pd.DataFrame(metadata_dict_to_df)
+df_metadata = pd.DataFrame(metadata_dict_to_df)
+
+bucket = 's3://ccao-data-warehouse-us-east-1/sale/metadata/'
+file_name =  run_id + '.parquet'
+s3_file_path = bucket + file_name
+
+wr.s3.to_parquet(
+    df=df_metadata,
+    path=s3_file_path
+)
 
