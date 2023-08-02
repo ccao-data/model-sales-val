@@ -32,7 +32,7 @@ args = getResolvedOptions(
     ],
 )
 
-# Import flagging functions and yaml file from s3
+# Import flagging function file from s3
 s3.download_file(args["s3_glue_bucket"], args["flagging_script_key"], "/tmp/flagging.py")
 
 # Load the python flagging script
