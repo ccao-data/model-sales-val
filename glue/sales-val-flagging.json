@@ -21,7 +21,8 @@
     "--flagging_script_key" : "scripts/sales-val/flagging.py",
     "--stat_groups" : "rolling_window,township_code,class",
     "--iso_forest" : "meta_sale_price,sv_price_per_sqft,sv_days_since_last_transaction,sv_cgdr,sv_sale_dup_counts",
-    "--dev_bounds" : "2,3" 
+    "--dev_bounds" : "2,3",
+    "--additional-python-modules": "Random-Word==1.0.11"
   },
   "maxRetries" : 0,
   "allocatedCapacity" : 0,

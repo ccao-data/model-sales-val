@@ -56,12 +56,6 @@ AND NOT sale.is_multisale
 AND NOT res.pin_is_multicard
 """
 
-"""
-WHERE (sale.sale_date
-    BETWEEN DATE '2018-05-01'
-    AND DATE '2020-12-31')
-"""
-
 # Execute query and return as pandas df
 cursor = conn.cursor()
 cursor.execute(SQL_QUERY)
@@ -219,10 +213,6 @@ wr.s3.to_parquet(
 )
 
 # Means Table
-"""
-sv_mean_price_rolling_window_township_code_class
-sv_mean_price_per_sqft_rolling_window_township_code_class
-"""
 unique_groups = (df_final
                  .drop_duplicates(subset=inputs['stat_groups'],
                                   keep='first')
