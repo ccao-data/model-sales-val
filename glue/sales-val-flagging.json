@@ -22,7 +22,7 @@
     "--stat_groups" : "rolling_window,township_code,class",
     "--iso_forest" : "meta_sale_price,sv_price_per_sqft,sv_days_since_last_transaction,sv_cgdr,sv_sale_dup_counts",
     "--dev_bounds" : "2,3",
-    "--additional-python-modules": "Random-Word==1.0.11"
+    "--additional-python-modules": "Random-Word==1.0.11,boto3==1.28.12"
   },
   "maxRetries" : 0,
   "allocatedCapacity" : 0,
