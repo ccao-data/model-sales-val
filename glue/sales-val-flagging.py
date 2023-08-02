@@ -248,7 +248,7 @@ else:
     short_term_owner_threshold = SHORT_TERM_OWNER_THRESHOLD
     iso_forest_cols = args['iso_forest'].split(',')
     stat_groups = args['stat_groups'].split(',')
-    dev_bounds = map(int, args['dev_bounds'].split(','))
+    dev_bounds = list(map(int, args['dev_bounds'].split(',')))
 
     parameter_dict_to_df = {
         "run_id": [run_id],
