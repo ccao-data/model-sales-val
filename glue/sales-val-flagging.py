@@ -300,6 +300,10 @@ else:
     # Metadata table
     job_name = 'sales-val-flagging'
     response = glue.get_job(JobName=job_name)
+    print(" - - - - print response only - - - -")
+    print(response)
+    print(" - - - - print response['JOB'] - - - -")
+    print(response['Job'])
     commit_sha = response['Job']['SourceControlDetails']['LastCommitId']
 
     metadata_dict_to_df = {
