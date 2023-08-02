@@ -11,34 +11,35 @@ from pyathena.pandas.util import as_pandas
 from random_word import RandomWords
 
 # Create clients
-s3 = boto3.client('s3')
-glue = boto3.client('glue')
+s3 = boto3.client("s3")
+glue = boto3.client("glue")
 
 # Set timezone for run_id
-chicago_tz = pytz.timezone('America/Chicago')
+chicago_tz = pytz.timezone("America/Chicago")
 
 # Load in glue job parameters
-args = getResolvedOptions(sys.argv,
-                          ['region_name',
-                           's3_staging_dir',
-                           's3_glue_bucket',
-                           'flagging_script_key',
-                           'yaml_script_key',
-                           'stat_groups',
-                           'iso_forest',
-                           'dev_bounds'])
+args = getResolvedOptions(
+    sys.argv,
+    [
+        "region_name",
+        "s3_staging_dir",
+        "s3_glue_bucket",
+        "flagging_script_key",
+        "yaml_script_key",
+        "stat_groups",
+        "iso_forest",
+        "dev_bounds",
+    ],
+)
 
 # Import flagging functions and yaml file from s3
-s3.download_file(args['s3_glue_bucket'], args['flagging_script_key'], '/tmp/flagging.py')
+s3.download_file(args["s3_glue_bucket"], args["flagging_script_key"], "/tmp/flagging.py")
 
 # Load the python flagging script
 exec(open("/tmp/flagging.py").read())
 
 # Connect to athena
-conn = connect(
-    s3_staging_dir=args['s3_staging_dir'],
-    region_name=args['region_name']
-)
+conn = connect(s3_staging_dir=args["s3_staging_dir"], region_name=args["region_name"])
 
 """
 This query grabs all data needed to flag unflagged values.
@@ -110,133 +111,148 @@ df = df_ingest_full
 
 # Skip rest of script if no new unflagged sales
 if df_ingest_full.sv_outlier_type.isna().sum() == 0:
-    print('WARNING: No new sales to flag')
+    print("WARNING: No new sales to flag")
 else:
-            
     # Grab existing sales val table for later join
     cursor.execute(SQL_QUERY_SALES_VAL)
     df_ingest_sales_val = as_pandas(cursor)
     df_sales_val = df_ingest_sales_val
-    
-    
+
     def sql_type_to_pd_type(sql_type):
         """
-        This function translates SQL data types to equivalent 
+        This function translates SQL data types to equivalent
         pandas dtypes, using athena parquet metadata
         """
-    
-        # this is used to fix dtype so there is not error thrown in 
+
+        # this is used to fix dtype so there is not error thrown in
         # deviation_dollars() in flagging script on line 375
-        if sql_type in ['decimal']:
-            return 'float64'
-        
-    
+        if sql_type in ["decimal"]:
+            return "float64"
+
     df = df.astype({col[0]: sql_type_to_pd_type(col[1]) for col in metadata})
-    
+
     # Exempt sale handling
-    exempt_data = df[df['class'] == 'EX']
-    df = df[df['class'] != 'EX'] 
-    
-    # - - - - - - - - 
+    exempt_data = df[df["class"] == "EX"]
+    df = df[df["class"] != "EX"]
+
+    # - - - - - - - -
     # Create rolling window
     # - - - - - - - -
-    max_date = df['meta_sale_date'].max()
-    
+    max_date = df["meta_sale_date"].max()
+
     df_to_flag = (
         # Creates dt column with 12 month dates
-        df.assign(rolling_window=df['meta_sale_date']
-                  .apply(lambda x: pd.date_range(start=x, 
-                                                 periods=12, 
-                                                 freq='M')))
+        df.assign(
+            rolling_window=df["meta_sale_date"].apply(
+                lambda x: pd.date_range(start=x, periods=12, freq="M")
+            )
+        )
         # Expand rolling_windows dates to individual rows
-        .explode('rolling_window')
-        # Tag original observations 
-        .assign(original_observation = lambda df: df['meta_sale_date'].dt.month == df['rolling_window'].dt.month)
+        .explode("rolling_window")
+        # Tag original observations
+        .assign(
+            original_observation=lambda df: df["meta_sale_date"].dt.month
+            == df["rolling_window"].dt.month
+        )
         # Simplify to month level
-        .assign(rolling_window=lambda df: df['rolling_window'].dt.to_period('M'))
+        .assign(rolling_window=lambda df: df["rolling_window"].dt.to_period("M"))
         # Filter such that rolling_window isn't extrapolated into future, we are concerned with historic and present-month data
-        .loc[lambda df: df['rolling_window'] <= max_date.to_period('M')]
-        # Back to float for flagging script 
-        .assign(rolling_window=lambda df: df['rolling_window']
-                .apply(lambda x: x.strftime('%Y%m')).astype(int))
+        .loc[lambda df: df["rolling_window"] <= max_date.to_period("M")]
+        # Back to float for flagging script
+        .assign(
+            rolling_window=lambda df: df["rolling_window"]
+            .apply(lambda x: x.strftime("%Y%m"))
+            .astype(int)
+        )
     )
-    
+
     # ----
     # Re-flagging
     # ----
-    
-    stat_groups_input = tuple(args['stat_groups'].split(','))
-    iso_forest_input = args['iso_forest'].split(',')
-    dev_bounds_input = tuple(map(int, args['dev_bounds'].split(',')))
 
-    # Run outlier heuristic flagging methodology 
-    df_flag = go(df=df_to_flag, 
-                    groups=stat_groups_input,
-                    iso_forest_cols=iso_forest_input,
-                    dev_bounds=dev_bounds_input)
-    
+    stat_groups_input = tuple(args["stat_groups"].split(","))
+    iso_forest_input = args["iso_forest"].split(",")
+    dev_bounds_input = tuple(map(int, args["dev_bounds"].split(",")))
+
+    # Run outlier heuristic flagging methodology
+    df_flag = go(
+        df=df_to_flag,
+        groups=stat_groups_input,
+        iso_forest_cols=iso_forest_input,
+        dev_bounds=dev_bounds_input,
+    )
+
     # Remove duplicate rows
-    df_flag = df_flag[df_flag['original_observation']]
-    
+    df_flag = df_flag[df_flag["original_observation"]]
+
     # Discard pre-2014 data
-    df_flag = df_flag[df_flag['meta_sale_date'] >= '2021-01-01']
-    
-    # Utilize PTAX-203, complete binary columns 
-    df_final = (df_flag
-          .rename(columns={'sv_is_outlier': 'sv_is_autoval_outlier'})
-          .assign(sv_is_autoval_outlier = lambda df: df['sv_is_autoval_outlier'] == "Outlier")
-          .assign(sv_is_outlier = lambda df:
-                   df['sv_is_autoval_outlier'] | df['sale_filter_is_outlier'])
-          # Incorporate PTAX in sv_outlier_type
-          .assign(sv_outlier_type = lambda df: 
-                  np.where((df['sv_outlier_type'] == "Not outlier") & df['sale_filter_is_outlier'], 
-                            "PTAX-203 flag", df['sv_outlier_type']))
-          # Change sv_is_outlier to binary
-          .assign(sv_is_outlier = lambda df: (df['sv_outlier_type'] != "Not outlier").astype(int))
-          # PTAX-203 binary
-          .assign(sv_is_ptax_outlier = lambda df: 
-                  np.where(df['sv_outlier_type'] == "PTAX-203 flag", 1, 0))
-          # Heuristics flagging binary column
-          .assign(sv_is_heuristic_outlier = lambda df:
-                  np.where((df['sv_outlier_type'] != 'PTAX-203 flag') & (df['sv_is_outlier'] == 1), 1, 0))
-                )
-    
+    df_flag = df_flag[df_flag["meta_sale_date"] >= "2021-01-01"]
+
+    # Utilize PTAX-203, complete binary columns
+    df_final = (
+        df_flag.rename(columns={"sv_is_outlier": "sv_is_autoval_outlier"})
+        .assign(sv_is_autoval_outlier=lambda df: df["sv_is_autoval_outlier"] == "Outlier")
+        .assign(sv_is_outlier=lambda df: df["sv_is_autoval_outlier"] | df["sale_filter_is_outlier"])
+        # Incorporate PTAX in sv_outlier_type
+        .assign(
+            sv_outlier_type=lambda df: np.where(
+                (df["sv_outlier_type"] == "Not outlier") & df["sale_filter_is_outlier"],
+                "PTAX-203 flag",
+                df["sv_outlier_type"],
+            )
+        )
+        # Change sv_is_outlier to binary
+        .assign(sv_is_outlier=lambda df: (df["sv_outlier_type"] != "Not outlier").astype(int))
+        # PTAX-203 binary
+        .assign(
+            sv_is_ptax_outlier=lambda df: np.where(df["sv_outlier_type"] == "PTAX-203 flag", 1, 0)
+        )
+        # Heuristics flagging binary column
+        .assign(
+            sv_is_heuristic_outlier=lambda df: np.where(
+                (df["sv_outlier_type"] != "PTAX-203 flag") & (df["sv_is_outlier"] == 1), 1, 0
+            )
+        )
+    )
+
     # Manually impute ex values as non-outliers
-    exempt_to_append = exempt_data.meta_sale_document_num.reset_index().drop(columns='index')
-    exempt_to_append['sv_is_outlier'] = 0
-    exempt_to_append['sv_is_ptax_outlier'] = 0
-    exempt_to_append['sv_is_heuristic_outlier'] = 0
-    exempt_to_append['sv_outlier_type'] = 'Not Outlier'
-    
-    cols_to_write = ['meta_sale_document_num', 'sv_is_outlier', 
-                     'sv_is_ptax_outlier', 'sv_is_heuristic_outlier', 'sv_outlier_type']
-    
+    exempt_to_append = exempt_data.meta_sale_document_num.reset_index().drop(columns="index")
+    exempt_to_append["sv_is_outlier"] = 0
+    exempt_to_append["sv_is_ptax_outlier"] = 0
+    exempt_to_append["sv_is_heuristic_outlier"] = 0
+    exempt_to_append["sv_outlier_type"] = "Not Outlier"
+
+    cols_to_write = [
+        "meta_sale_document_num",
+        "sv_is_outlier",
+        "sv_is_ptax_outlier",
+        "sv_is_heuristic_outlier",
+        "sv_outlier_type",
+    ]
+
     # Merge exempt values and assign run_id
     r = RandomWords()
     random_word_id = r.get_random_word()
-    timestamp = datetime.datetime.now(chicago_tz).strftime('%Y-%m-%d_%H:%M')
-    run_id = random_word_id + '-' + timestamp
+    timestamp = datetime.datetime.now(chicago_tz).strftime("%Y-%m-%d_%H:%M")
+    run_id = random_word_id + "-" + timestamp
     df_to_write = pd.concat([df_final[cols_to_write], exempt_to_append])
-    df_to_write['run_id'] = run_id
-    
+    df_to_write["run_id"] = run_id
+
     # Filter to keep only flags not already present in the flag table
-    rows_to_append = (df_to_write[~df_to_write['meta_sale_document_num']
-                                  .isin(df_sales_val['meta_sale_document_num'])]
-                                  .reset_index(drop=True))
-    
-    # - - - - 
+    rows_to_append = df_to_write[
+        ~df_to_write["meta_sale_document_num"].isin(df_sales_val["meta_sale_document_num"])
+    ].reset_index(drop=True)
+
+    # - - - -
     # Write parquet to bucket with newly flagged values
     # - - - -
-    
-    bucket = 's3://ccao-data-warehouse-us-east-1/sale/flag/'
-    file_name = run_id + '.parquet'
+
+    bucket = "s3://ccao-data-warehouse-us-east-1/sale/flag/"
+    file_name = run_id + ".parquet"
     s3_file_path = bucket + file_name
-    
-    wr.s3.to_parquet(
-        df=rows_to_append,
-        path=s3_file_path
-    )
-    
+
+    wr.s3.to_parquet(df=rows_to_append, path=s3_file_path)
+
     # - - - - -
     # Metadata / Params / Means
     # - - - - -
@@ -246,79 +262,66 @@ else:
     earliest_sale_ingest = df_ingest_full.meta_sale_date.min()
     latest_sale_ingest = df_ingest_full.meta_sale_date.max()
     short_term_owner_threshold = SHORT_TERM_OWNER_THRESHOLD
-    iso_forest_cols = args['iso_forest'].split(',')
-    stat_groups = args['stat_groups'].split(',')
-    dev_bounds = list(map(int, args['dev_bounds'].split(',')))
+    iso_forest_cols = args["iso_forest"].split(",")
+    stat_groups = args["stat_groups"].split(",")
+    dev_bounds = list(map(int, args["dev_bounds"].split(",")))
 
     parameter_dict_to_df = {
         "run_id": [run_id],
         "new_sales_flagged": [new_sales_flagged],
         "earliest_data_ingest": [earliest_sale_ingest],
         "latest_data_ingest": [latest_sale_ingest],
-        "short_term_owner_threshold" : [short_term_owner_threshold],
-        "iso_forest_cols" : [iso_forest_cols],
+        "short_term_owner_threshold": [short_term_owner_threshold],
+        "iso_forest_cols": [iso_forest_cols],
         "stat_groups": [stat_groups],
-        "dev_bounds": [dev_bounds]
+        "dev_bounds": [dev_bounds],
     }
 
     df_parameters = pd.DataFrame(parameter_dict_to_df)
 
-    bucket = 's3://ccao-data-warehouse-us-east-1/sale/parameter/'
-    file_name = run_id + '.parquet'
+    bucket = "s3://ccao-data-warehouse-us-east-1/sale/parameter/"
+    file_name = run_id + ".parquet"
     s3_file_path = bucket + file_name
 
-    wr.s3.to_parquet(
-        df=df_parameters,
-        path=s3_file_path
-    )
-
+    wr.s3.to_parquet(df=df_parameters, path=s3_file_path)
 
     # Means Table
-    unique_groups = (df_final
-                    .drop_duplicates(subset=args['stat_groups'].split(','),
-                                     keep='first')
-                    .reset_index(drop=True))
+    unique_groups = df_final.drop_duplicates(
+        subset=args["stat_groups"].split(","), keep="first"
+    ).reset_index(drop=True)
 
     cols_to_write_means = [
-        'rolling_window','township_code','class', 
-        'sv_mean_price_rolling_window_township_code_class',
-        'sv_mean_price_per_sqft_rolling_window_township_code_class']
+        "rolling_window",
+        "township_code",
+        "class",
+        "sv_mean_price_rolling_window_township_code_class",
+        "sv_mean_price_per_sqft_rolling_window_township_code_class",
+    ]
 
     df_means = unique_groups[cols_to_write_means]
-    df_means['run_id'] = run_id
+    df_means["run_id"] = run_id
 
-    bucket = 's3://ccao-data-warehouse-us-east-1/sale/mean/'
-    file_name =  run_id + '.parquet'
+    bucket = "s3://ccao-data-warehouse-us-east-1/sale/mean/"
+    file_name = run_id + ".parquet"
     s3_file_path = bucket + file_name
 
-    wr.s3.to_parquet(
-        df=df_means,
-        path=s3_file_path
-    )
+    wr.s3.to_parquet(df=df_means, path=s3_file_path)
 
-    
     # Metadata table
-    job_name = 'sales-val-flagging'
+    job_name = "sales-val-flagging"
     response = glue.get_job(JobName=job_name)
-    print(" - - - - print response only - - - -")
-    print(response)
-    print(" - - - - print response['JOB'] - - - -")
-    print(response['Job'])
-    commit_sha = response['Job']['SourceControlDetails']['LastCommitId']
+    commit_sha = response["Job"]["SourceControlDetails"]["LastCommitId"]
 
     metadata_dict_to_df = {
         "run_id": [run_id],
         "long_commit_sha": commit_sha,
-        "short_commit_sha": commit_sha[0:8]
+        "short_commit_sha": commit_sha[0:8],
     }
 
     df_metadata = pd.DataFrame(metadata_dict_to_df)
 
-    bucket = 's3://ccao-data-warehouse-us-east-1/sale/metadata/'
-    file_name =  run_id + '.parquet'
+    bucket = "s3://ccao-data-warehouse-us-east-1/sale/metadata/"
+    file_name = run_id + ".parquet"
     s3_file_path = bucket + file_name
 
-    wr.s3.to_parquet(
-        df=df_metadata,
-        path=s3_file_path
-    )
+    wr.s3.to_parquet(df=df_metadata, path=s3_file_path)
