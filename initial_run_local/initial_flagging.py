@@ -1,5 +1,5 @@
-from src import flagging_rolling as flg
-from src.flagging_rolling import SHORT_TERM_OWNER_THRESHOLD
+from initial_run_local.src import flagging_rolling as flg
+from initial_run_local.src.flagging_rolling import SHORT_TERM_OWNER_THRESHOLD
 import awswrangler as wr
 import os
 import datetime
@@ -20,7 +20,7 @@ os.chdir(root)
 chicago_tz = pytz.timezone("America/Chicago")
 
 # Inputs yaml as inputs
-with open("inputs.yaml", "r") as stream:
+with open("initial_run_local/inputs.yaml", "r") as stream:
     try:
         inputs = yaml.safe_load(stream)
     except yaml.YAMLError as exc:
