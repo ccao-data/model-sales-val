@@ -179,7 +179,7 @@ cols_to_write = [
 r = RandomWords()
 random_word_id = r.get_random_word()
 timestamp = datetime.datetime.now(chicago_tz).strftime("%Y-%m-%d_%H:%M")
-run_id = random_word_id + "-" + timestamp
+run_id = timestamp + "-" + random_word_id
 df_to_write = pd.concat([df_final[cols_to_write], exempt_to_append]).reset_index(drop=True)
 df_to_write["run_id"] = run_id
 
