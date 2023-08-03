@@ -191,27 +191,25 @@ else:
     # Utilize PTAX-203, complete binary columns
     df_final = (
         df_flag.rename(columns={"sv_is_outlier": "sv_is_autoval_outlier"})
-        .assign(sv_is_autoval_outlier=lambda df: df["sv_is_autoval_outlier"] == "Outlier")
-        .assign(sv_is_outlier=lambda df: df["sv_is_autoval_outlier"] | df["sale_filter_is_outlier"])
-        # Incorporate PTAX in sv_outlier_type
         .assign(
+            sv_is_autoval_outlier=lambda df: df["sv_is_autoval_outlier"] == "Outlier",
+            sv_is_outlier=lambda df: df["sv_is_autoval_outlier"] | df["sale_filter_is_outlier"],
+            # Incorporate PTAX in sv_outlier_type
             sv_outlier_type=lambda df: np.where(
                 (df["sv_outlier_type"] == "Not outlier") & df["sale_filter_is_outlier"],
                 "PTAX-203 flag",
                 df["sv_outlier_type"],
-            )
+            ),
         )
-        # Change sv_is_outlier to binary
-        .assign(sv_is_outlier=lambda df: (df["sv_outlier_type"] != "Not outlier").astype(int))
-        # PTAX-203 binary
         .assign(
-            sv_is_ptax_outlier=lambda df: np.where(df["sv_outlier_type"] == "PTAX-203 flag", 1, 0)
-        )
-        # Heuristics flagging binary column
-        .assign(
+            # Change sv_is_outlier to binary
+            sv_is_outlier=lambda df: (df["sv_outlier_type"] != "Not outlier").astype(int),
+            # PTAX-203 binary
+            sv_is_ptax_outlier=lambda df: np.where(df["sv_outlier_type"] == "PTAX-203 flag", 1, 0),
+            # Heuristics flagging binary column
             sv_is_heuristic_outlier=lambda df: np.where(
                 (df["sv_outlier_type"] != "PTAX-203 flag") & (df["sv_is_outlier"] == 1), 1, 0
-            )
+            ),
         )
     )
 
@@ -228,16 +226,25 @@ else:
         "sv_is_outlier",
         "sv_is_ptax_outlier",
         "sv_is_heuristic_outlier",
-        "sv_outlier_type"
+        "sv_outlier_type",
     ]
 
-    # Merge exempt values and assign run_id
+    # Create run_id
     r = RandomWords()
     random_word_id = r.get_random_word()
     timestamp = datetime.datetime.now(chicago_tz).strftime("%Y-%m-%d_%H:%M")
     run_id = timestamp + "-" + random_word_id
-    df_to_write = pd.concat([df_final[cols_to_write], exempt_to_append])
-    df_to_write["run_id"] = run_id
+
+    # Incorporate exempt values and finalize to write to flag table
+    df_to_write = (
+        # TODO: exempt will have an NA for rolling_window - make sure that is okay
+        pd.concat([df_final[cols_to_write], exempt_to_append])
+        .reset_index(drop=True)
+        .assign(
+            run_id=run_id,
+            rolling_window=lambda df: pd.to_datetime(df["rolling_window"], format="%Y%m").dt.date,
+        )
+    )
 
     # Filter to keep only flags not already present in the flag table
     rows_to_append = df_to_write[
@@ -287,9 +294,13 @@ else:
     wr.s3.to_parquet(df=df_parameters, path=s3_file_path)
 
     # Means Table
-    unique_groups = df_final.drop_duplicates(
-        subset=args["stat_groups"].split(","), keep="first"
-    ).reset_index(drop=True)
+    unique_groups = (
+        df_final.drop_duplicates(subset=args["stat_groups"].split(","), keep="first")
+        .reset_index(drop=True)
+        .assign(
+            rolling_window=lambda df: pd.to_datetime(df["rolling_window"], format="%Y%m").dt.date
+        )
+    )
 
     cols_to_write_means = [
         "rolling_window",
