@@ -224,10 +224,11 @@ else:
 
     cols_to_write = [
         "meta_sale_document_num",
+        "rolling_window",
         "sv_is_outlier",
         "sv_is_ptax_outlier",
         "sv_is_heuristic_outlier",
-        "sv_outlier_type",
+        "sv_outlier_type"
     ]
 
     # Merge exempt values and assign run_id

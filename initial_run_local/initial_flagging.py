@@ -169,6 +169,7 @@ exempt_to_append["sv_outlier_type"] = "Not Outlier"
 
 cols_to_write = [
     "meta_sale_document_num",
+    "rolling_window",
     "sv_is_outlier",
     "sv_is_ptax_outlier",
     "sv_is_heuristic_outlier",
