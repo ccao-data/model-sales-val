@@ -311,9 +311,16 @@ else:
     ]
 
     df_means = unique_groups[cols_to_write_means]
+
+    # Make columns less verbose
+    df_means = df_means.rename(columns={
+        "sv_mean_price_rolling_window_township_code_class": "mean_price_grouped",
+        "sv_mean_price_per_sqft_rolling_window_township_code_class": "mean_price_sqft_grouped",
+    })
+
     df_means["run_id"] = run_id
 
-    bucket = "s3://ccao-data-warehouse-us-east-1/sale/mean/"
+    bucket = "s3://ccao-data-warehouse-us-east-1/sale/group_mean/"
     file_name = run_id + ".parquet"
     s3_file_path = bucket + file_name
 
