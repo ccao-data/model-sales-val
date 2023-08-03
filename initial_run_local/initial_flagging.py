@@ -275,6 +275,7 @@ metadata_dict_to_df = {
     "run_id": [run_id],
     "long_commit_sha": commit_sha,
     "short_commit_sha": commit_sha[0:8],
+    "run_timestamp": timestamp
 }
 
 df_metadata = pd.DataFrame(metadata_dict_to_df)
