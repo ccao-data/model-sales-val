@@ -219,7 +219,7 @@ existing_max_version = (df_flag
 # Merge, compute new version, and drop unnecessary columns in a chained style
 df_to_write = (df_final
                .merge(existing_max_version, on='meta_sale_document_num', how='left')
-               .assign(version=lambda x: x['existing_version'].apply(lambda y: y + 1 if pd.notnull(y) else 0))
+               .assign(version=lambda x: x['existing_version'].apply(lambda y: y + 1 if pd.notnull(y) else 0).astype(int))
                .drop(columns=['existing_version']))
 
 
