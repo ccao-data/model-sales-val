@@ -242,25 +242,34 @@ unique_groups = (
         )
     )
 
+# this is declared to try and maintain some generalizability with different stat groups
+groups_string_col = '_'.join(map(str, inputs['stat_groups']))
 
-cols_to_write_means = [
-    "rolling_window",
-    "township_code",
-    "class",
-    "sv_mean_price_rolling_window_township_code_class",
-    "sv_mean_price_per_sqft_rolling_window_township_code_class",
-]
-
+cols_to_write_means = inputs['stat_groups'] +[
+    f"sv_mean_price_{groups_string_col}",
+    f"sv_mean_price_per_sqft_{groups_string_col}"
+    ]
 
 df_means = unique_groups[cols_to_write_means]
 
 # Make columns less verbose
 df_means = df_means.rename(columns={
-    "sv_mean_price_rolling_window_township_code_class": "mean_price_grouped",
-    "sv_mean_price_per_sqft_rolling_window_township_code_class": "mean_price_sqft_grouped",
+    f"sv_mean_price_{groups_string_col}": "mean_price_grouped",
+    f"sv_mean_price_per_sqft_{groups_string_col}": "mean_price_sqft_grouped",
 })
 
-df_means["run_id"] = run_id
+# Combines unique groups to one column, differing groups doesn't cause athena problems
+columns_to_combine = inputs['stat_groups']
+separator = '-'
+
+group_column = df[columns_to_combine[0]].astype(str)
+for col in columns_to_combine[1:]:
+    group_column += separator + df[col].astype(str)
+
+# Finalize means df to write
+df_means = df_means.assign(run_id=run_id, group=group_column).drop(
+    columns=inputs['stat_groups']
+)
 
 bucket = "s3://ccao-data-warehouse-us-east-1/sale/group_mean/"
 file_name = run_id + ".parquet"
