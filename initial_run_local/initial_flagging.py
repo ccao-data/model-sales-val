@@ -190,7 +190,7 @@ df_to_write = (
     .reset_index(drop=True)
     .assign(
         run_id=run_id,
-        version=0,
+        version=1,
         rolling_window=lambda df: pd.to_datetime(df["rolling_window"], format="%Y%m").dt.date
     )
 )
