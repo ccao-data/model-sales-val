@@ -206,7 +206,7 @@ wr.s3.to_parquet(df=df_to_write, path=s3_file_path)
 # - - - - -
 
 # Parameters table
-new_sales_flagged = df_to_write.shape[0]
+sales_flagged = df_to_write.shape[0]
 earliest_sale_ingest = df_ingest.meta_sale_date.min()
 latest_sale_ingest = df_ingest.meta_sale_date.max()
 short_term_owner_threshold = SHORT_TERM_OWNER_THRESHOLD
@@ -216,7 +216,7 @@ dev_bounds = inputs["dev_bounds"]
 
 parameter_dict_to_df = {
     "run_id": [run_id],
-    "new_sales_flagged": [new_sales_flagged],
+    "sales_flagged": [sales_flagged],
     "earliest_data_ingest": [earliest_sale_ingest],
     "latest_data_ingest": [latest_sale_ingest],
     "short_term_owner_threshold": [short_term_owner_threshold],

@@ -216,7 +216,7 @@ existing_max_version = (df_flag
                         .reset_index()
                         .rename(columns={'version': 'existing_version'}))
 
-# Merge, compute new version, and drop unnecessary columns in a chained style
+# Merge, compute new version, and drop unnecessary columns
 df_to_write = (df_final
                .merge(existing_max_version, on='meta_sale_document_num', how='left')
                .assign(version=lambda x: x['existing_version'].apply(lambda y: y + 1 if pd.notnull(y) else 0).astype(int))
@@ -234,7 +234,7 @@ wr.s3.to_parquet(df=df_to_write, path=s3_file_path)
 # - - - - -
 
 # Parameters table
-new_sales_flagged = df_to_write.shape[0]
+sales_flagged = df_to_write.shape[0]
 earliest_sale_ingest = df_ingest.meta_sale_date.min()
 latest_sale_ingest = df_ingest.meta_sale_date.max()
 short_term_owner_threshold = SHORT_TERM_OWNER_THRESHOLD
@@ -244,7 +244,7 @@ dev_bounds = inputs["dev_bounds"]
 
 parameter_dict_to_df = {
     "run_id": [run_id],
-    "new_sales_flagged": [new_sales_flagged],
+    "sales_flagged": [sales_flagged],
     "earliest_data_ingest": [earliest_sale_ingest],
     "latest_data_ingest": [latest_sale_ingest],
     "short_term_owner_threshold": [short_term_owner_threshold],
