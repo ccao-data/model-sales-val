@@ -1,5 +1,5 @@
-from initial_run_local.src import flagging_rolling as flg
-from initial_run_local.src.flagging_rolling import SHORT_TERM_OWNER_THRESHOLD
+from maunual_flagging.src import flagging_rolling as flg
+from manual_flagging.src.flagging_rolling import SHORT_TERM_OWNER_THRESHOLD
 import awswrangler as wr
 import os
 import datetime
@@ -20,7 +20,7 @@ os.chdir(root)
 chicago_tz = pytz.timezone("America/Chicago")
 
 # Inputs yaml as inputs
-with open("initial_run_local/inputs.yaml", "r") as stream:
+with open("manual_flagging/inputs.yaml", "r") as stream:
     try:
         inputs = yaml.safe_load(stream)
     except yaml.YAMLError as exc:
@@ -50,27 +50,18 @@ INNER JOIN default.vw_pin_sale sale
     ON sale.pin = res.pin
     AND sale.year = res.year
 WHERE (sale.sale_date
-    BETWEEN DATE '2018-02-01'
+    BETWEEN DATE '2019-02-01'
     AND DATE '2021-12-31')
 AND NOT sale.is_multisale
 AND NOT res.pin_is_multicard
 """
 
-SQL_QUERY_SALES_VAL = """
-SELECT *
-FROM sale.flag
-"""
-
-# Execute queries and return as pandas df
+# Execute query and return as pandas df
 cursor = conn.cursor()
 cursor.execute(SQL_QUERY)
 metadata = cursor.description
 df_ingest = as_pandas(cursor)
 df = df_ingest
-
-cursor.execute(SQL_QUERY_SALES_VAL)
-df_ingest_flag = as_pandas(cursor)
-df_flag = df_ingest_flag
 
 # -----
 # Data cleaning
@@ -133,7 +124,7 @@ df = (
 # - - - -
 
 # Run outlier heuristic flagging methodology
-df_flagged = flg.go(
+df_flag = flg.go(
     df=df,
     groups=tuple(inputs["stat_groups"]),
     iso_forest_cols=inputs["iso_forest"],
@@ -141,13 +132,13 @@ df_flagged = flg.go(
 )
 
 # Remove duplicate rows
-df_flagged = df_flagged[df_flagged["original_observation"]]
+df_flag = df_flag[df_flag["original_observation"]]
 # Discard pre-2014 data
-df_flagged = df_flagged[df_flagged["meta_sale_date"] >= "2019-01-01"]
+df_flag = df_flag[df_flag["meta_sale_date"] >= "2020-01-01"]
 
 # Utilize PTAX-203, complete binary columns
-df_finish_flagging = (
-    df_flagged.rename(columns={"sv_is_outlier": "sv_is_autoval_outlier"})
+df_final = (
+    df_flag.rename(columns={"sv_is_outlier": "sv_is_autoval_outlier"})
     .assign(
         sv_is_autoval_outlier=lambda df: df["sv_is_autoval_outlier"] == "Outlier",
         sv_is_outlier=lambda df: df["sv_is_autoval_outlier"] | df["sale_filter_is_outlier"],
@@ -193,38 +184,19 @@ timestamp = datetime.datetime.now(chicago_tz).strftime("%Y-%m-%d_%H:%M")
 run_id = timestamp + "-" + random_word_id
 
 # Incorporate exempt values and finalize to write to flag table
-df_final = (
+df_to_write = (
     # TODO: exempt will have an NA for rolling_window - make sure that is okay
-    pd.concat([df_finish_flagging[cols_to_write], exempt_to_append])
+    pd.concat([df_final[cols_to_write], exempt_to_append])
     .reset_index(drop=True)
     .assign(
         run_id=run_id,
+        version=1,
         rolling_window=lambda df: pd.to_datetime(df["rolling_window"], format="%Y%m").dt.date
     )
 )
 
-
-# - - - - - - 
-# Testing for updating version of flag table entries
-# - - - - - - 
-
-
-# Group the existing data by 'ID' and find the maximum 'version' for each 'ID'
-existing_max_version = (df_flag
-                        .groupby('meta_sale_document_num')['version']
-                        .max()
-                        .reset_index()
-                        .rename(columns={'version': 'existing_version'}))
-
-# Merge, compute new version, and drop unnecessary columns
-df_to_write = (df_final
-               .merge(existing_max_version, on='meta_sale_document_num', how='left')
-               .assign(version=lambda x: x['existing_version'].apply(lambda y: y + 1 if pd.notnull(y) else 1).astype(int))
-               .drop(columns=['existing_version']))
-
-
 bucket = "s3://ccao-data-warehouse-us-east-1/sale/flag/"
-file_name = run_id + ".parquet"
+file_name = "initial-run.parquet"
 s3_file_path = bucket + file_name
 
 wr.s3.to_parquet(df=df_to_write, path=s3_file_path)
@@ -263,7 +235,7 @@ wr.s3.to_parquet(df=df_parameters, path=s3_file_path)
 
 # Means Table
 unique_groups = (
-    df_finish_flagging.drop_duplicates(subset=inputs["stat_groups"], keep="first")
+    df_final.drop_duplicates(subset=inputs["stat_groups"], keep="first")
     .reset_index(drop=True)
     .assign(
         rolling_window=lambda df: pd.to_datetime(df["rolling_window"], format="%Y%m").dt.date
@@ -305,7 +277,7 @@ metadata_dict_to_df = {
     "long_commit_sha": commit_sha,
     "short_commit_sha": commit_sha[0:8],
     "run_timestamp": timestamp,
-    "run_type": "manual_update"
+    "run_type": "initial_flagging"
 }
 
 df_metadata = pd.DataFrame(metadata_dict_to_df)
