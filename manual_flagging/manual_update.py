@@ -32,7 +32,16 @@ conn = connect(
     region_name=os.getenv("AWS_REGION"),
 )
 
-SQL_QUERY = """
+
+# Parse yaml to get which sales to flag
+if inputs["time_frame"]["end"] == None:
+    sql_time_frame = f"sale.sale_date >= DATE '{inputs['time_frame']['start']}'"
+else:
+    sql_time_frame = f"""(sale.sale_date 
+        BETWEEN DATE '{inputs['time_frame']['start']}'
+        AND DATE '{inputs['time_frame']['end']}')"""
+
+SQL_QUERY = f"""
 SELECT
     sale.sale_price AS meta_sale_price,
     sale.sale_date AS meta_sale_date,
@@ -49,9 +58,7 @@ FROM default.vw_card_res_char res
 INNER JOIN default.vw_pin_sale sale
     ON sale.pin = res.pin
     AND sale.year = res.year
-WHERE (sale.sale_date
-    BETWEEN DATE '2018-02-01'
-    AND DATE '2021-12-31')
+WHERE {sql_time_frame}
 AND NOT sale.is_multisale
 AND NOT res.pin_is_multicard
 """
@@ -199,28 +206,34 @@ df_final = (
     .reset_index(drop=True)
     .assign(
         run_id=run_id,
-        rolling_window=lambda df: pd.to_datetime(df["rolling_window"], format="%Y%m").dt.date
+        rolling_window=lambda df: pd.to_datetime(df["rolling_window"], format="%Y%m").dt.date,
     )
 )
 
 
-# - - - - - - 
+# - - - - - -
 # Testing for updating version of flag table entries
-# - - - - - - 
+# - - - - - -
 
 
 # Group the existing data by 'ID' and find the maximum 'version' for each 'ID'
-existing_max_version = (df_flag
-                        .groupby('meta_sale_document_num')['version']
-                        .max()
-                        .reset_index()
-                        .rename(columns={'version': 'existing_version'}))
+existing_max_version = (
+    df_flag.groupby("meta_sale_document_num")["version"]
+    .max()
+    .reset_index()
+    .rename(columns={"version": "existing_version"})
+)
 
 # Merge, compute new version, and drop unnecessary columns
-df_to_write = (df_final
-               .merge(existing_max_version, on='meta_sale_document_num', how='left')
-               .assign(version=lambda x: x['existing_version'].apply(lambda y: y + 1 if pd.notnull(y) else 1).astype(int))
-               .drop(columns=['existing_version']))
+df_to_write = (
+    df_final.merge(existing_max_version, on="meta_sale_document_num", how="left")
+    .assign(
+        version=lambda x: x["existing_version"]
+        .apply(lambda y: y + 1 if pd.notnull(y) else 1)
+        .astype(int)
+    )
+    .drop(columns=["existing_version"])
+)
 
 
 bucket = "s3://ccao-data-warehouse-us-east-1/sale/flag/"
@@ -265,10 +278,8 @@ wr.s3.to_parquet(df=df_parameters, path=s3_file_path)
 unique_groups = (
     df_finish_flagging.drop_duplicates(subset=inputs["stat_groups"], keep="first")
     .reset_index(drop=True)
-    .assign(
-        rolling_window=lambda df: pd.to_datetime(df["rolling_window"], format="%Y%m").dt.date
-        )
-    )
+    .assign(rolling_window=lambda df: pd.to_datetime(df["rolling_window"], format="%Y%m").dt.date)
+)
 
 
 cols_to_write_means = [
@@ -283,10 +294,12 @@ cols_to_write_means = [
 df_means = unique_groups[cols_to_write_means]
 
 # Make columns less verbose
-df_means = df_means.rename(columns={
-    "sv_mean_price_rolling_window_township_code_class": "mean_price_grouped",
-    "sv_mean_price_per_sqft_rolling_window_township_code_class": "mean_price_sqft_grouped",
-})
+df_means = df_means.rename(
+    columns={
+        "sv_mean_price_rolling_window_township_code_class": "mean_price_grouped",
+        "sv_mean_price_per_sqft_rolling_window_township_code_class": "mean_price_sqft_grouped",
+    }
+)
 
 df_means["run_id"] = run_id
 
@@ -305,7 +318,7 @@ metadata_dict_to_df = {
     "long_commit_sha": commit_sha,
     "short_commit_sha": commit_sha[0:8],
     "run_timestamp": timestamp,
-    "run_type": "manual_update"
+    "run_type": "manual_update",
 }
 
 df_metadata = pd.DataFrame(metadata_dict_to_df)
