@@ -1,4 +1,4 @@
-from maunual_flagging.src import flagging_rolling as flg
+from manual_flagging.src import flagging_rolling as flg
 from manual_flagging.src.flagging_rolling import SHORT_TERM_OWNER_THRESHOLD
 import awswrangler as wr
 import os
