@@ -187,7 +187,7 @@ else:
 
     # Discard pre-2014 data
     df_flag = df_flag[df_flag["meta_sale_date"] >= "2021-01-01"]
-
+    print('check1')
     # Utilize PTAX-203, complete binary columns
     df_final = (
         df_flag.rename(columns={"sv_is_outlier": "sv_is_autoval_outlier"})
@@ -212,14 +212,14 @@ else:
             ),
         )
     )
-
+    print('check2')
     # Manually impute ex values as non-outliers
     exempt_to_append = exempt_data.meta_sale_document_num.reset_index().drop(columns="index")
     exempt_to_append["sv_is_outlier"] = 0
     exempt_to_append["sv_is_ptax_outlier"] = 0
     exempt_to_append["sv_is_heuristic_outlier"] = 0
     exempt_to_append["sv_outlier_type"] = "Not Outlier"
-
+    print('check3')
     cols_to_write = [
         "meta_sale_document_num",
         "rolling_window",
@@ -237,7 +237,7 @@ else:
 
     # Incorporate exempt values and finalize to write to flag table
     df_to_write = (
-        # TODO: exempt will have an NA for rolling_window - make sure that is okay
+        # TODO: exempt will have an NA for rolling_window - add to repo docs
         pd.concat([df_final[cols_to_write], exempt_to_append])
         .reset_index(drop=True)
         .assign(
@@ -325,8 +325,10 @@ else:
     # Combines unique groups to one column, differing groups doesn't cause athena problems
     columns_to_combine = stat_groups_list
     separator = '-'
-
+    print('check4')
+    print(f'columns_to_combine:\n{columns_to_combine}')
     group_column = df[columns_to_combine[0]].astype(str)
+    print(f'group_column: {group_column}')
     for col in columns_to_combine[1:]:
         group_column += separator + df[col].astype(str)
 
