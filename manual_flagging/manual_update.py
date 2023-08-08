@@ -232,6 +232,9 @@ df_to_write = (
     .drop(columns=["existing_version"])
 )
 
+# - - - - -
+# Write to flag table
+# - - - - -
 
 bucket = "s3://ccao-data-warehouse-us-east-1/sale/flag/"
 file_name = run_id + ".parquet"
@@ -240,10 +243,9 @@ s3_file_path = bucket + file_name
 wr.s3.to_parquet(df=df_to_write, path=s3_file_path)
 
 # - - - - -
-# Metadata / Params / Means
+# Write to parameter table
 # - - - - -
 
-# Parameters table
 sales_flagged = df_to_write.shape[0]
 earliest_sale_ingest = df_ingest.meta_sale_date.min()
 latest_sale_ingest = df_ingest.meta_sale_date.max()
@@ -271,13 +273,15 @@ s3_file_path = bucket + file_name
 
 wr.s3.to_parquet(df=df_parameters, path=s3_file_path)
 
-# Means Table
+# - - - - -
+# Write to group_mean table
+# - - - - -
+
 unique_groups = (
     df_finish_flagging.drop_duplicates(subset=inputs["stat_groups"], keep="first")
     .reset_index(drop=True)
     .assign(rolling_window=lambda df: pd.to_datetime(df["rolling_window"], format="%Y%m").dt.date)
 )
-
 
 # this is declared to try and maintain some generalizability with different stat groups
 groups_string_col = '_'.join(map(str, inputs['stat_groups']))
@@ -289,7 +293,6 @@ cols_to_write_means = inputs['stat_groups'] +[
 
 df_means = unique_groups[cols_to_write_means]
 
-# Make columns less verbose
 df_means = df_means.rename(columns={
     f"sv_mean_price_{groups_string_col}": "mean_price_grouped",
     f"sv_mean_price_per_sqft_{groups_string_col}": "mean_price_sqft_grouped",
@@ -314,8 +317,10 @@ s3_file_path = bucket + file_name
 
 wr.s3.to_parquet(df=df_means, path=s3_file_path)
 
+# - - - - -
+# Write to metadata table
+# - - - - -
 
-# Metadata table
 commit_sha = sp.getoutput("git rev-parse HEAD")
 
 metadata_dict_to_df = {
