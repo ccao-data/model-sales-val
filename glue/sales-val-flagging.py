@@ -306,19 +306,20 @@ else:
     )
 
     stat_groups_list = args["stat_groups"].split(",")
-    
-    groups_string_col = '_'.join(map(str, stat_groups_list))
+
+    groups_string_col = "_".join(map(str, stat_groups_list))
     suffixes = ["mean_price", "mean_price_per_sqft"]
 
-    cols_to_write_means = stat_groups_list + [f"sv_{suffix}_{groups_string_col}" for suffix in suffixes]
+    cols_to_write_means = stat_groups_list + [
+        f"sv_{suffix}_{groups_string_col}" for suffix in suffixes
+    ]
     rename_dict = {f"sv_{suffix}_{groups_string_col}": f"{suffix}" for suffix in suffixes}
 
     df_means = (
         unique_groups[cols_to_write_means]
         .rename(columns=rename_dict)
         .assign(
-            run_id=run_id,
-            group=lambda df: df[stat_groups_list].astype(str).apply('_'.join, axis=1)
+            run_id=run_id, group=lambda df: df[stat_groups_list].astype(str).apply("_".join, axis=1)
         )
         .drop(columns=stat_groups_list)
     )
@@ -332,7 +333,7 @@ else:
     # - - - - -
     # Write to metadata table
     # - - - - -
-    
+
     job_name = "sales-val-flagging"
     response = glue.get_job(JobName=job_name)
     commit_sha = response["Job"]["SourceControlDetails"]["LastCommitId"]
@@ -342,7 +343,7 @@ else:
         "long_commit_sha": commit_sha,
         "short_commit_sha": commit_sha[0:8],
         "run_timestamp": timestamp,
-        "run_type": "glue_job"
+        "run_type": "glue_job",
     }
 
     df_metadata = pd.DataFrame(metadata_dict_to_df)

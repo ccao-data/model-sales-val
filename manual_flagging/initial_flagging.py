@@ -191,7 +191,7 @@ df_to_write = (
     .assign(
         run_id=run_id,
         version=1,
-        rolling_window=lambda df: pd.to_datetime(df["rolling_window"], format="%Y%m").dt.date
+        rolling_window=lambda df: pd.to_datetime(df["rolling_window"], format="%Y%m").dt.date,
     )
 )
 
@@ -243,15 +243,15 @@ wr.s3.to_parquet(df=df_parameters, path=s3_file_path)
 unique_groups = (
     df_final.drop_duplicates(subset=inputs["stat_groups"], keep="first")
     .reset_index(drop=True)
-    .assign(
-        rolling_window=lambda df: pd.to_datetime(df["rolling_window"], format="%Y%m").dt.date
-        )
-    )
+    .assign(rolling_window=lambda df: pd.to_datetime(df["rolling_window"], format="%Y%m").dt.date)
+)
 
-groups_string_col = '_'.join(map(str, inputs['stat_groups']))
+groups_string_col = "_".join(map(str, inputs["stat_groups"]))
 suffixes = ["mean_price", "mean_price_per_sqft"]
 
-cols_to_write_means = inputs['stat_groups'] + [f"sv_{suffix}_{groups_string_col}" for suffix in suffixes]
+cols_to_write_means = inputs["stat_groups"] + [
+    f"sv_{suffix}_{groups_string_col}" for suffix in suffixes
+]
 rename_dict = {f"sv_{suffix}_{groups_string_col}": f"{suffix}" for suffix in suffixes}
 
 df_means = (
@@ -259,9 +259,9 @@ df_means = (
     .rename(columns=rename_dict)
     .assign(
         run_id=run_id,
-        group=lambda df: df[inputs['stat_groups']].astype(str).apply('_'.join, axis=1)
+        group=lambda df: df[inputs["stat_groups"]].astype(str).apply("_".join, axis=1),
     )
-    .drop(columns=inputs['stat_groups'])
+    .drop(columns=inputs["stat_groups"])
 )
 
 bucket = "s3://ccao-data-warehouse-us-east-1/sale/group_mean/"
@@ -281,7 +281,7 @@ metadata_dict_to_df = {
     "long_commit_sha": commit_sha,
     "short_commit_sha": commit_sha[0:8],
     "run_timestamp": timestamp,
-    "run_type": "initial_flagging"
+    "run_type": "initial_flagging",
 }
 
 df_metadata = pd.DataFrame(metadata_dict_to_df)

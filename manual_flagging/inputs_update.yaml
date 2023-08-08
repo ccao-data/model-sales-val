@@ -23,7 +23,7 @@ iso_forest: [
 
 dev_bounds: [2, 3]
 
-# leave end blank if there is no upper bound on when we want to re-flag
+# Leave end blank if there is no upper bound on when we want to re-flag
 time_frame:
   start: "2018-02-01"
   end: "2021-12-31"
