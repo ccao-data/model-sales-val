@@ -209,11 +209,9 @@ df_final = (
     )
 )
 
-
 # - - - - - -
-# Testing for updating version of flag table entries
+# Update version of re-flagged entries
 # - - - - - -
-
 
 # Group the existing data by 'ID' and find the maximum 'version' for each 'ID'
 existing_max_version = (
