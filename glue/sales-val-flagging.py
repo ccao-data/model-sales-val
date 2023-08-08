@@ -327,10 +327,10 @@ else:
     separator = '-'
     print('check4')
     print(f'columns_to_combine:\n{columns_to_combine}')
-    group_column = df[columns_to_combine[0]].astype(str)
+    group_column = df_means[columns_to_combine[0]].astype(str)
     print(f'group_column: {group_column}')
     for col in columns_to_combine[1:]:
-        group_column += separator + df[col].astype(str)
+        group_column += separator + df_means[col].astype(str)
 
     # Finalize means df to write
     df_means = df_means.assign(run_id=run_id, group=group_column).drop(
