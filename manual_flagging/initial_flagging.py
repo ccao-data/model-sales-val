@@ -242,7 +242,7 @@ unique_groups = (
         )
     )
 
-# this is declared to try and maintain some generalizability with different stat groups
+# This is declared to try and maintain some generalizability with different stat groups
 groups_string_col = '_'.join(map(str, inputs['stat_groups']))
 
 cols_to_write_means = inputs['stat_groups'] +[
@@ -260,7 +260,7 @@ df_means = df_means.rename(columns={
 
 # Combines unique groups to one column, differing groups doesn't cause athena problems
 columns_to_combine = inputs['stat_groups']
-separator = '-'
+separator = '_'
 
 group_column = df_means[columns_to_combine[0]].astype(str)
 for col in columns_to_combine[1:]:

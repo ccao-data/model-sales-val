@@ -324,7 +324,7 @@ else:
 
     # Combines unique groups to one column, differing groups doesn't cause athena problems
     columns_to_combine = stat_groups_list
-    separator = '-'
+    separator = '_'
     print('check4')
     print(f'columns_to_combine:\n{columns_to_combine}')
     group_column = df_means[columns_to_combine[0]].astype(str)

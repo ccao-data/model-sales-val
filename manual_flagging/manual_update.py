@@ -297,7 +297,7 @@ df_means = df_means.rename(columns={
 
 # Combines unique groups to one column, differing groups doesn't cause athena problems
 columns_to_combine = inputs['stat_groups']
-separator = '-'
+separator = '_'
 
 group_column = df_means[columns_to_combine[0]].astype(str)
 for col in columns_to_combine[1:]:
