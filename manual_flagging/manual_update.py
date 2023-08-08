@@ -280,35 +280,25 @@ wr.s3.to_parquet(df=df_parameters, path=s3_file_path)
 unique_groups = (
     df_finish_flagging.drop_duplicates(subset=inputs["stat_groups"], keep="first")
     .reset_index(drop=True)
-    .assign(rolling_window=lambda df: pd.to_datetime(df["rolling_window"], format="%Y%m").dt.date)
-)
+    .assign(
+        rolling_window=lambda df: pd.to_datetime(df["rolling_window"], format="%Y%m").dt.date
+        )
+    )
 
-# this is declared to try and maintain some generalizability with different stat groups
 groups_string_col = '_'.join(map(str, inputs['stat_groups']))
+suffixes = ["mean_price", "mean_price_per_sqft"]
 
-cols_to_write_means = inputs['stat_groups'] +[
-    f"sv_mean_price_{groups_string_col}",
-    f"sv_mean_price_per_sqft_{groups_string_col}"
-    ]
+cols_to_write_means = inputs['stat_groups'] + [f"sv_{suffix}_{groups_string_col}" for suffix in suffixes]
+rename_dict = {f"sv_{suffix}_{groups_string_col}": f"{suffix}" for suffix in suffixes}
 
-df_means = unique_groups[cols_to_write_means]
-
-df_means = df_means.rename(columns={
-    f"sv_mean_price_{groups_string_col}": "mean_price_grouped",
-    f"sv_mean_price_per_sqft_{groups_string_col}": "mean_price_sqft_grouped",
-})
-
-# Combines unique groups to one column, differing groups doesn't cause athena problems
-columns_to_combine = inputs['stat_groups']
-separator = '_'
-
-group_column = df_means[columns_to_combine[0]].astype(str)
-for col in columns_to_combine[1:]:
-    group_column += separator + df_means[col].astype(str)
-
-# Finalize means df to write
-df_means = df_means.assign(run_id=run_id, group=group_column).drop(
-    columns=inputs['stat_groups']
+df_means = (
+    unique_groups[cols_to_write_means]
+    .rename(columns=rename_dict)
+    .assign(
+        run_id=run_id,
+        group=lambda df: df[inputs['stat_groups']].astype(str).apply('_'.join, axis=1)
+    )
+    .drop(columns=inputs['stat_groups'])
 )
 
 bucket = "s3://ccao-data-warehouse-us-east-1/sale/group_mean/"

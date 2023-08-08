@@ -307,35 +307,20 @@ else:
 
     stat_groups_list = args["stat_groups"].split(",")
     
-    # this is declared to try and maintain some generalizability with different stat groups
     groups_string_col = '_'.join(map(str, stat_groups_list))
+    suffixes = ["mean_price", "mean_price_per_sqft"]
 
+    cols_to_write_means = stat_groups_list + [f"sv_{suffix}_{groups_string_col}" for suffix in suffixes]
+    rename_dict = {f"sv_{suffix}_{groups_string_col}": f"{suffix}" for suffix in suffixes}
 
-    cols_to_write_means = stat_groups_list + [
-        f"sv_mean_price_{groups_string_col}",
-        f"sv_mean_price_per_sqft_{groups_string_col}"
-        ]
-
-    df_means = unique_groups[cols_to_write_means]
-
-    # Make columns less verbose
-    df_means = df_means.rename(columns={
-        f"sv_mean_price_{groups_string_col}": "mean_price_grouped",
-        f"sv_mean_price_per_sqft_{groups_string_col}": "mean_price_sqft_grouped",
-    })
-
-    # Combines unique groups to one column, differing groups doesn't cause athena problems
-    columns_to_combine = stat_groups_list
-    separator = '_'
-
-    group_column = df_means[columns_to_combine[0]].astype(str)
-
-    for col in columns_to_combine[1:]:
-        group_column += separator + df_means[col].astype(str)
-
-    # Finalize means df to write
-    df_means = df_means.assign(run_id=run_id, group=group_column).drop(
-        columns=stat_groups_list
+    df_means = (
+        unique_groups[cols_to_write_means]
+        .rename(columns=rename_dict)
+        .assign(
+            run_id=run_id,
+            group=lambda df: df[stat_groups_list].astype(str).apply('_'.join, axis=1)
+        )
+        .drop(columns=stat_groups_list)
     )
 
     bucket = "s3://ccao-data-warehouse-us-east-1/sale/group_mean/"
