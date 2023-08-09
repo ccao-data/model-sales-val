@@ -258,7 +258,7 @@ else:
     # Write parquet to bucket with newly flagged values
     # - - - -
     
-    file_name = run_id + "initial-run.parquet"
+    file_name = run_id + ".parquet"
     s3_file_path = os.path.join(args["aws_s3_warehouse_bucket"], 'sale', 'flag', file_name)
     wr.s3.to_parquet(df=df_to_write, path=s3_file_path)
 
