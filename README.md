@@ -3,16 +3,24 @@
 **Docs in progress**
 
 
-## Table of Contents
+Table of Contents
+================
 
-[Overview](https://github.com/ccao-data/model-sales-val#overview)
-
-[Structure](https://github.com/ccao-data/model-sales-val#structure)
-
-[Flagging Details](https://github.com/ccao-data/model-sales-val#flagging-details)
+- [Overview](#overview)  
+- [Contents](#contents)  
+- [Structure of Data](#structure-of-data)  
+- [Flagging Details](#flagging-details)  
 
 ## Overview
 The model-sales-val system is a critical component of our data integrity framework, designed to oversee the complex process of identifying and flagging sales that may be non-arms-length transactions. These sales can distort our analyses and models, since they don't adhere to the principle of an open and competitive market. A non-arms-length sale occurs when the buyer and seller have a relationship that might influence the transaction price, leading to a sale that doesn't reflect the true market value of the property. This relationship might exist between family members, business partners, or other close connections.
+
+## Contents
+This repo is split into two parts.
+#### `manual_flagging/`  
+This directory hold all files needed to run the `initial_flagging.py` and `manual_update.py` scripts.
+#### `glue/`  
+This is the reccurent script that runs using AWS glue. Both `glue/sales-val-flagging.json` and `glue/sales-val-flagging.py` are linked to AWS.
+
 
 ## Structure of Data
 
@@ -59,10 +67,7 @@ erDiagram
     }
 ```
 
-## Scripts
-This repo is split into two parts.
-* `initial_run_local/`
-* `glue/`
+
 
 ## Flagging Details
 
