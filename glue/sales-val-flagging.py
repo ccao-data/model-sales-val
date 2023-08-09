@@ -238,7 +238,7 @@ else:
     run_id = timestamp + "-" + random_word_id
 
     # Incorporate exempt values and finalize to write to flag table
-    df_to_write = (
+    df_prepare_to_write = (
         # TODO: exempt will have an NA for rolling_window - add to repo docs
         pd.concat([df_final[cols_to_write], exempt_to_append])
         .reset_index(drop=True)
@@ -250,8 +250,8 @@ else:
     )
 
     # Filter to keep only flags not already present in the flag table
-    rows_to_append = df_to_write[
-        ~df_to_write["meta_sale_document_num"].isin(df_sales_val["meta_sale_document_num"])
+    rows_to_append = df_prepare_to_write[
+        ~df_prepare_to_write["meta_sale_document_num"].isin(df_sales_val["meta_sale_document_num"])
     ].reset_index(drop=True)
 
     # - - - -
@@ -260,7 +260,7 @@ else:
     
     file_name = run_id + ".parquet"
     s3_file_path = os.path.join(args["aws_s3_warehouse_bucket"], 'sale', 'flag', file_name)
-    wr.s3.to_parquet(df=df_to_write, path=s3_file_path)
+    wr.s3.to_parquet(df=rows_to_append, path=s3_file_path)
 
     # - - - - -
     # Write to parameter table
