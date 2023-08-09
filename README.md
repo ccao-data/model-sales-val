@@ -29,7 +29,7 @@ erDiagram
         bigint sv_is_ptax_outlier
         bigint sv_is_heuristic_outlier
         string sv_outlier_type
-        string run_id FK
+        string run_id 
         bigint version PK
 
     }
