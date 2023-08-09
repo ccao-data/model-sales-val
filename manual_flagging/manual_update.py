@@ -12,15 +12,15 @@ from pyathena import connect
 from pyathena.pandas.util import as_pandas
 from random_word import RandomWords
 
-# Set working to root, to pull from src
+# Set working to manual_update, standardize yaml and src locations
 root = sp.getoutput("git rev-parse --show-toplevel")
-os.chdir(root)
+os.chdir(os.path.join(root, 'manual_flagging'))
 
 # Set time for run_id
 chicago_tz = pytz.timezone("America/Chicago")
 
 # Inputs yaml as inputs
-with open("manual_flagging/inputs_update.yaml", "r") as stream:
+with open(os.path.join("yaml", "inputs_update.yaml"), "r") as stream:
     try:
         inputs = yaml.safe_load(stream)
     except yaml.YAMLError as exc:
