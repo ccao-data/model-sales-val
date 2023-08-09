@@ -2,6 +2,7 @@ import awswrangler as wr
 import boto3
 import datetime
 import numpy as np
+import os
 import pandas as pd
 import pytz
 import sys
@@ -23,6 +24,7 @@ args = getResolvedOptions(
     [
         "region_name",
         "s3_staging_dir",
+        "aws_s3_warehouse_bucket",
         "s3_glue_bucket",
         "flagging_script_key",
         "yaml_script_key",
@@ -255,12 +257,10 @@ else:
     # - - - -
     # Write parquet to bucket with newly flagged values
     # - - - -
-
-    bucket = "s3://ccao-data-warehouse-us-east-1/sale/flag/"
-    file_name = run_id + ".parquet"
-    s3_file_path = bucket + file_name
-
-    wr.s3.to_parquet(df=rows_to_append, path=s3_file_path)
+    
+    file_name = "initial-run.parquet"
+    s3_file_path = os.path.join(args["aws_s3_warehouse_bucket"], 'sale', 'flag', file_name)
+    wr.s3.to_parquet(df=df_to_write, path=s3_file_path)
 
     # - - - - -
     # Write to parameter table
@@ -287,10 +287,8 @@ else:
 
     df_parameters = pd.DataFrame(parameter_dict_to_df)
 
-    bucket = "s3://ccao-data-warehouse-us-east-1/sale/parameter/"
     file_name = run_id + ".parquet"
-    s3_file_path = bucket + file_name
-
+    s3_file_path = os.path.join(args["aws_s3_warehouse_bucket"], 'sale', 'parameter', file_name)
     wr.s3.to_parquet(df=df_parameters, path=s3_file_path)
 
     # - - - - -
@@ -324,10 +322,8 @@ else:
         .drop(columns=stat_groups_list)
     )
 
-    bucket = "s3://ccao-data-warehouse-us-east-1/sale/group_mean/"
     file_name = run_id + ".parquet"
-    s3_file_path = bucket + file_name
-
+    s3_file_path = os.path.join(args["aws_s3_warehouse_bucket"], 'sale', 'group_mean', file_name)
     wr.s3.to_parquet(df=df_means, path=s3_file_path)
 
     # - - - - -
@@ -348,8 +344,6 @@ else:
 
     df_metadata = pd.DataFrame(metadata_dict_to_df)
 
-    bucket = "s3://ccao-data-warehouse-us-east-1/sale/metadata/"
     file_name = run_id + ".parquet"
-    s3_file_path = bucket + file_name
-
+    s3_file_path = os.path.join(args["aws_s3_warehouse_bucket"], 'sale', 'metadata', file_name)
     wr.s3.to_parquet(df=df_metadata, path=s3_file_path)

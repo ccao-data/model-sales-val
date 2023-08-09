@@ -12,6 +12,7 @@
   },
   "defaultArguments" : {
     "--s3_glue_bucket" : "ccao-glue-assets-us-east-1",
+    "--aws_s3_warehouse_bucket" : "s3://ccao-data-warehouse-us-east-1",
     "--enable-job-insights" : "false",
     "--region_name" : "us-east-1",
     "--job-language" : "python",
