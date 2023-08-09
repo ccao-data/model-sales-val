@@ -236,7 +236,7 @@ df_to_write = (
 # Write to flag table
 # - - - - -
 
-file_name = "initial-run.parquet"
+file_name = run_id + "initial-run.parquet"
 s3_file_path = os.path.join(os.getenv("AWS_S3_WAREHOUSE_BUCKET"), 'sale', 'flag', file_name)
 wr.s3.to_parquet(df=df_to_write, path=s3_file_path)
 
