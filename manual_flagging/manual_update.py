@@ -213,7 +213,7 @@ df_final = (
 # Update version of re-flagged entries
 # - - - - - -
 
-# Group the existing data by 'ID' and find the maximum 'version' for each 'ID'
+# Group the existing data by 'ID' and find the maximum 'version' for each sale
 existing_max_version = (
     df_flag.groupby("meta_sale_document_num")["version"]
     .max()
@@ -236,10 +236,8 @@ df_to_write = (
 # Write to flag table
 # - - - - -
 
-bucket = "s3://ccao-data-warehouse-us-east-1/sale/flag/"
-file_name = run_id + ".parquet"
-s3_file_path = bucket + file_name
-
+file_name = "initial-run.parquet"
+s3_file_path = os.path.join(os.getenv("AWS_S3_WAREHOUSE_BUCKET"), 'sale', 'flag', file_name)
 wr.s3.to_parquet(df=df_to_write, path=s3_file_path)
 
 # - - - - -
@@ -267,10 +265,8 @@ parameter_dict_to_df = {
 
 df_parameters = pd.DataFrame(parameter_dict_to_df)
 
-bucket = "s3://ccao-data-warehouse-us-east-1/sale/parameter/"
 file_name = run_id + ".parquet"
-s3_file_path = bucket + file_name
-
+s3_file_path = os.path.join(os.getenv("AWS_S3_WAREHOUSE_BUCKET"), 'sale', 'parameter', file_name)
 wr.s3.to_parquet(df=df_parameters, path=s3_file_path)
 
 # - - - - -
@@ -301,10 +297,8 @@ df_means = (
     .drop(columns=inputs["stat_groups"])
 )
 
-bucket = "s3://ccao-data-warehouse-us-east-1/sale/group_mean/"
 file_name = run_id + ".parquet"
-s3_file_path = bucket + file_name
-
+s3_file_path = os.path.join(os.getenv("AWS_S3_WAREHOUSE_BUCKET"), 'sale', 'group_mean', file_name)
 wr.s3.to_parquet(df=df_means, path=s3_file_path)
 
 # - - - - -
@@ -323,8 +317,6 @@ metadata_dict_to_df = {
 
 df_metadata = pd.DataFrame(metadata_dict_to_df)
 
-bucket = "s3://ccao-data-warehouse-us-east-1/sale/metadata/"
 file_name = run_id + ".parquet"
-s3_file_path = bucket + file_name
-
+s3_file_path = os.path.join(os.getenv("AWS_S3_WAREHOUSE_BUCKET"), 'sale', 'metadata', file_name)
 wr.s3.to_parquet(df=df_metadata, path=s3_file_path)
