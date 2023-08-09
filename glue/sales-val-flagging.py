@@ -266,7 +266,7 @@ else:
     # Write to parameter table
     # - - - - -
 
-    sales_flagged = df_to_write.shape[0]
+    sales_flagged = rows_to_append.shape[0]
     earliest_sale_ingest = df_ingest_full.meta_sale_date.min()
     latest_sale_ingest = df_ingest_full.meta_sale_date.max()
     short_term_owner_threshold = SHORT_TERM_OWNER_THRESHOLD
