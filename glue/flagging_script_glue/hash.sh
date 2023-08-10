@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# HERE need to set correct ws within repo
-# use this probably
-# git rev-parse --show-toplevel
+# Standardize paths
+toplevel=$(git rev-parse --show-toplevel)
+cd "$toplevel/glue/flagging_script_glue" || exit 1 # Exit the script if the directory doesn't exist or is inaccessible
 
 # find existing flagging script
 existing_flagging_file=$(ls | grep -E '^flagging_[0-9a-z]{6}\.py$')
@@ -26,7 +26,7 @@ mv "$existing_flagging_file" "$flag_hash_script"
 # Get glue bucket
 bucket_name="$AWS_S3_GLUE_BUCKET"
 
-# Delete files that start with 'flagging' followed by an underscore and 6 numbers/letters with the .py file type
+# Delete files that start with 'flagging' followed by an underscore and 6 numbers/lower_case letters with the .py file type
 aws s3 ls "$bucket_name/scripts/sales-val/" | awk '{print $4}' | grep -E '^flagging_[0-9a-z]{6}\.py$' | while read -r file
 do
   aws s3 rm "$bucket_name/scripts/sales-val/$file"
