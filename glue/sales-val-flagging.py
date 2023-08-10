@@ -56,7 +56,7 @@ for obj in objects['Contents']:
         # If a match is found, download the file
         local_path = f"/tmp/{key.split('/')[-1]}"
         s3.download_file(args["s3_glue_bucket"], key, local_path)
-        hash_to_save = filename.group(1)
+        hash_to_save = re.search(pattern, filename).group(1)
         print(hash_to_save)
         print(filename)
         print(filename.group(1))
