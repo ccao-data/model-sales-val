@@ -52,6 +52,8 @@ print(f'Objects: \n{objects}')
 for obj in objects['Contents']:
     key = obj['Key']
     print(f'Key: \n{key}')
+    local_path = f"/tmp/{key.split('/')[-1]}"
+    print(f'potentialdownload file path: \n{os.path.join(args["s3_glue_bucket"], key, local_path)}')
     if re.match(pattern, key):
         # If a match is found, download the file
         local_path = f"/tmp/{key.split('/')[-1]}"
