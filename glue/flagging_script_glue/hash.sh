@@ -1,10 +1,20 @@
 #!/bin/bash
 
+<<comment
+This script is to be run after an update to the flagging script 
+in ccao_sales_val/glue/flagging_script_glue/. This script will update 
+the hash of the new flagging script, rename the edited file using 
+the new hash, and delete the previous file. 
+
+Then, the old flagging script will also be deleted and replaced with 
+new file and its corresponding hash identifier in AWS.
+comment
+
 # Standardize paths
 toplevel=$(git rev-parse --show-toplevel)
 cd "$toplevel/glue/flagging_script_glue" || exit 1 # Exit the script if the directory doesn't exist or is inaccessible
 
-# find existing flagging script
+# Find existing flagging script
 existing_flagging_file=$(ls | grep -E '^flagging_[0-9a-z]{6}\.py$')
 
 # Extract the hash part from the existing file
@@ -20,10 +30,8 @@ if [ "$existing_hash" == "$short_hash" ]; then
 fi
 
 flag_hash_script="flagging_$short_hash.py"
-
 mv "$existing_flagging_file" "$flag_hash_script"
 
-# Get glue bucket
 bucket_name="$AWS_S3_GLUE_BUCKET"
 
 # Delete files that start with 'flagging' followed by an underscore and 6 numbers/lower_case letters with the .py file type
