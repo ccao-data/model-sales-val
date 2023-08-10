@@ -41,15 +41,14 @@ exec(open("/tmp/flagging.py").read())
 """
 
 # Define your pattern
-pattern = '^flagging_([0-9a-z]{6})\.py$'
+pattern = "^flagging_([0-9a-z]{6})\.py$"
 
 # List objects in the S3 bucket and prefix
-objects = s3.list_objects(Bucket=args["s3_glue_bucket"], 
-                          Prefix='scripts/sales-val/')
+objects = s3.list_objects(Bucket=args["s3_glue_bucket"], Prefix="scripts/sales-val/")
 
 # Read in flagging script
-for obj in objects['Contents']:
-    key = obj['Key']
+for obj in objects["Contents"]:
+    key = obj["Key"]
     filename = os.path.basename(key)
     local_path = f"/tmp/{key.split('/')[-1]}"
     if re.match(pattern, filename):
@@ -57,8 +56,7 @@ for obj in objects['Contents']:
         local_path = f"/tmp/{key.split('/')[-1]}"
         s3.download_file(args["s3_glue_bucket"], key, local_path)
         hash_to_save = re.search(pattern, filename).group(1)
-        print(hash_to_save)
-        print(filename)
+
         # Load the python flagging script
         exec(open(local_path).read())
         break
@@ -281,9 +279,9 @@ else:
     # - - - -
     # Write parquet to bucket with newly flagged values
     # - - - -
-    
+
     file_name = run_id + ".parquet"
-    s3_file_path = os.path.join(args["aws_s3_warehouse_bucket"], 'sale', 'flag', file_name)
+    s3_file_path = os.path.join(args["aws_s3_warehouse_bucket"], "sale", "flag", file_name)
     wr.s3.to_parquet(df=rows_to_append, path=s3_file_path)
 
     # - - - - -
@@ -312,7 +310,7 @@ else:
     df_parameters = pd.DataFrame(parameter_dict_to_df)
 
     file_name = run_id + ".parquet"
-    s3_file_path = os.path.join(args["aws_s3_warehouse_bucket"], 'sale', 'parameter', file_name)
+    s3_file_path = os.path.join(args["aws_s3_warehouse_bucket"], "sale", "parameter", file_name)
     wr.s3.to_parquet(df=df_parameters, path=s3_file_path)
 
     # - - - - -
@@ -347,7 +345,7 @@ else:
     )
 
     file_name = run_id + ".parquet"
-    s3_file_path = os.path.join(args["aws_s3_warehouse_bucket"], 'sale', 'group_mean', file_name)
+    s3_file_path = os.path.join(args["aws_s3_warehouse_bucket"], "sale", "group_mean", file_name)
     wr.s3.to_parquet(df=df_means, path=s3_file_path)
 
     # - - - - -
@@ -364,11 +362,11 @@ else:
         "short_commit_sha": commit_sha[0:8],
         "run_timestamp": timestamp,
         "run_type": "glue_job",
-        "flagging_hash": hash_to_save
+        "flagging_hash": hash_to_save,
     }
 
     df_metadata = pd.DataFrame(metadata_dict_to_df)
 
     file_name = run_id + ".parquet"
-    s3_file_path = os.path.join(args["aws_s3_warehouse_bucket"], 'sale', 'metadata', file_name)
+    s3_file_path = os.path.join(args["aws_s3_warehouse_bucket"], "sale", "metadata", file_name)
     wr.s3.to_parquet(df=df_metadata, path=s3_file_path)

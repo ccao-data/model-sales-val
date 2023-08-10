@@ -14,7 +14,7 @@ from random_word import RandomWords
 
 # Set working to manual_update, standardize yaml and src locations
 root = sp.getoutput("git rev-parse --show-toplevel")
-os.chdir(os.path.join(root, 'manual_flagging'))
+os.chdir(os.path.join(root, "manual_flagging"))
 
 # Set time for run_id
 chicago_tz = pytz.timezone("America/Chicago")
@@ -237,7 +237,7 @@ df_to_write = (
 # - - - - -
 
 file_name = run_id + "parquet"
-s3_file_path = os.path.join(os.getenv("AWS_S3_WAREHOUSE_BUCKET"), 'sale', 'flag', file_name)
+s3_file_path = os.path.join(os.getenv("AWS_S3_WAREHOUSE_BUCKET"), "sale", "flag", file_name)
 wr.s3.to_parquet(df=df_to_write, path=s3_file_path)
 
 # - - - - -
@@ -266,7 +266,7 @@ parameter_dict_to_df = {
 df_parameters = pd.DataFrame(parameter_dict_to_df)
 
 file_name = run_id + ".parquet"
-s3_file_path = os.path.join(os.getenv("AWS_S3_WAREHOUSE_BUCKET"), 'sale', 'parameter', file_name)
+s3_file_path = os.path.join(os.getenv("AWS_S3_WAREHOUSE_BUCKET"), "sale", "parameter", file_name)
 wr.s3.to_parquet(df=df_parameters, path=s3_file_path)
 
 # - - - - -
@@ -298,7 +298,7 @@ df_means = (
 )
 
 file_name = run_id + ".parquet"
-s3_file_path = os.path.join(os.getenv("AWS_S3_WAREHOUSE_BUCKET"), 'sale', 'group_mean', file_name)
+s3_file_path = os.path.join(os.getenv("AWS_S3_WAREHOUSE_BUCKET"), "sale", "group_mean", file_name)
 wr.s3.to_parquet(df=df_means, path=s3_file_path)
 
 # - - - - -
@@ -313,11 +313,11 @@ metadata_dict_to_df = {
     "short_commit_sha": commit_sha[0:8],
     "run_timestamp": timestamp,
     "run_type": "manual_update",
-    "flagging_hash": ""
+    "flagging_hash": "",
 }
 
 df_metadata = pd.DataFrame(metadata_dict_to_df)
 
 file_name = run_id + ".parquet"
-s3_file_path = os.path.join(os.getenv("AWS_S3_WAREHOUSE_BUCKET"), 'sale', 'metadata', file_name)
+s3_file_path = os.path.join(os.getenv("AWS_S3_WAREHOUSE_BUCKET"), "sale", "metadata", file_name)
 wr.s3.to_parquet(df=df_metadata, path=s3_file_path)
