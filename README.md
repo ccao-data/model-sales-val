@@ -64,6 +64,7 @@ erDiagram
         double mean_price_sqft
         string run_id PK
         string group PK
+        string flagging_hash
     }
 ```
 
