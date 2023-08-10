@@ -276,6 +276,7 @@ metadata_dict_to_df = {
     "short_commit_sha": commit_sha[0:8],
     "run_timestamp": timestamp,
     "run_type": "initial_flagging",
+    "flagging_hash": ""
 }
 
 df_metadata = pd.DataFrame(metadata_dict_to_df)
