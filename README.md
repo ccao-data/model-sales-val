@@ -47,6 +47,7 @@ erDiagram
         string short_commit_sha
         string run_timestamp
         string run_type
+        string flagging_hash
     }
     parameter {
         string run_id PK
@@ -64,7 +65,6 @@ erDiagram
         double mean_price_sqft
         string run_id PK
         string group PK
-        string flagging_hash
     }
 ```
 
