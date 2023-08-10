@@ -27,7 +27,6 @@ args = getResolvedOptions(
         "aws_s3_warehouse_bucket",
         "s3_glue_bucket",
         "flagging_script_key",
-        "yaml_script_key",
         "stat_groups",
         "iso_forest",
         "dev_bounds",

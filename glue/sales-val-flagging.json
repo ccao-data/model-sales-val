@@ -17,7 +17,6 @@
     "--region_name" : "us-east-1",
     "--job-language" : "python",
     "--TempDir" : "s3://ccao-glue-assets-us-east-1/temporary/",
-    "--yaml_script_key" : "scripts/sales-val/inputs.yaml",
     "--s3_staging_dir" : "s3://ccao-athena-results-us-east-1",
     "--flagging_script_key" : "scripts/sales-val/flagging.py",
     "--stat_groups" : "rolling_window,township_code,class",
