@@ -40,7 +40,7 @@ s3.download_file(args["s3_glue_bucket"], args["flagging_script_key"], "/tmp/flag
 exec(open("/tmp/flagging.py").read())
 """
 
-# Define your pattern
+# Define pattern to match flagging script in s3
 pattern = "^flagging_([0-9a-z]{6})\.py$"
 
 # List objects in the S3 bucket and prefix
@@ -53,7 +53,6 @@ for obj in objects["Contents"]:
     local_path = f"/tmp/{key.split('/')[-1]}"
     if re.match(pattern, filename):
         # If a match is found, download the file
-        local_path = f"/tmp/{key.split('/')[-1]}"
         s3.download_file(args["s3_glue_bucket"], key, local_path)
         hash_to_save = re.search(pattern, filename).group(1)
 
