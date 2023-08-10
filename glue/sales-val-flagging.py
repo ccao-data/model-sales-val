@@ -5,6 +5,7 @@ import numpy as np
 import os
 import pandas as pd
 import pytz
+import re
 import sys
 from awsglue.utils import getResolvedOptions
 from pyathena import connect
@@ -26,18 +27,42 @@ args = getResolvedOptions(
         "s3_staging_dir",
         "aws_s3_warehouse_bucket",
         "s3_glue_bucket",
-        "flagging_script_key",
         "stat_groups",
         "iso_forest",
         "dev_bounds",
     ],
 )
-
+"""
 # Import flagging function file from s3
 s3.download_file(args["s3_glue_bucket"], args["flagging_script_key"], "/tmp/flagging.py")
 
 # Load the python flagging script
 exec(open("/tmp/flagging.py").read())
+"""
+
+# Define your pattern
+pattern = '^flagging_[0-9a-z]{6}\.py$'
+
+# List objects in the S3 bucket and prefix
+objects = s3.list_objects(Bucket=args["s3_glue_bucket"], 
+                          Prefix='scripts/sales-val/')
+print(f'Objects: \n{objects}')
+
+# Iterate through the objects and look for a match
+for obj in objects['Contents']:
+    key = obj['Key']
+    print(f'Key: \n{key}')
+    if re.match(pattern, key):
+        # If a match is found, download the file
+        local_path = f"/tmp/{key.split('/')[-1]}"
+        print(f'local_path: \n{local_path}')
+        s3.download_file(args["s3_glue_bucket"], key, local_path)
+        print(f'download file path: \n{os.path.join(args["s3_glue_bucket"], key, local_path)}')
+        
+        # Load the python flagging script
+        exec(open(local_path).read())
+        break
+
 
 # Connect to athena
 conn = connect(s3_staging_dir=args["s3_staging_dir"], region_name=args["region_name"])
