@@ -59,7 +59,6 @@ for obj in objects['Contents']:
         hash_to_save = re.search(pattern, filename).group(1)
         print(hash_to_save)
         print(filename)
-        print(filename.group(1))
         # Load the python flagging script
         exec(open(local_path).read())
         break
