@@ -1,11 +1,5 @@
-# This file contains all inputs for the sales_val feature engineering program.
-
-# Run Control ------------------------------------------------------------------
-
-# Note included with each run. Use this to summarize what changed about the run
-# or add context
-run_note: >
-  First Draft with sales vale pipeline removal
+# This file contains relevant inputs for the initial_flagging.py script,
+# which will be run one time when we first populate the flag table in athena
 
 stat_groups: [
   "rolling_window",

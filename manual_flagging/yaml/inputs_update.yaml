@@ -1,11 +1,5 @@
-# This file contains all inputs for the sales_val feature engineering program.
-
-# Run Control ------------------------------------------------------------------
-
-# Note included with each run. Use this to summarize what changed about the run
-# or add context
-run_note: >
-  First Draft with sales vale pipeline removal
+# This file contains relevant inputs for the manual_update.py script.
+# We use these inputs when we want to re-flag already flagged sales. 
 
 stat_groups: [
   "rolling_window",
