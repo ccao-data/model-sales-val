@@ -50,7 +50,7 @@ INNER JOIN default.vw_pin_sale sale
     ON sale.pin = res.pin
     AND sale.year = res.year
 WHERE (sale.sale_date
-    BETWEEN DATE '2019-02-01'
+    BETWEEN DATE '2013-02-01'
     AND DATE '2021-12-31')
 AND NOT sale.is_multisale
 AND NOT res.pin_is_multicard
@@ -134,7 +134,7 @@ df_flag = flg.go(
 # Remove duplicate rows
 df_flag = df_flag[df_flag["original_observation"]]
 # Discard pre-2014 data
-df_flag = df_flag[df_flag["meta_sale_date"] >= "2020-01-01"]
+df_flag = df_flag[df_flag["meta_sale_date"] >= "2014-01-01"]
 
 # Utilize PTAX-203, complete binary columns
 df_final = (
