@@ -19,10 +19,37 @@ The model-sales-val system is a critical component of our data integrity framewo
 The workflow of the sales flagging is as follows:  
 * There will be an intitial run of the `manual_flagging/initial_flagging.py`, which instantiates all tables, and flags a large portion of the sales as either outliers or non-outliers.
 * Then, we have `glue/sales-val-flagging.py`, a script connected to AWS glue that flags all new unflagged sales. This script will be automated such that it runs on a schedule (eg. monthly).  
-* In the case of an error with the flagging or if we want to update the methodology on already-flagged sales, we can run the `manual_flagging/initial_flagging.py` and select a subset of sales to re-flag. These updated values will have a version number that is 1 higher than the previous sale. When utilizing our sales views, we will pull the flag data with the highest version value to keep it up-to-date.  
+* In the case of an error with the flagging or if we want to update the methodology on already-flagged sales, we can run the `manual_flagging/manual_update.py` and select a subset of sales to re-flag. These updated values will have a version number that is 1 higher than the previous sale. When utilizing our sales views, we will pull the flag data with the highest version value to keep it up-to-date.
+
+On the left, we see the normal workflow of the process. Represented on the right is the use of `manual_update.py` to update/re-flag sales.  
+
+  ``` mermaid
+  graph TD
+
+    A[Initialize]
+    B{{Create Initial Table<br>of Flagged Values}}
+    C{{Perform Reoccurring Job:<br>Flag New Non-Flagged Values}}
+    D[>Some Need to Re-Flag]
+    E[Re-Flag Already Flagged Values]
+    F[Increment Version<br>Column by 1]
+
+    class B,C recurringProcess;
+    class D,E,F secondaryProcess;
+
+    A --> B
+    B --> C
+
+    D --> E
+    E --> F
+
+    classDef recurringProcess fill:#f9d6d6,stroke:#f26a6a,stroke-width:2px;
+    classDef secondaryProcess fill:#e0e0e0,stroke:#a0a0a0,stroke-width:1px;
+
+  ```
 
 
-## Structure of Data
+## Structure of Data  
+With any flagging done, there will be 3 auxiliary tables produced with contain metadata and other information that can help track down exactly why any individual sale was flagged as an outlier.  Structure of data production below:  
 
 ``` mermaid
 erDiagram
@@ -76,7 +103,7 @@ erDiagram
 
   
   
-We **should not** update the glue job script, its corresponding flagging python script, or any of its job details in the aws-console. The reason for this is so that we can track changes and version control using this repo. The only actions that should be taken in the aws console related to this glue job are running the job, and pulling from the repo using their version control system.  
+Using the AWS console, we **should not** update the glue job script, its corresponding flagging python script, or any of its job details. Instead, these changes should be made from this repo. The reason for this is so that we can track changes and version control using this repo. The only actions that should be taken in the aws console related to this glue job are running the job, and pulling from the repo using their version control system.  
 
 ### To make changes to glue job script or job details
 
@@ -91,11 +118,11 @@ In order to pull from the repository into AWS Glue, there will need to be a pers
 
 ### To make changes to flagging script in S3
 
-The way we track changes in the S3 flagging script is through a hash identifier. The name of the script will have the first 6 characters of a hash appended to it, then these 6 characters will be written to the `sale.metadata` table in athena for lookup. This will allow us to find any flagging file used by the glue script by finding the commit hash and looking at the flagging file in `glue/flagging_script_glue/`. The way we implement this is with the bash script `glue/flagging_script_glue/hash.shj`. After changing and saving the script, we run `hash.sh` which rehashes the newly updated file, udpates the file name to include the first 6 characters of the hash, and deletes the old flagging file. This update happens in **both** the S3 bucket and in our repo.
+The way we track changes in the S3 flagging script is through a hash identifier. The name of the script will have the first 6 characters of a hash appended to it, then these 6 characters will be written to the `sale.metadata` table in athena for lookup. This will allow us to find any flagging file used by the glue script by finding the commit hash and looking at the flagging file in `glue/flagging_script_glue/`. The way we implement this is with the bash script `glue/flagging_script_glue/hash.sh`. After changing and saving the script, we run `hash.sh` which rehashes the newly updated file, udpates the file name to include the first 6 characters of the hash, and deletes the old flagging file. This update happens in **both** the S3 bucket and in our repo.
   
 If we need to make changes to the flagging script (located in an S3 bucket) used by the glue script, we want to change the python file in the `glue/flagging_script_glue/` directory.   
 
-Steps to make changes to flagging script:   
+Steps to make changes to flagging script in `glue/flagging_script_glue/`:   
 * Save changes locally
 * Run `hash.sh`
 * Push to master
