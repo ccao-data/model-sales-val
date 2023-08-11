@@ -32,13 +32,6 @@ args = getResolvedOptions(
         "dev_bounds",
     ],
 )
-"""
-# Import flagging function file from s3
-s3.download_file(args["s3_glue_bucket"], args["flagging_script_key"], "/tmp/flagging.py")
-
-# Load the python flagging script
-exec(open("/tmp/flagging.py").read())
-"""
 
 # Define pattern to match flagging script in s3
 pattern = "^flagging_([0-9a-z]{6})\.py$"
