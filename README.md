@@ -1,15 +1,18 @@
-# model-sales-val
+# model-sales-val (docs in progress) 
+  
+| :exclamation:  IMPORTANT   |
+|-----------------------------------------|  
 
-**Docs in progress**
-
-
+If an edit needs to made to anything in the `glue` directory, there a specific process to be found [here](#aws-integration)  
+  
 Table of Contents
 ================
 
 - [Overview](#overview)  
 - [Contents](#contents)  
 - [Structure of Data](#structure-of-data)  
-- [Flagging Details](#flagging-details)  
+- [Flagging Details](#flagging-details)
+- [AWS Glue integration](#aws-integration)
 
 ## Overview
 The model-sales-val system is a critical component of our data integrity framework, designed to oversee the complex process of identifying and flagging sales that may be non-arms-length transactions. These sales can distort our analyses and models, since they don't adhere to the principle of an open and competitive market. A non-arms-length sale occurs when the buyer and seller have a relationship that might influence the transaction price, leading to a sale that doesn't reflect the true market value of the property. This relationship might exist between family members, business partners, or other close connections.
@@ -90,6 +93,8 @@ A heuristics-based model has been developed with the help of the Mansueto instit
 * Low price (raw & sqft)
 * Low price (raw)
 * Family sale (high)
+
+## AWS Integration
 
 
 
