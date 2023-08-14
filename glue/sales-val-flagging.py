@@ -92,7 +92,7 @@ def write_to_group_mean_table(df, file_name, s3_warehouse_bucket_path):
 
 
 
-if __name__ == "main":
+if __name__ == "__main__":
 
     # Create clients
     s3 = boto3.client("s3")
