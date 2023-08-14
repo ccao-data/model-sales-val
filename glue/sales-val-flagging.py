@@ -85,7 +85,7 @@ def get_group_mean_df(df, stat_groups):
     )
     return df_means
 
-def write_to_group_mean_table(df, file_name, s3_warehouse_bucket_path):
+def write_to_group_mean_table(df, s3_warehouse_bucket_path):
     file_name = run_id + ".parquet"
     s3_file_path = os.path.join(s3_warehouse_bucket_path, "sale", "group_mean", file_name)
     wr.s3.to_parquet(df=df, path=s3_file_path)
