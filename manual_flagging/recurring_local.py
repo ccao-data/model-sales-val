@@ -22,10 +22,7 @@ chicago_tz = pytz.timezone("America/Chicago")
 
 # Inputs yaml as inputs
 with open(os.path.join("yaml", "inputs_recurring.yaml"), "r") as stream:
-    try:
-        inputs = yaml.safe_load(stream)
-    except yaml.YAMLError as exc:
-        print(exc)
+    inputs = yaml.safe_load(stream)
 
 # Connect to athena
 conn = connect(
