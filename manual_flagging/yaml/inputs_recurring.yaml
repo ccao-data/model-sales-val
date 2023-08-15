@@ -1,0 +1,18 @@
+# This file contains relevant inputs for the recurring_local.py script.
+# We use these inputs when we want to flag new unseen sales. 
+
+stat_groups: [
+  "rolling_window",
+  "township_code",
+  "class"
+]
+
+iso_forest: [
+  "meta_sale_price",        
+  "sv_price_per_sqft",          
+  "sv_days_since_last_transaction",
+  "sv_cgdr",    
+  "sv_sale_dup_counts"    
+]
+
+dev_bounds: [2, 3]

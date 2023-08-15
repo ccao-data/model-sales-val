@@ -59,7 +59,16 @@ def finish_flags(df, start_date, exempt_data, manual_update):
         -takes the flagged data from the mansueto code
         -removes the unneeded observations used for the rolling window calculation
         -finishes adding sales val cols for flag table upload
-        - 
+    Inputs:
+        df: df flagged with manuesto flagging methodology
+        start_date: a limit on how early we flag sales from
+        exempt_data: data of class exempt
+        manual_update: whether or not manual_update.py is using this script,
+                       if True, adds a versioning capability.
+    Outputs:
+        df: reduced data frame in format of sales.flag table
+        run_id: unique run_id used for metadata. etc.
+        timestamp: unique timestamp for metadata
     """
     # Remove duplicate rows
     df = df[df["original_observation"]]
@@ -137,7 +146,8 @@ def finish_flags(df, start_date, exempt_data, manual_update):
 def sql_type_to_pd_type(sql_type):
     """
     This function translates SQL data types to equivalent
-    pandas dtypes, using athena parquet metadata
+    pandas dtypes, using athena parquet metadata,
+    used within a dictionary comprehension.
     """
 
     # This is used to fix dtype so there is not error thrown in
@@ -151,10 +161,14 @@ def sql_type_to_pd_type(sql_type):
 
 def get_group_mean_df(df, stat_groups, run_id):
     """
-    This function creates group_mean table to write to athena
+    This function creates group_mean table to write to athena. This allows 
+    us to trace back why some sales may have been flagged within our flagging model
     Inputs: 
         df: data frame 
-        stat_groups: list of stat_groups
+        stat_groups: list of stat_groups used in flagging model
+        run_id: unique run_id of script
+    Outputs:
+        df: dataframe that is ready to be written to athena as a parquet
     """
     unique_groups = (
             df.drop_duplicates(subset=stat_groups, keep="first")
@@ -186,6 +200,20 @@ def get_group_mean_df(df, stat_groups, run_id):
 
 def get_parameter_df(df_to_write, df_ingest, iso_forest_cols, 
                      stat_groups, dev_bounds, short_term_thresh, run_id):
+    """
+    This functions extracts relevant data to write a parameter table,
+    which tracks important information about the flagging run.
+    Inputs:
+        df_to_write: The final table used to write data to the sales.flag table
+        df_ingest: raw data read in to perform flagging
+        iso_forest_cols: columns used in iso_forest model in mansueto's flagging model
+        stat_groups: which groups were used for mansueto's flagging model
+        dev_bounds: standard devation bounds to catch outliers
+        short_term_thresh: short-term threshold for mansueto's flagging model
+        run_id: unique run_id to flagging program run
+    Outputs:
+        df_parameters: parameters table associated with flagging run
+    """
     sales_flagged = df_to_write.shape[0]
     earliest_sale_ingest = df_ingest.meta_sale_date.min()
     latest_sale_ingest = df_ingest.meta_sale_date.max()
@@ -210,7 +238,16 @@ def get_parameter_df(df_to_write, df_ingest, iso_forest_cols,
     return df_parameters
 
 
-def get_metadata_df(run_id, timestamp):
+def get_metadata_df(run_id, timestamp, run_type):
+    """
+    Function creates a table to be written to s3 with a unique set of 
+    metadata for the flagging run
+    Inputs:
+        run_id: unique run_id for flagging run
+        timestamp: unique timestamp for program run
+    Outputs:
+        df_metadata: table to be written to s3
+    """
     commit_sha = sp.getoutput("git rev-parse HEAD")
 
     metadata_dict_to_df = {
@@ -218,7 +255,7 @@ def get_metadata_df(run_id, timestamp):
         "long_commit_sha": commit_sha,
         "short_commit_sha": commit_sha[0:8],
         "run_timestamp": timestamp,
-        "run_type": "initial_flagging",
+        "run_type": run_type,
         "flagging_hash": "",
     }
 

@@ -120,7 +120,7 @@ flg.write_to_group_mean_table(
 )
 
 # Write to metadata table
-df_metadata = flg.get_metadata_df(run_id=run_id, timestamp=timestamp)
+df_metadata = flg.get_metadata_df(run_id=run_id, timestamp=timestamp, run_type='initial_flagging')
 
 flg.write_to_metadata_table(
     df=df_metadata,
