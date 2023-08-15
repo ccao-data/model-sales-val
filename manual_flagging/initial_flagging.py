@@ -72,7 +72,7 @@ df = df[df["class"] != "EX"]
 df_to_flag = flg.add_rolling_window(df)
 
 # Flag Outliers
-df_flag = flg_model.go(
+df_flagged = flg_model.go(
     df=df_to_flag,
     groups=tuple(inputs["stat_groups"]),
     iso_forest_cols=inputs["iso_forest"],
@@ -81,40 +81,49 @@ df_flag = flg_model.go(
 
 # Finish flagging and subset to write to flag table
 df_to_write, run_id, timestamp = flg.finish_flags(
-    df=df_flag,
-    start_date="2020-01-01",
-    exempt_data=exempt_data
+    df=df_flagged, start_date="2020-01-01", exempt_data=exempt_data, manual_update=False
 )
 
 # Write to flag table
-flg.write_to_flag_table(df=df_to_write,
-                        s3_warehouse_bucket_path=os.getenv("AWS_S3_WAREHOUSE_BUCKET"),
-                        run_id=run_id)
+flg.write_to_flag_table(
+    df=df_to_write,
+    s3_warehouse_bucket_path=os.getenv("AWS_S3_WAREHOUSE_BUCKET"),
+    run_id=run_id,
+)
 
 # Write to parameter table
-df_parameters = flg.get_parameter_df(df_to_write=df_to_write, df_ingest=df_ingest,
-                 iso_forest_cols=inputs['iso_forest'],
-                 stat_groups=inputs['stat_groups'], 
-                 dev_bounds=inputs['dev_bounds'],
-                 short_term_thresh=SHORT_TERM_OWNER_THRESHOLD,
-                 run_id=run_id)
+df_parameters = flg.get_parameter_df(
+    df_to_write=df_to_write,
+    df_ingest=df_ingest,
+    iso_forest_cols=inputs["iso_forest"],
+    stat_groups=inputs["stat_groups"],
+    dev_bounds=inputs["dev_bounds"],
+    short_term_thresh=SHORT_TERM_OWNER_THRESHOLD,
+    run_id=run_id,
+)
 
-flg.write_to_parameter_table(df=df_parameters,
-                              s3_warehouse_bucket_path=os.getenv("AWS_S3_WAREHOUSE_BUCKET"),
-                              run_id=run_id)
+flg.write_to_parameter_table(
+    df=df_parameters,
+    s3_warehouse_bucket_path=os.getenv("AWS_S3_WAREHOUSE_BUCKET"),
+    run_id=run_id,
+)
 
 # Write to group_mean table
-df_write_group_mean = flg.get_group_mean_df(df=df_flag,
-                                            stat_groups=inputs['stat_groups'],
-                                            run_id=run_id)
+df_write_group_mean = flg.get_group_mean_df(
+    df=df_flagged, stat_groups=inputs["stat_groups"], run_id=run_id
+)
 
-flg.write_to_group_mean_table(df=df_write_group_mean,
-                              s3_warehouse_bucket_path=os.getenv("AWS_S3_WAREHOUSE_BUCKET"),
-                              run_id=run_id)
+flg.write_to_group_mean_table(
+    df=df_write_group_mean,
+    s3_warehouse_bucket_path=os.getenv("AWS_S3_WAREHOUSE_BUCKET"),
+    run_id=run_id,
+)
 
 # Write to metadata table
 df_metadata = flg.get_metadata_df(run_id=run_id, timestamp=timestamp)
 
-flg.write_to_metadata_table(df=df_metadata, 
-                        s3_warehouse_bucket_path=os.getenv("AWS_S3_WAREHOUSE_BUCKET"),
-                        run_id = run_id)
+flg.write_to_metadata_table(
+    df=df_metadata,
+    s3_warehouse_bucket_path=os.getenv("AWS_S3_WAREHOUSE_BUCKET"),
+    run_id=run_id,
+)

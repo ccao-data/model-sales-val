@@ -16,6 +16,12 @@ def add_rolling_window(df):
     This function implements a rolling window logic such that
     the data is formatted for the flagging script to correctly
     run the year-long window grouping for each obs.
+    Inputs:
+        df: dataframe of sales that we need to flag, data should be 11 months back 
+            from the earliest unflagged sale in order for the rolling window logic to work
+    Outputs:
+        df: dataframe that has exploded each observation into 12 observations with a 12 distinct
+            rolling window columns
     """
     max_date = df["meta_sale_date"].max()
     df = (
@@ -47,15 +53,21 @@ def add_rolling_window(df):
     return df
 
 
-def finish_flags(df, start_date, exempt_data):
-
+def finish_flags(df, start_date, exempt_data, manual_update):
+    """
+    This functions 
+        -takes the flagged data from the mansueto code
+        -removes the unneeded observations used for the rolling window calculation
+        -finishes adding sales val cols for flag table upload
+        - 
+    """
     # Remove duplicate rows
     df = df[df["original_observation"]]
     # Discard pre-2014 data
     df = df[df["meta_sale_date"] >= start_date]
 
     # Utilize PTAX-203, complete binary columns
-    df_final = (
+    df = (
         df.rename(columns={"sv_is_outlier": "sv_is_autoval_outlier"})
         .assign(
             sv_is_autoval_outlier=lambda df: df["sv_is_autoval_outlier"] == "Outlier",
@@ -101,19 +113,25 @@ def finish_flags(df, start_date, exempt_data):
     timestamp = datetime.datetime.now(pytz.timezone("America/Chicago")).strftime("%Y-%m-%d_%H:%M")
     run_id = timestamp + "-" + random_word_id
 
+
+    # Control flow for incorporating versioning
+    dynamic_assignment = {
+        "run_id": run_id,
+        "rolling_window": lambda df: pd.to_datetime(df["rolling_window"], format="%Y%m").dt.date,
+    }
+
+    if not manual_update:
+        dynamic_assignment["version"] = 1
+
     # Incorporate exempt values and finalize to write to flag table
-    df_to_write = (
+    df = (
         # TODO: exempt will have an NA for rolling_window - make sure that is okay
-        pd.concat([df_final[cols_to_write], exempt_to_append])
+        pd.concat([df[cols_to_write], exempt_to_append])
         .reset_index(drop=True)
-        .assign(
-            run_id=run_id,
-            version=1,
-            rolling_window=lambda df: pd.to_datetime(df["rolling_window"], format="%Y%m").dt.date,
-        )
+        .assign(**dynamic_assignment)
     )
 
-    return df_to_write, run_id, timestamp
+    return df, run_id, timestamp
 
 
 def sql_type_to_pd_type(sql_type):
