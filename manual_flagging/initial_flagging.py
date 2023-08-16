@@ -1,6 +1,6 @@
 from manual_flagging.src import flagging_rolling as flg_model
 from manual_flagging.src.flagging_rolling import SHORT_TERM_OWNER_THRESHOLD
-from manual_flagging.src import flagging_utils as flg
+from glue import sales_val_flagging as flg
 import awswrangler as wr
 import os
 import datetime
