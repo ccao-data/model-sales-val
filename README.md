@@ -11,7 +11,7 @@ Table of Contents
 - [Overview](#overview)  
 - [Structure of Data](#structure-of-data)  
 - [Flagging Details](#flagging-details)
-- [AWS Glue integration](#aws-integration)
+- [AWS Glue integration](#aws-glue-job-documentation)
 
 ## Overview
 The model-sales-val system is a critical component of our data integrity framework, designed to oversee the complex process of identifying and flagging sales that may be non-arms-length transactions. These sales can distort our analyses and models, since they don't adhere to the principle of an open and competitive market. A non-arms-length sale occurs when the buyer and seller have a relationship that might influence the transaction price, leading to a sale that doesn't reflect the true market value of the property. This relationship might exist between family members, business partners, or other close connections.
@@ -96,35 +96,49 @@ erDiagram
 ```
 
 
-## AWS Integration  
+# AWS Glue Job Documentation
 
-| :exclamation: **If you want to update anything in `glue/` look below for the process**  |
-|-----------------------------------------|   
+This repository manages the configurations, scripts, and details for an AWS Glue Job. It's essential to maintain consistency and version control for all changes related to the job. Therefore, specific procedures have been established.
 
-  
-  
-Using the AWS console, we **should not** update the glue job script, its corresponding flagging python script, or any of its job details. Instead, these changes should be made from this repo. The reason for this is so that we can track changes and version control using this repo. The only actions that should be taken in the aws console related to this glue job are running the job, and pulling from the repo using their version control system.  
+## ⚠️ Important Guidelines
 
-### To make changes to glue job script or job details
+1. **DO NOT** modify the Glue job script, its associated flagging python script, or any of its job details directly via the AWS Console.
+2. All changes to these components should originate from this repository. This ensures that every modification is tracked and version-controlled.
+3. The **only** advisable actions in the AWS Console concerning this Glue job are:
+    - Running the job
+    - Pulling updates from the repo through AWS's version control system.
 
-* The glue script is `glue/sales-val-flagging.py`
-* Job details / settings associated with the glue job are here: `glue/sales-val-flagging.json`
+## Modifying the Glue Job Script or Details
 
-Both the script and the glue job properties are linked through aws glue's version control integration with github. This means that after any change made in either of these files, they be done in this order:  
-* push changes to master
-* pull changes from aws console  
+1. Locate the desired files:
+    - Glue script: `glue/sales_val_flagging.py`
+    - Job details/settings: `glue/sales_val_flagging.json`
+2. Any changes to these files should be made in the following sequence:
+    - Push modifications to the master branch of this repo.
+    - Pull these changes from the AWS Console.
 
-In order to pull from the repository into AWS Glue, there will need to be a personal access token used. Instructions can be found [here](https://aws.amazon.com/blogs/big-data/code-versioning-using-aws-glue-studio-and-github/) for authentication. This can be done working in the `Version Control` tab of the AWS glue job.
+    > Note: AWS Glue is integrated with GitHub for version control. Ensure you have the necessary authentication. If required, use a personal access token. See [this guide](https://aws.amazon.com/blogs/big-data/code-versioning-using-aws-glue-studio-and-github/) for more details. Make these changes from the `Version Control` tab of the AWS Glue job.
 
-### To make changes to flagging script in S3
+## Modifying the S3 Flagging Script
 
-The way we track changes in the S3 flagging script is through a hash identifier. The name of the script will have the first 6 characters of a hash appended to it, then these 6 characters will be written to the `sale.metadata` table in athena for lookup. This will allow us to find any flagging file used by the glue script by finding the commit hash and looking at the flagging file in `glue/flagging_script_glue/`. The way we implement this is with the bash script `glue/flagging_script_glue/hash.sh`. After changing and saving the script, we run `hash.sh` which rehashes the newly updated file, udpates the file name to include the first 6 characters of the hash, and deletes the old flagging file. This update happens in **both** the S3 bucket and in our repo.
-  
-If we need to make changes to the flagging script (located in an S3 bucket) used by the glue script, we want to change the python file in the `glue/flagging_script_glue/` directory.   
+The S3 flagging script is uniquely identified through a hash. This helps in tracking changes efficiently.
 
-Steps to make changes to flagging script in `glue/flagging_script_glue/`:   
-* Save changes locally
-* Run `hash.sh`
-* Push to master
+### How Hashing Works:
 
+- The script name will include the first 6 characters of its hash.
+- Upon execucution of a glue job, these characters are then logged in the `sale.metadata` table in Athena.
+- This enables us to track and locate any flagging file used by the Glue script, matching the commit hash and the flagging file within `glue/flagging_script_glue/`.
+
+The hashing process utilizes the bash script `glue/flagging_script_glue/hash.sh`.
+
+### Steps to Modify the S3 Flagging Script:
+
+1. Edit file: `glue/flagging_script_glue/hash.sh`
+2. Save your changes locally.
+3. Run the `hash.sh` script. This action:
+    - Rehashes the updated file.
+    - Renames the file, appending the first 6 characters of the new hash.
+    - Removes the previously hashed flagging file.
+4. The updated hash file should reflect in both the S3 bucket and this repository.
+5. Push the changes to the master branch.
 
