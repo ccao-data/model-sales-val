@@ -493,6 +493,6 @@ if __name__ == "__main__":
         write_to_table(
             df=df_metadata,
             table_name = 'metadata',
-            s3_warehouse_bucket_path=os.getenv("AWS_S3_WAREHOUSE_BUCKET"),
+            s3_warehouse_bucket_path=args["aws_s3_warehouse_bucket"],
             run_id=run_id,
         )
