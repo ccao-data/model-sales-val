@@ -264,24 +264,7 @@ def get_metadata_df(run_id, timestamp, run_type):
     return df_metadata
 
 
-
-# These four could potentially be combined into one function
-def write_to_flag_table(df, s3_warehouse_bucket_path, run_id):
+def write_to_table(df, table_name, s3_warehouse_bucket_path, run_id):
     file_name = run_id + ".parquet"
-    s3_file_path = os.path.join(s3_warehouse_bucket_path, "sale", "flag", file_name)
-    wr.s3.to_parquet(df=df, path=s3_file_path)
-
-def write_to_metadata_table(df, s3_warehouse_bucket_path, run_id):
-    file_name = run_id + ".parquet"
-    s3_file_path = os.path.join(s3_warehouse_bucket_path, "sale", "metadata", file_name)
-    wr.s3.to_parquet(df=df, path=s3_file_path)
-
-def write_to_parameter_table(df, s3_warehouse_bucket_path, run_id):
-    file_name = run_id + ".parquet"
-    s3_file_path = os.path.join(s3_warehouse_bucket_path, "sale", "parameter", file_name)
-    wr.s3.to_parquet(df=df, path=s3_file_path)
-
-def write_to_group_mean_table(df, s3_warehouse_bucket_path, run_id):
-    file_name = run_id + ".parquet"
-    s3_file_path = os.path.join(s3_warehouse_bucket_path, "sale", "group_mean", file_name)
+    s3_file_path = os.path.join(s3_warehouse_bucket_path, "sale", table_name, file_name)
     wr.s3.to_parquet(df=df, path=s3_file_path)

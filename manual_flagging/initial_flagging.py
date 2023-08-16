@@ -82,8 +82,9 @@ df_to_write, run_id, timestamp = flg.finish_flags(
 )
 
 # Write to flag table
-flg.write_to_flag_table(
+flg.write_to_table(
     df=df_to_write,
+    table_name = 'flag',
     s3_warehouse_bucket_path=os.getenv("AWS_S3_WAREHOUSE_BUCKET"),
     run_id=run_id,
 )
@@ -99,8 +100,9 @@ df_parameters = flg.get_parameter_df(
     run_id=run_id,
 )
 
-flg.write_to_parameter_table(
+flg.write_to_table(
     df=df_parameters,
+    table_name = 'parameter',
     s3_warehouse_bucket_path=os.getenv("AWS_S3_WAREHOUSE_BUCKET"),
     run_id=run_id,
 )
@@ -110,8 +112,9 @@ df_write_group_mean = flg.get_group_mean_df(
     df=df_flagged, stat_groups=inputs["stat_groups"], run_id=run_id
 )
 
-flg.write_to_group_mean_table(
+flg.write_to_table(
     df=df_write_group_mean,
+    table_name = 'group_mean',
     s3_warehouse_bucket_path=os.getenv("AWS_S3_WAREHOUSE_BUCKET"),
     run_id=run_id,
 )
@@ -119,8 +122,9 @@ flg.write_to_group_mean_table(
 # Write to metadata table
 df_metadata = flg.get_metadata_df(run_id=run_id, timestamp=timestamp, run_type='initial_flagging')
 
-flg.write_to_metadata_table(
+flg.write_to_table(
     df=df_metadata,
+    table_name = 'metadata',
     s3_warehouse_bucket_path=os.getenv("AWS_S3_WAREHOUSE_BUCKET"),
     run_id=run_id,
 )
