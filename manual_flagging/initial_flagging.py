@@ -120,7 +120,9 @@ flg.write_to_table(
 )
 
 # Write to metadata table
-df_metadata = flg.get_metadata_df(run_id=run_id, timestamp=timestamp, run_type='initial_flagging')
+commit_sha = sp.getoutput("git rev-parse HEAD")
+df_metadata = flg.get_metadata_df(run_id=run_id, timestamp=timestamp, run_type='initial_flagging',
+                                  commit_sha=commit_sha)
 
 flg.write_to_table(
     df=df_metadata,

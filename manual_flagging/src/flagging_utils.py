@@ -238,7 +238,7 @@ def get_parameter_df(df_to_write, df_ingest, iso_forest_cols,
     return df_parameters
 
 
-def get_metadata_df(run_id, timestamp, run_type):
+def get_metadata_df(run_id, timestamp, run_type, commit_sha):
     """
     Function creates a table to be written to s3 with a unique set of 
     metadata for the flagging run
@@ -248,7 +248,6 @@ def get_metadata_df(run_id, timestamp, run_type):
     Outputs:
         df_metadata: table to be written to s3
     """
-    commit_sha = sp.getoutput("git rev-parse HEAD")
 
     metadata_dict_to_df = {
         "run_id": [run_id],
