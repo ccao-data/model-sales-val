@@ -481,7 +481,7 @@ if __name__ == "__main__":
         )
 
         # Write to metadata table
-        job_name = "sales-val-flagging"
+        job_name = "sales_val_flagging"
         response = glue.get_job(JobName=job_name)
         commit_sha = response["Job"]["SourceControlDetails"]["LastCommitId"]
 
