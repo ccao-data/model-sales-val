@@ -45,7 +45,7 @@ INNER JOIN default.vw_pin_sale sale
     ON sale.pin = res.pin
     AND sale.year = res.year
 WHERE (sale.sale_date
-    BETWEEN DATE '2019-02-01'
+    BETWEEN DATE '2013-02-01'
     AND DATE '2021-12-31')
 AND NOT sale.is_multisale
 AND NOT res.pin_is_multicard
@@ -78,7 +78,7 @@ df_flagged = flg_model.go(
 
 # Finish flagging and subset to write to flag table
 df_to_write, run_id, timestamp = flg.finish_flags(
-    df=df_flagged, start_date="2020-01-01", exempt_data=exempt_data, manual_update=False
+    df=df_flagged, start_date="2014-01-01", exempt_data=exempt_data, manual_update=False
 )
 
 # Write to flag table
