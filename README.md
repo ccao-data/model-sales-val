@@ -24,26 +24,30 @@ The workflow of the sales flagging is as follows:
 On the left, we see the normal workflow of the process. Represented on the right is the use of `manual_update.py` to update/re-flag sales.  
 
   ``` mermaid
-  graph TD
+graph TD
 
     A[Initialize]
     B{{Create Initial Table<br>of Flagged Values}}
     C{{Perform Reoccurring Job:<br>Flag New Non-Flagged Values}}
     D[>Some Need to Re-Flag]
-    E[Re-Flag Already Flagged Values]
-    F[Increment Version<br>Column by 1]
+    E[Subset Sales in yaml - Run manual_update.py]
+    F[If Sale Already Flagged<br>Incremenet Version Column by 1]
+    G{If Sale Unflagged,<br>Assign Version 1}
 
     class B,C recurringProcess;
-    class D,E,F secondaryProcess;
+    class D,E,F,G secondaryProcess;
 
     A --> B
     B --> C
 
     D --> E
+    E --> G
+    G --> F
     E --> F
 
     classDef recurringProcess fill:#f9d6d6,stroke:#f26a6a,stroke-width:2px;
     classDef secondaryProcess fill:#e0e0e0,stroke:#a0a0a0,stroke-width:1px;
+
 
   ```
 
