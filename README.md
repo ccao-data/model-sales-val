@@ -18,7 +18,7 @@ The model-sales-val system is a critical component of our data integrity framewo
 
 The workflow of the sales flagging is as follows:  
 * There will be an intitial run of the `manual_flagging/initial_flagging.py`, which instantiates all tables, and flags a large portion of the sales as either outliers or non-outliers.
-* Then, we have `glue/sales-val-flagging.py`, a script connected to AWS glue that flags all new unflagged sales. This script will be automated such that it runs on a schedule (eg. monthly).  
+* Then, we have `glue/sales_val_flagging.py`, a script connected to AWS glue that flags all new unflagged sales. This script will be automated such that it runs on a schedule (eg. monthly).  
 * In the case of an error with the flagging or if we want to update the methodology on already-flagged sales, we can run the `manual_flagging/manual_update.py` and select a subset of sales to re-flag. These updated values will have a version number that is 1 higher than the previous sale. When utilizing our sales views, we will pull the flag data with the highest version value to keep it up-to-date.
 
 On the left, we see the normal workflow of the process. Represented on the right is the use of `manual_update.py` to update/re-flag sales.  
@@ -125,7 +125,7 @@ This repository manages the configurations, scripts, and details for an AWS Glue
 
 ## Modifying the S3 Flagging Script
 
-The S3 flagging script is uniquely identified through a hash. This helps in tracking changes efficiently.
+The S3 flagging script `glue/flagging_script_glue/flagging_<hash>.py` is uniquely identified through a hash. This helps in tracking changes efficiently.
 
 ### How Hashing Works:
 
