@@ -1,6 +1,6 @@
 #!/bin/bash
 
-<<comment
+: <<comment
 This script is to be run after an update to the flagging script 
 in ccao_sales_val/glue/flagging_script_glue/. This script will update 
 the hash of the new flagging script, rename the edited file using 
@@ -15,7 +15,19 @@ toplevel=$(git rev-parse --show-toplevel)
 cd "$toplevel/glue/flagging_script_glue" || exit 1 # Exit the script if the directory doesn't exist or is inaccessible
 
 # Find existing flagging script
-existing_flagging_file=$(ls | grep -E '^flagging_[0-9a-z]{6}\.py$')
+existing_flagging_file=""
+for file in *; do
+    if [[ $file =~ ^flagging_[0-9a-z]{6}\.py$ ]]; then
+        existing_flagging_file="$file"
+        break
+    fi
+done
+
+# Check if we found a matching file
+if [[ -z $existing_flagging_file ]]; then
+  echo "Error: No matching flagging script found."
+  exit 1
+fi
 
 # Extract the hash part from the existing file
 existing_hash=${existing_flagging_file:9:6}
@@ -39,6 +51,7 @@ aws s3 ls "$bucket_name/scripts/sales-val/" | awk '{print $4}' | grep -E '^flagg
 do
   aws s3 rm "$bucket_name/scripts/sales-val/$file"
 done
-
+echo "flag_hash_script: $flag_hash_script"
+echo "bucket_name: $bucket_name"
 # Upload a new file to the same bucket
 aws s3 cp "$flag_hash_script" "$bucket_name/scripts/sales-val/$flag_hash_script"

@@ -1,6 +1,6 @@
 # This file contains relevant inputs for the initial_flagging.py script,
-# which will be run one time when we first populate the flag table in athena
-
+# which
+---
 stat_groups: [
   "rolling_window",
   "township_code",
@@ -8,11 +8,11 @@ stat_groups: [
 ]
 
 iso_forest: [
-  "meta_sale_price",        
-  "sv_price_per_sqft",          
+  "meta_sale_price",
+  "sv_price_per_sqft",
   "sv_days_since_last_transaction",
-  "sv_cgdr",    
-  "sv_sale_dup_counts"    
+  "sv_cgdr",
+  "sv_sale_dup_counts"
 ]
 
 dev_bounds: [2, 3]
