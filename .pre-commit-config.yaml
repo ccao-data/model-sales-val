@@ -1,0 +1,11 @@
+---
+repos:
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.26.3  # Adjust to the latest tag if needed
+    hooks:
+      - id: yamllint
+        files: '.*\.yaml$'
+  - repo: https://github.com/syntaqx/git-hooks
+    rev: v0.0.18
+    hooks:
+      - id: shellcheck
