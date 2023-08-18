@@ -18,7 +18,7 @@ def add_rolling_window(df):
     the data is formatted for the flagging script to correctly
     run the year-long window grouping for each obs.
     Inputs:
-        df: dataframe of sales that we need to flag, data should be 11 months back 
+        df: dataframe of sales that we need to flag, data should be 11 months back
             from the earliest unflagged sale in order for the rolling window logic to work
     Outputs:
         df: dataframe that has exploded each observation into 12 observations with a 12 distinct
@@ -56,7 +56,7 @@ def add_rolling_window(df):
 
 def finish_flags(df, start_date, exempt_data, manual_update):
     """
-    This functions 
+    This functions
         -takes the flagged data from the mansueto code
         -removes the unneeded observations used for the rolling window calculation
         -finishes adding sales val cols for flag table upload
@@ -81,7 +81,8 @@ def finish_flags(df, start_date, exempt_data, manual_update):
         df.rename(columns={"sv_is_outlier": "sv_is_autoval_outlier"})
         .assign(
             sv_is_autoval_outlier=lambda df: df["sv_is_autoval_outlier"] == "Outlier",
-            sv_is_outlier=lambda df: df["sv_is_autoval_outlier"] | df["sale_filter_is_outlier"],
+            sv_is_outlier=lambda df: df["sv_is_autoval_outlier"]
+            | df["sale_filter_is_outlier"],
             # Incorporate PTAX in sv_outlier_type
             sv_outlier_type=lambda df: np.where(
                 (df["sv_outlier_type"] == "Not outlier") & df["sale_filter_is_outlier"],
@@ -91,18 +92,26 @@ def finish_flags(df, start_date, exempt_data, manual_update):
         )
         .assign(
             # Change sv_is_outlier to binary
-            sv_is_outlier=lambda df: (df["sv_outlier_type"] != "Not outlier").astype(int),
+            sv_is_outlier=lambda df: (df["sv_outlier_type"] != "Not outlier").astype(
+                int
+            ),
             # PTAX-203 binary
-            sv_is_ptax_outlier=lambda df: np.where(df["sv_outlier_type"] == "PTAX-203 flag", 1, 0),
+            sv_is_ptax_outlier=lambda df: np.where(
+                df["sv_outlier_type"] == "PTAX-203 flag", 1, 0
+            ),
             # Heuristics flagging binary column
             sv_is_heuristic_outlier=lambda df: np.where(
-                (df["sv_outlier_type"] != "PTAX-203 flag") & (df["sv_is_outlier"] == 1), 1, 0
+                (df["sv_outlier_type"] != "PTAX-203 flag") & (df["sv_is_outlier"] == 1),
+                1,
+                0,
             ),
         )
     )
 
     # Manually impute ex values as non-outliers
-    exempt_to_append = exempt_data.meta_sale_document_num.reset_index().drop(columns="index")
+    exempt_to_append = exempt_data.meta_sale_document_num.reset_index().drop(
+        columns="index"
+    )
     exempt_to_append["sv_is_outlier"] = 0
     exempt_to_append["sv_is_ptax_outlier"] = 0
     exempt_to_append["sv_is_heuristic_outlier"] = 0
@@ -120,14 +129,17 @@ def finish_flags(df, start_date, exempt_data, manual_update):
     # Create run_id
     r = RandomWords()
     random_word_id = r.get_random_word()
-    timestamp = datetime.datetime.now(pytz.timezone("America/Chicago")).strftime("%Y-%m-%d_%H:%M")
+    timestamp = datetime.datetime.now(pytz.timezone("America/Chicago")).strftime(
+        "%Y-%m-%d_%H:%M"
+    )
     run_id = timestamp + "-" + random_word_id
-
 
     # Control flow for incorporating versioning
     dynamic_assignment = {
         "run_id": run_id,
-        "rolling_window": lambda df: pd.to_datetime(df["rolling_window"], format="%Y%m").dt.date,
+        "rolling_window": lambda df: pd.to_datetime(
+            df["rolling_window"], format="%Y%m"
+        ).dt.date,
     }
 
     if not manual_update:
@@ -156,28 +168,32 @@ def sql_type_to_pd_type(sql_type):
     if sql_type in ["decimal"]:
         return "float64"
 
+
 # - - - - - - - - - - - - - -
 # Helpers for writing tables
 # - - - - - - - - - - - - - -
 
+
 def get_group_mean_df(df, stat_groups, run_id):
     """
-    This function creates group_mean table to write to athena. This allows 
+    This function creates group_mean table to write to athena. This allows
     us to trace back why some sales may have been flagged within our flagging model
-    Inputs: 
-        df: data frame 
+    Inputs:
+        df: data frame
         stat_groups: list of stat_groups used in flagging model
         run_id: unique run_id of script
     Outputs:
         df: dataframe that is ready to be written to athena as a parquet
     """
     unique_groups = (
-            df.drop_duplicates(subset=stat_groups, keep="first")
-            .reset_index(drop=True)
-            .assign(
-                rolling_window=lambda df: pd.to_datetime(df["rolling_window"], format="%Y%m").dt.date
-            )
+        df.drop_duplicates(subset=stat_groups, keep="first")
+        .reset_index(drop=True)
+        .assign(
+            rolling_window=lambda df: pd.to_datetime(
+                df["rolling_window"], format="%Y%m"
+            ).dt.date
         )
+    )
 
     groups_string_col = "_".join(map(str, stat_groups))
     suffixes = ["mean_price", "mean_price_per_sqft"]
@@ -185,13 +201,16 @@ def get_group_mean_df(df, stat_groups, run_id):
     cols_to_write_means = stat_groups + [
         f"sv_{suffix}_{groups_string_col}" for suffix in suffixes
     ]
-    rename_dict = {f"sv_{suffix}_{groups_string_col}": f"{suffix}" for suffix in suffixes}
+    rename_dict = {
+        f"sv_{suffix}_{groups_string_col}": f"{suffix}" for suffix in suffixes
+    }
 
     df_means = (
         unique_groups[cols_to_write_means]
         .rename(columns=rename_dict)
         .assign(
-            run_id=run_id, group=lambda df: df[stat_groups].astype(str).apply("_".join, axis=1)
+            run_id=run_id,
+            group=lambda df: df[stat_groups].astype(str).apply("_".join, axis=1),
         )
         .drop(columns=stat_groups)
     )
@@ -199,8 +218,15 @@ def get_group_mean_df(df, stat_groups, run_id):
     return df_means
 
 
-def get_parameter_df(df_to_write, df_ingest, iso_forest_cols, 
-                     stat_groups, dev_bounds, short_term_thresh, run_id):
+def get_parameter_df(
+    df_to_write,
+    df_ingest,
+    iso_forest_cols,
+    stat_groups,
+    dev_bounds,
+    short_term_thresh,
+    run_id,
+):
     """
     This functions extracts relevant data to write a parameter table,
     which tracks important information about the flagging run.
@@ -235,13 +261,13 @@ def get_parameter_df(df_to_write, df_ingest, iso_forest_cols,
     }
 
     df_parameters = pd.DataFrame(parameter_dict_to_df)
-    
+
     return df_parameters
 
 
 def get_metadata_df(run_id, timestamp, run_type, commit_sha, flagging_hash=""):
     """
-    Function creates a table to be written to s3 with a unique set of 
+    Function creates a table to be written to s3 with a unique set of
     metadata for the flagging run
     Inputs:
         run_id: unique run_id for flagging run
@@ -279,9 +305,7 @@ def write_to_table(df, table_name, s3_warehouse_bucket_path, run_id):
     wr.s3.to_parquet(df=df, path=s3_file_path)
 
 
-
 if __name__ == "__main__":
-
     from awsglue.utils import getResolvedOptions
 
     # Create clients
@@ -309,7 +333,9 @@ if __name__ == "__main__":
     pattern = "^flagging_([0-9a-z]{6})\.py$"
 
     # List objects in the S3 bucket and prefix
-    objects = s3.list_objects(Bucket=args["s3_glue_bucket"], Prefix="scripts/sales-val/")
+    objects = s3.list_objects(
+        Bucket=args["s3_glue_bucket"], Prefix="scripts/sales-val/"
+    )
 
     # Read in flagging script
     for obj in objects["Contents"]:
@@ -325,9 +351,10 @@ if __name__ == "__main__":
             exec(open(local_path).read())
             break
 
-
     # Connect to athena
-    conn = connect(s3_staging_dir=args["s3_staging_dir"], region_name=args["region_name"])
+    conn = connect(
+        s3_staging_dir=args["s3_staging_dir"], region_name=args["region_name"]
+    )
 
     """
     This query grabs all data needed to flag unflagged values.
@@ -415,8 +442,8 @@ if __name__ == "__main__":
 
         # Create rolling window
         df_to_flag = add_rolling_window(df)
-        
-        # Parse glue args 
+
+        # Parse glue args
         stat_groups_list = args["stat_groups"].split(",")
         iso_forest_list = args["iso_forest"].split(",")
         dev_bounds_list = args["dev_bounds"].split(",")
@@ -430,22 +457,25 @@ if __name__ == "__main__":
             dev_bounds=dev_bounds_tuple,
         )
 
-         # Finish flagging
+        # Finish flagging
         df_flagged_final, run_id, timestamp = finish_flags(
-            df=df_flagged, start_date="2021-01-01", exempt_data=exempt_data,
-            manual_update=False
+            df=df_flagged,
+            start_date="2021-01-01",
+            exempt_data=exempt_data,
+            manual_update=False,
         )
-
 
         # Filter to keep only flags not already present in the flag table
         rows_to_append = df_flagged_final[
-            ~df_flagged_final["meta_sale_document_num"].isin(df_sales_val["meta_sale_document_num"])
+            ~df_flagged_final["meta_sale_document_num"].isin(
+                df_sales_val["meta_sale_document_num"]
+            )
         ].reset_index(drop=True)
 
         # Write to flag table
         write_to_table(
             df=rows_to_append,
-            table_name = 'flag',
+            table_name="flag",
             s3_warehouse_bucket_path=args["aws_s3_warehouse_bucket"],
             run_id=run_id,
         )
@@ -463,7 +493,7 @@ if __name__ == "__main__":
 
         write_to_table(
             df=df_parameters,
-            table_name = 'parameter',
+            table_name="parameter",
             s3_warehouse_bucket_path=args["aws_s3_warehouse_bucket"],
             run_id=run_id,
         )
@@ -475,7 +505,7 @@ if __name__ == "__main__":
 
         write_to_table(
             df=df_write_group_mean,
-            table_name = 'group_mean',
+            table_name="group_mean",
             s3_warehouse_bucket_path=args["aws_s3_warehouse_bucket"],
             run_id=run_id,
         )
@@ -486,13 +516,17 @@ if __name__ == "__main__":
         commit_sha = response["Job"]["SourceControlDetails"]["LastCommitId"]
 
         # Write to metadata table
-        df_metadata = get_metadata_df(run_id=run_id, timestamp=timestamp, 
-                                      run_type='recurring', commit_sha=commit_sha,
-                                      flagging_hash=hash_to_save)
+        df_metadata = get_metadata_df(
+            run_id=run_id,
+            timestamp=timestamp,
+            run_type="recurring",
+            commit_sha=commit_sha,
+            flagging_hash=hash_to_save,
+        )
 
         write_to_table(
             df=df_metadata,
-            table_name = 'metadata',
+            table_name="metadata",
             s3_warehouse_bucket_path=args["aws_s3_warehouse_bucket"],
             run_id=run_id,
         )

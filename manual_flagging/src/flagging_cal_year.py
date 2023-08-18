@@ -11,13 +11,10 @@ from scipy.stats import zscore
 from sklearn.ensemble import IsolationForest
 from sklearn.decomposition import PCA
 
-SHORT_TERM_OWNER_THRESHOLD = 365 # 365 = 365 days or 1 year
+SHORT_TERM_OWNER_THRESHOLD = 365  # 365 = 365 days or 1 year
 
 
-def go(df: pd.DataFrame, 
-       groups: tuple,
-       iso_forest_cols: list,
-       dev_bounds: tuple):
+def go(df: pd.DataFrame, groups: tuple, iso_forest_cols: list, dev_bounds: tuple):
     """
     This function runs all of our other functions in the correct sequence.
 
@@ -27,24 +24,22 @@ def go(df: pd.DataFrame,
                         Ex: ('township','class','year')
         iso_forest (list): list with columns to run PCA/IsoForest on
         dev_bounds (tuple): how many std deviations on either side to select as outliers.
-                            Ex: (2,2) selects outliers as being farther away than 2 
+                            Ex: (2,2) selects outliers as being farther away than 2
                                 std deviations on both sides.
     Outputs:
         df (pandas dataframe):
     """
-    print('Initialize')
-    df = create_stats(df,  groups) # 'year', 'township_code', 'class'
-    print('create_stats() done')
+    print("Initialize")
+    df = create_stats(df, groups)  # 'year', 'township_code', 'class'
+    print("create_stats() done")
     df = string_processing(df)
-    print('string_processing() done')
+    print("string_processing() done")
     df = iso_forest(df, groups, iso_forest_cols)
-    print('iso_forest() done')
+    print("iso_forest() done")
     df = outlier_taxonomy(df, dev_bounds, groups)
-    print('outlier_taxonomy() done\nfinished')
+    print("outlier_taxonomy() done\nfinished")
 
     return df
-
-
 
 
 def create_group_string(groups: tuple, sep: str) -> str:
@@ -84,11 +79,13 @@ def outlier_taxonomy(df: pd.DataFrame, permut: tuple, groups: tuple):
     return df
 
 
-def iso_forest(df: pd.DataFrame,
-               groups: tuple,
-               columns: list,
-               n_estimators: int = 1000,
-               max_samples: int or float = .2) -> pd.DataFrame:
+def iso_forest(
+    df: pd.DataFrame,
+    groups: tuple,
+    columns: list,
+    n_estimators: int = 1000,
+    max_samples: int or float = 0.2,
+) -> pd.DataFrame:
     """
     Runs an isolation forest model on our data for outlier detection.
     First does PCA, then, attaches township/class info, and then runs the
@@ -104,7 +101,7 @@ def iso_forest(df: pd.DataFrame,
         df (pd.DataFrame): with 'sv_anomaly' column from IsoForest.
     """
 
-    df.set_index('meta_sale_document_num', inplace=True)
+    df.set_index("meta_sale_document_num", inplace=True)
 
     feed = pca(df, columns)
 
@@ -112,18 +109,26 @@ def iso_forest(df: pd.DataFrame,
     for group in groups:
         feed[group] = df[group]
 
-    isof = IsolationForest(n_estimators=n_estimators, max_samples=max_samples, bootstrap=True, random_state=42)
-    df['sv_anomaly'] = isof.fit_predict(feed)
+    isof = IsolationForest(
+        n_estimators=n_estimators,
+        max_samples=max_samples,
+        bootstrap=True,
+        random_state=42,
+    )
+    df["sv_anomaly"] = isof.fit_predict(feed)
 
-    df['sv_anomaly'] = np.select([(df['sv_anomaly'] == -1), (df['sv_anomaly'] == 1)],
-                                          ['Outlier', 'Not Outlier'], default= 'Not Outlier')
+    df["sv_anomaly"] = np.select(
+        [(df["sv_anomaly"] == -1), (df["sv_anomaly"] == 1)],
+        ["Outlier", "Not Outlier"],
+        default="Not Outlier",
+    )
 
     df.reset_index(inplace=True)
 
     return df
 
 
-def pca(df:pd.DataFrame, columns: list) -> pd.DataFrame:
+def pca(df: pd.DataFrame, columns: list) -> pd.DataFrame:
     """
     Runs PCA on data, selects compoents where explained variance > 1.
     Inputs:
@@ -136,18 +141,18 @@ def pca(df:pd.DataFrame, columns: list) -> pd.DataFrame:
     feed_data = feed_data.fillna(0)
     feed_data = feed_data.replace([np.inf, -np.inf], 0)
 
-    pca = PCA(n_components = len(feed_data.columns))
+    pca = PCA(n_components=len(feed_data.columns))
     pc = pca.fit_transform(feed_data)
 
-    cols = ['PC' + str(num) for num in range(len(feed_data.columns))]
+    cols = ["PC" + str(num) for num in range(len(feed_data.columns))]
 
-    pc_df = pd.DataFrame(data = pc, 
-                         columns = cols)
+    pc_df = pd.DataFrame(data=pc, columns=cols)
     take = len(pca.explained_variance_[pca.explained_variance_ > 1])
 
     df = pc_df[pc_df.columns[:take]]
 
     return df
+
 
 def pricing_info(df: pd.DataFrame, permut: tuple, groups: tuple) -> pd.DataFrame:
     """
@@ -162,21 +167,30 @@ def pricing_info(df: pd.DataFrame, permut: tuple, groups: tuple) -> pd.DataFrame
     Outputs:
         df (pd.DataFrame): dataframe with 3 extra columns of price info.
     """
-    group_string = create_group_string(groups, '_')
+    group_string = create_group_string(groups, "_")
 
-    df = z_normalize(df, ['meta_sale_price', 'sv_price_per_sqft'])
+    df = z_normalize(df, ["meta_sale_price", "sv_price_per_sqft"])
 
-    prices = [f'sv_price_per_sqft_deviation_{group_string}',
-              f'sv_price_deviation_{group_string}', f'sv_cgdr_deviation_{group_string}']
+    prices = [
+        f"sv_price_per_sqft_deviation_{group_string}",
+        f"sv_price_deviation_{group_string}",
+        f"sv_cgdr_deviation_{group_string}",
+    ]
 
-    df[f'sv_price_deviation_{group_string}'] = df.groupby(list(groups), group_keys=False)['meta_sale_price'].apply(z_normalize_groupby)
-    df[f'sv_price_per_sqft_deviation_{group_string}'] = df.groupby(list(groups), group_keys=False)['sv_price_per_sqft'].apply(z_normalize_groupby)
-    df[f'sv_cgdr_deviation_{group_string}'] = df.groupby(list(groups), group_keys=False)['sv_cgdr'].apply(z_normalize_groupby)
+    df[f"sv_price_deviation_{group_string}"] = df.groupby(
+        list(groups), group_keys=False
+    )["meta_sale_price"].apply(z_normalize_groupby)
+    df[f"sv_price_per_sqft_deviation_{group_string}"] = df.groupby(
+        list(groups), group_keys=False
+    )["sv_price_per_sqft"].apply(z_normalize_groupby)
+    df[f"sv_cgdr_deviation_{group_string}"] = df.groupby(
+        list(groups), group_keys=False
+    )["sv_cgdr"].apply(z_normalize_groupby)
 
     holds = get_thresh(df, prices, permut, groups)
 
-    df['sv_pricing'] = df.apply(price_column, args=(holds, groups), axis=1)
-    df['sv_which_price'] = df.apply(which_price, args=(holds, groups), axis=1)
+    df["sv_pricing"] = df.apply(price_column, args=(holds, groups), axis=1)
+    df["sv_which_price"] = df.apply(which_price, args=(holds, groups), axis=1)
 
     return df
 
@@ -189,11 +203,14 @@ def special_flag(df: pd.DataFrame) -> pd.DataFrame:
     Outputs:
         df (pd.DataFrame): dataframe with 'special_flags' column
     """
-    cond = [(df['sv_name_match'] != 'No match'), (df['sv_short_owner'] == 'Short-term owner'),
-            (df['sv_transaction_type'] == 'legal_entity-legal_entity')]
-    labels = ['Family sale', 'Home flip sale', 'Non-person sale']
+    cond = [
+        (df["sv_name_match"] != "No match"),
+        (df["sv_short_owner"] == "Short-term owner"),
+        (df["sv_transaction_type"] == "legal_entity-legal_entity"),
+    ]
+    labels = ["Family sale", "Home flip sale", "Non-person sale"]
 
-    df['sv_special_flags'] = np.select(cond, labels, default = 'Not special')
+    df["sv_special_flags"] = np.select(cond, labels, default="Not special")
 
     return df
 
@@ -207,31 +224,45 @@ def which_price(row: pd.Series, thresholds: dict, groups: tuple) -> str:
     Outputs:
         value (str): string saying which of these are outliers.
     """
-    value = 'Non-outlier'
-    group_string = create_group_string(groups, '_')
+    value = "Non-outlier"
+    group_string = create_group_string(groups, "_")
     key = tuple(row[group] for group in groups)
 
-    if thresholds.get(f'sv_price_deviation_{group_string}').get(key) and \
-        thresholds.get(f'sv_price_per_sqft_deviation_{group_string}').get(key):
-        s_std, *s_std_range = thresholds.get(f'sv_price_deviation_{group_string}').get(key)
+    if thresholds.get(f"sv_price_deviation_{group_string}").get(key) and thresholds.get(
+        f"sv_price_per_sqft_deviation_{group_string}"
+    ).get(key):
+        s_std, *s_std_range = thresholds.get(f"sv_price_deviation_{group_string}").get(
+            key
+        )
         s_lower, s_upper = s_std_range
-        sq_std, *sq_std_range = thresholds.get(f'sv_price_per_sqft_deviation_{group_string}').get(key)
+        sq_std, *sq_std_range = thresholds.get(
+            f"sv_price_per_sqft_deviation_{group_string}"
+        ).get(key)
         sq_lower, sq_upper = sq_std_range
-        if not between_two_numbers(row[f'sv_price_deviation_{group_string}'], s_lower, s_upper) and \
-            between_two_numbers(row[f'sv_price_per_sqft_deviation_{group_string}'], sq_lower, sq_upper):
-            value = '(raw)'
-        elif between_two_numbers(row[f'sv_price_deviation_{group_string}'], s_lower, s_upper) and \
-            not between_two_numbers(row[f'sv_price_per_sqft_deviation_{group_string}'], sq_lower, sq_upper):
-            value = '(sqft)'
-        elif not between_two_numbers(row[f'sv_price_deviation_{group_string}'], s_lower, s_upper) and \
-            not between_two_numbers(row[f'sv_price_per_sqft_deviation_{group_string}'], sq_lower, sq_upper):
-            value = '(raw & sqft)'
+        if not between_two_numbers(
+            row[f"sv_price_deviation_{group_string}"], s_lower, s_upper
+        ) and between_two_numbers(
+            row[f"sv_price_per_sqft_deviation_{group_string}"], sq_lower, sq_upper
+        ):
+            value = "(raw)"
+        elif between_two_numbers(
+            row[f"sv_price_deviation_{group_string}"], s_lower, s_upper
+        ) and not between_two_numbers(
+            row[f"sv_price_per_sqft_deviation_{group_string}"], sq_lower, sq_upper
+        ):
+            value = "(sqft)"
+        elif not between_two_numbers(
+            row[f"sv_price_deviation_{group_string}"], s_lower, s_upper
+        ) and not between_two_numbers(
+            row[f"sv_price_per_sqft_deviation_{group_string}"], sq_lower, sq_upper
+        ):
+            value = "(raw & sqft)"
 
     return value
 
 
 def between_two_numbers(num: int or float, a: int or float, b: int or float) -> bool:
-    return  a < num < b
+    return a < num < b
 
 
 def price_column(row: pd.Series, thresholds: dict, groups: tuple) -> str:
@@ -243,39 +274,53 @@ def price_column(row: pd.Series, thresholds: dict, groups: tuple) -> str:
     Outputs:
         value (str): string showing what kind of price outlier the record is.
     """
-    value = 'Not price outlier'
+    value = "Not price outlier"
     price = False
 
-    group_string = create_group_string(groups, '_')
+    group_string = create_group_string(groups, "_")
     key = tuple(row[group] for group in groups)
 
-    if thresholds.get(f'sv_price_deviation_{group_string}').get(key) and \
-        thresholds.get(f'sv_price_per_sqft_deviation_{group_string}').get(key):
-
-        s_std, *s_std_range = thresholds.get(f'sv_price_deviation_{group_string}').get(key)
+    if thresholds.get(f"sv_price_deviation_{group_string}").get(key) and thresholds.get(
+        f"sv_price_per_sqft_deviation_{group_string}"
+    ).get(key):
+        s_std, *s_std_range = thresholds.get(f"sv_price_deviation_{group_string}").get(
+            key
+        )
         s_lower, s_upper = s_std_range
 
-        sq_std, *sq_std_range = thresholds.get(f'sv_price_per_sqft_deviation_{group_string}').get(key)
+        sq_std, *sq_std_range = thresholds.get(
+            f"sv_price_per_sqft_deviation_{group_string}"
+        ).get(key)
         sq_lower, sq_upper = sq_std_range
 
-        if row[f'sv_price_deviation_{group_string}'] > s_upper or\
-            row[f'sv_price_per_sqft_deviation_{group_string}'] > sq_upper:
-            value = 'High price'
+        if (
+            row[f"sv_price_deviation_{group_string}"] > s_upper
+            or row[f"sv_price_per_sqft_deviation_{group_string}"] > sq_upper
+        ):
+            value = "High price"
             price = True
-        elif row[f'sv_price_deviation_{group_string}'] < s_lower or\
-            row[f'sv_price_per_sqft_deviation_{group_string}'] < sq_lower:
-            value = 'Low price'
+        elif (
+            row[f"sv_price_deviation_{group_string}"] < s_lower
+            or row[f"sv_price_per_sqft_deviation_{group_string}"] < sq_lower
+        ):
+            value = "Low price"
             price = True
 
-        if price and pd.notnull(row[f'sv_cgdr_deviation_{group_string}']) and\
-            thresholds.get(f'sv_cgdr_deviation_{group_string}').get(key):
+        if (
+            price
+            and pd.notnull(row[f"sv_cgdr_deviation_{group_string}"])
+            and thresholds.get(f"sv_cgdr_deviation_{group_string}").get(key)
+        ):
             # not every combo will have pct change info so we need this check
-            p_std, *p_std_range = thresholds.get(f'sv_cgdr_deviation_{group_string}').get(key)
+            p_std, *p_std_range = thresholds.get(
+                f"sv_cgdr_deviation_{group_string}"
+            ).get(key)
 
             p_lower, p_upper = p_std_range
-            if row['sv_price_movement'] == 'Away from mean' and \
-                not between_two_numbers(row[f'sv_cgdr_deviation_{group_string}'], p_lower, p_upper):
-                value += ' swing'
+            if row["sv_price_movement"] == "Away from mean" and not between_two_numbers(
+                row[f"sv_cgdr_deviation_{group_string}"], p_lower, p_upper
+            ):
+                value += " swing"
 
     return value
 
@@ -316,8 +361,15 @@ def percent_change(df: pd.DataFrame) -> pd.DataFrame:
         df (pd.DataFrame): dataframe with CGR statistic and previous_price column
     """
 
-    df['sv_previous_price'] = df.sort_values('meta_sale_date').groupby(['pin'])['meta_sale_price'].shift(axis=0)
-    df['sv_cgdr'] = ((df['meta_sale_price'] / df['sv_previous_price']) ** (1 / df['sv_days_since_last_transaction'])) - 1
+    df["sv_previous_price"] = (
+        df.sort_values("meta_sale_date")
+        .groupby(["pin"])["meta_sale_price"]
+        .shift(axis=0)
+    )
+    df["sv_cgdr"] = (
+        (df["meta_sale_price"] / df["sv_previous_price"])
+        ** (1 / df["sv_days_since_last_transaction"])
+    ) - 1
 
     return df
 
@@ -337,8 +389,8 @@ def dup_stats(df: pd.DataFrame, groups: tuple) -> pd.DataFrame:
     dups = get_sale_counts(dups)
     dups = get_movement(dups, groups)
 
-    df = pd.merge(df, dups, how='outer')
-    
+    df = pd.merge(df, dups, how="outer")
+
     return df
 
 
@@ -353,8 +405,8 @@ def price_sqft(df: pd.DataFrame) -> pd.DataFrame:
     Outputs:
         df (pd.DataFrame): pandas dataframe with _per_sqft columns.
     """
-    df['sv_price_per_sqft'] = df['meta_sale_price'] / df['char_bldg_sf']
-    df['sv_price_per_sqft'].replace([np.inf, -np.inf], np.nan, inplace=True)
+    df["sv_price_per_sqft"] = df["meta_sale_price"] / df["char_bldg_sf"]
+    df["sv_price_per_sqft"].replace([np.inf, -np.inf], np.nan, inplace=True)
 
     return df
 
@@ -369,10 +421,14 @@ def deviation_dollars(df: pd.DataFrame, groups: tuple) -> pd.DataFrame:
     Outputs:
         df (pd.DataFrame): dataframe with deviation columns
     """
-    group_string = create_group_string(groups, '_')
+    group_string = create_group_string(groups, "_")
 
-    df[f'sv_deviation_{group_string}_mean_price'] = df['meta_sale_price'] - df[f'sv_mean_price_{group_string}']
-    df[f'sv_deviation_{group_string}_mean_price_per_sqft'] = df['sv_price_per_sqft'] - df[f'sv_mean_price_per_sqft_{group_string}']
+    df[f"sv_deviation_{group_string}_mean_price"] = (
+        df["meta_sale_price"] - df[f"sv_mean_price_{group_string}"]
+    )
+    df[f"sv_deviation_{group_string}_mean_price_per_sqft"] = (
+        df["sv_price_per_sqft"] - df[f"sv_mean_price_per_sqft_{group_string}"]
+    )
 
     return df
 
@@ -387,13 +443,13 @@ def grouping_mean(df: pd.DataFrame, groups: tuple) -> pd.DataFrame:
     Outputs:
         df (pd.DataFrame): dataframe with grouped by mean column
     """
-    group_string = create_group_string(groups, '_')
+    group_string = create_group_string(groups, "_")
 
-    group_mean = df.groupby(list(groups))['meta_sale_price'].mean()
-    group_mean_sqft = df.groupby(list(groups))['sv_price_per_sqft'].mean()
+    group_mean = df.groupby(list(groups))["meta_sale_price"].mean()
+    group_mean_sqft = df.groupby(list(groups))["sv_price_per_sqft"].mean()
     df.set_index(list(groups), inplace=True)
-    df[f'sv_mean_price_{group_string}'] = group_mean
-    df[f'sv_mean_price_per_sqft_{group_string}'] = group_mean_sqft
+    df[f"sv_mean_price_{group_string}"] = group_mean
+    df[f"sv_mean_price_per_sqft_{group_string}"] = group_mean_sqft
 
     df.reset_index(inplace=True)
 
@@ -407,19 +463,19 @@ def get_sale_counts(dups: pd.DataFrame) -> pd.DataFrame:
     Inputs:
         df (pd.DataFrame): pandsa dataframe4
     """
-    v_counts = (dups.pin
-                .value_counts()
-                .reset_index()
-                .rename(columns={'count':'sv_sale_dup_counts'})
-                #.rename(columns={'index':'pin', 'pin':'sv_sale_dup_counts'})
-                )
-    
+    v_counts = (
+        dups.pin.value_counts()
+        .reset_index()
+        .rename(columns={"count": "sv_sale_dup_counts"})
+        # .rename(columns={'index':'pin', 'pin':'sv_sale_dup_counts'})
+    )
+
     dups = pd.merge(dups, v_counts)
 
     return dups
 
 
-def get_movement(dups: pd.DataFrame, groups:tuple) -> pd.DataFrame:
+def get_movement(dups: pd.DataFrame, groups: tuple) -> pd.DataFrame:
     """
     Creates a coloumn that determines whether the price movement of the records is
     towards or away from the mean.
@@ -430,14 +486,25 @@ def get_movement(dups: pd.DataFrame, groups:tuple) -> pd.DataFrame:
     Outputs:
         df (pd.DataFrame): duplicate records with new column
     """
-    group_string = create_group_string(groups, '_')
+    group_string = create_group_string(groups, "_")
 
-    dups[f'sv_deviation_{group_string}_mean_price_abs'] = abs(dups[f'sv_mean_price_{group_string}'] - dups['meta_sale_price'])
+    dups[f"sv_deviation_{group_string}_mean_price_abs"] = abs(
+        dups[f"sv_mean_price_{group_string}"] - dups["meta_sale_price"]
+    )
 
-    temp = dups.sort_values('meta_sale_date').groupby(['pin'])[f'sv_deviation_{group_string}_mean_price_abs'].shift()
-    dups['sv_price_movement'] = dups[f'sv_deviation_{group_string}_mean_price_abs'].lt(temp).astype(float)
-    dups['sv_price_movement'] = np.select([(dups['sv_price_movement'] == 0), (dups['sv_price_movement'] == 1)],
-                                        ['Away from mean', 'Towards mean'], default='First sale')
+    temp = (
+        dups.sort_values("meta_sale_date")
+        .groupby(["pin"])[f"sv_deviation_{group_string}_mean_price_abs"]
+        .shift()
+    )
+    dups["sv_price_movement"] = (
+        dups[f"sv_deviation_{group_string}_mean_price_abs"].lt(temp).astype(float)
+    )
+    dups["sv_price_movement"] = np.select(
+        [(dups["sv_price_movement"] == 0), (dups["sv_price_movement"] == 1)],
+        ["Away from mean", "Towards mean"],
+        default="First sale",
+    )
 
     return dups
 
@@ -451,11 +518,12 @@ def transaction_days(df: pd.DataFrame) -> pd.DataFrame:
         df (pd.DataFrame): DataFrame with new column
     """
 
-    df['sv_days_since_last_transaction'] = (
-        df.sort_values('meta_sale_date')
-          .groupby('pin')['meta_sale_date']
-          .diff().apply(lambda x: x.days)
-        )
+    df["sv_days_since_last_transaction"] = (
+        df.sort_values("meta_sale_date")
+        .groupby("pin")["meta_sale_date"]
+        .diff()
+        .apply(lambda x: x.days)
+    )
 
     return df
 
@@ -471,8 +539,11 @@ def check_days(df: pd.DataFrame, threshold: int) -> pd.DataFrame:
     Oututs:
         df (pd.DataFrame): datafrme with 'short_owner' column
     """
-    df['sv_short_owner'] = np.select([(df['sv_days_since_last_transaction'] < threshold)],
-                                  ['Short-term owner'], default = f'Over {threshold} days')
+    df["sv_short_owner"] = np.select(
+        [(df["sv_days_since_last_transaction"] < threshold)],
+        ["Short-term owner"],
+        default=f"Over {threshold} days",
+    )
 
     return df
 
@@ -511,8 +582,10 @@ def get_thresh(df: pd.DataFrame, cols: list, permut: tuple, groups: tuple) -> di
         upper_limit = upper_limit.to_dict()
         std = std.to_dict()
 
-        limits =  {x: (std.get(x, 0), lower_limit.get(x, 0), upper_limit.get(x, 0))
-                for x in set(std).union(upper_limit, lower_limit)}
+        limits = {
+            x: (std.get(x, 0), lower_limit.get(x, 0), upper_limit.get(x, 0))
+            for x in set(std).union(upper_limit, lower_limit)
+        }
         stds[col] = limits
 
     return stds
@@ -530,7 +603,7 @@ def z_normalize(df: pd.DataFrame, columns: list) -> pd.DataFrame:
                            as 'column_name_zscore'
     """
     for col in columns:
-        df['sv_' + col + '_deviation_county'] = zscore(df[col], nan_policy='omit')
+        df["sv_" + col + "_deviation_county"] = zscore(df[col], nan_policy="omit")
 
     return df
 
@@ -546,7 +619,7 @@ def z_normalize_groupby(s: pd.Series):
         z_normalized series grouped by class and township
         that is then stiched into complete column by pandas
     """
-    return zscore(s, nan_policy='omit')
+    return zscore(s, nan_policy="omit")
 
 
 def outlier_type(df: pd.DataFrame) -> pd.DataFrame:
@@ -558,35 +631,50 @@ def outlier_type(df: pd.DataFrame) -> pd.DataFrame:
         df (pd.DataFrame): dataframe with 'sv_outlier_type' column.
     """
     conditions = [
-    (df['sv_short_owner'] == 'Short-term owner') & (df['sv_pricing'].str.contains('High')),
-    (df['sv_name_match'] != 'No match') & (df['sv_pricing'].str.contains('High')),
-    (df['sv_transaction_type'] == 'legal_entity-legal_entity') & (df['sv_pricing'].str.contains('High')),
-    (df['sv_anomaly'] == 'Outlier') & (df['sv_pricing'].str.contains('High')),
-    (df['sv_pricing'].str.contains('High price swing')),
-    (df['sv_pricing'].str.contains('High')) & (df['sv_which_price'] == '(raw & sqft)'),
-    (df['sv_pricing'].str.contains('High')) & (df['sv_which_price'] == '(raw)'),
-    (df['sv_pricing'].str.contains('High')) & (df['sv_which_price'] == '(sqft)'),
-    (df['sv_short_owner'] == 'Short-term owner') & (df['sv_pricing'].str.contains('Low')),
-    (df['sv_name_match'] != 'No match') & (df['sv_pricing'].str.contains('Low')),
-    (df['sv_transaction_type'] == 'legal_entity-legal_entity') & (df['sv_pricing'].str.contains('Low')),
-    (df['sv_anomaly'] == 'Outlier') & (df['sv_pricing'].str.contains('Low')),
-    (df['sv_pricing'].str.contains('Low price swing')),
-    (df['sv_pricing'].str.contains('Low')) & (df['sv_which_price'] == '(raw & sqft)'),
-    (df['sv_pricing'].str.contains('Low')) & (df['sv_which_price'] == '(raw)'),
-    (df['sv_pricing'].str.contains('Low')) & (df['sv_which_price'] == '(sqft)')]
+        (df["sv_short_owner"] == "Short-term owner")
+        & (df["sv_pricing"].str.contains("High")),
+        (df["sv_name_match"] != "No match") & (df["sv_pricing"].str.contains("High")),
+        (df["sv_transaction_type"] == "legal_entity-legal_entity")
+        & (df["sv_pricing"].str.contains("High")),
+        (df["sv_anomaly"] == "Outlier") & (df["sv_pricing"].str.contains("High")),
+        (df["sv_pricing"].str.contains("High price swing")),
+        (df["sv_pricing"].str.contains("High"))
+        & (df["sv_which_price"] == "(raw & sqft)"),
+        (df["sv_pricing"].str.contains("High")) & (df["sv_which_price"] == "(raw)"),
+        (df["sv_pricing"].str.contains("High")) & (df["sv_which_price"] == "(sqft)"),
+        (df["sv_short_owner"] == "Short-term owner")
+        & (df["sv_pricing"].str.contains("Low")),
+        (df["sv_name_match"] != "No match") & (df["sv_pricing"].str.contains("Low")),
+        (df["sv_transaction_type"] == "legal_entity-legal_entity")
+        & (df["sv_pricing"].str.contains("Low")),
+        (df["sv_anomaly"] == "Outlier") & (df["sv_pricing"].str.contains("Low")),
+        (df["sv_pricing"].str.contains("Low price swing")),
+        (df["sv_pricing"].str.contains("Low"))
+        & (df["sv_which_price"] == "(raw & sqft)"),
+        (df["sv_pricing"].str.contains("Low")) & (df["sv_which_price"] == "(raw)"),
+        (df["sv_pricing"].str.contains("Low")) & (df["sv_which_price"] == "(sqft)"),
+    ]
 
-    labels = ['Home flip sale (high)', 'Family sale (high)',
-              'Non-person sale (high)', 'Anomaly (high)',
-              'High price swing',
-              'High price (raw & sqft)', 'High price (raw)',
-              'High price (sqft)',
-              'Home flip sale (low)', 'Family sale (low)',
-              'Non-person sale (low)', 'Anomaly (low)',
-              'Low price swing',
-              'Low price (raw & sqft)', 'Low price (raw)',
-              'Low price (sqft)']
+    labels = [
+        "Home flip sale (high)",
+        "Family sale (high)",
+        "Non-person sale (high)",
+        "Anomaly (high)",
+        "High price swing",
+        "High price (raw & sqft)",
+        "High price (raw)",
+        "High price (sqft)",
+        "Home flip sale (low)",
+        "Family sale (low)",
+        "Non-person sale (low)",
+        "Anomaly (low)",
+        "Low price swing",
+        "Low price (raw & sqft)",
+        "Low price (raw)",
+        "Low price (sqft)",
+    ]
 
-    df["sv_outlier_type"] = np.select(conditions, labels, default='Not outlier')
+    df["sv_outlier_type"] = np.select(conditions, labels, default="Not outlier")
 
     return df
 
@@ -601,8 +689,9 @@ def outlier_flag(df: pd.DataFrame) -> pd.DataFrame:
         df (pd.DataFrame): dataframe with 'is_outlier' column
     """
 
-    df['sv_is_outlier'] = np.select([(df['sv_outlier_type'] == 'Not outlier')],
-                                 [0], default=1)
+    df["sv_is_outlier"] = np.select(
+        [(df["sv_outlier_type"] == "Not outlier")], [0], default=1
+    )
 
     return df
 
@@ -654,23 +743,25 @@ def outlier_flag(df: pd.DataFrame) -> pd.DataFrame:
     """
 
 
-entity_keywords = r"llc| ll$| l$|l l c|estate|training|construction|building|masonry|"\
-                  r"apartments|plumbing|service|professional|roofing|advanced|office|"\
-                  r"\blaw\b|loan|legal|production|woodwork|concepts|corp| company|"\
-                  r" united|\binc\b|county|entertainment|community|heating|cooling"\
-                  r"|partners|equity|indsutries|series|revitalization|collection|"\
-                  r"agency|renovation|consulting|flippers|estates|\bthe \b|dept|"\
-                  r"funding|opportunity|improvements|servicing|equities|sale|"\
-                  r"judicial| in$|bank|\btrust\b|holding|investment|housing"\
-                  r"|properties|limited|realty|development|capital|management"\
-                  r"|developers|construction|rentals|group|investments|invest|"\
-                  r"residences|enterprise|enterprises|ventures|remodeling|"\
-                  r"specialists|homes|business|venture|restoration|renovations"\
-                  r"|maintenance|ltd|real estate|builders|buyers|property|financial"\
-                  r"|associates|consultants|international|acquisitions|credit|design"\
-                  r"|homeownership|solutions|home|diversified|assets|family|land|"\
-                  r"revocable|services|rehabbing|living|county of cook|fannie mae|"\
-                  r"land|veteran|mortgage|savings|lp$"
+entity_keywords = (
+    r"llc| ll$| l$|l l c|estate|training|construction|building|masonry|"
+    r"apartments|plumbing|service|professional|roofing|advanced|office|"
+    r"\blaw\b|loan|legal|production|woodwork|concepts|corp| company|"
+    r" united|\binc\b|county|entertainment|community|heating|cooling"
+    r"|partners|equity|indsutries|series|revitalization|collection|"
+    r"agency|renovation|consulting|flippers|estates|\bthe \b|dept|"
+    r"funding|opportunity|improvements|servicing|equities|sale|"
+    r"judicial| in$|bank|\btrust\b|holding|investment|housing"
+    r"|properties|limited|realty|development|capital|management"
+    r"|developers|construction|rentals|group|investments|invest|"
+    r"residences|enterprise|enterprises|ventures|remodeling|"
+    r"specialists|homes|business|venture|restoration|renovations"
+    r"|maintenance|ltd|real estate|builders|buyers|property|financial"
+    r"|associates|consultants|international|acquisitions|credit|design"
+    r"|homeownership|solutions|home|diversified|assets|family|land|"
+    r"revocable|services|rehabbing|living|county of cook|fannie mae|"
+    r"land|veteran|mortgage|savings|lp$"
+)
 
 
 def get_id(row: pd.Series, col: str) -> str:
@@ -690,94 +781,159 @@ def get_id(row: pd.Series, col: str) -> str:
                   identified last name if otherwise.
     """
 
-    column = col + '_name'
+    column = col + "_name"
     words = str(row[column]).lower()
 
-    words = re.sub(r' amp ','', words)
-    words = re.sub(' +', ' ', words)
+    words = re.sub(r" amp ", "", words)
+    words = re.sub(" +", " ", words)
 
-    if words.isspace() or re.search(r'^[.]*$', words):
-        id = 'Empty Name'
+    if words.isspace() or re.search(r"^[.]*$", words):
+        id = "Empty Name"
         return id
 
-    if any(x in words for x in ['vt investment corpor', 'v t investment corp']):
-        return 'vt investment corporation'
+    if any(x in words for x in ["vt investment corpor", "v t investment corp"]):
+        return "vt investment corporation"
 
-    if any(x in words for x in ['first integrity group inc', 'first integrity group in']):
-        return 'first integrity group inc'
+    if any(
+        x in words for x in ["first integrity group inc", "first integrity group in"]
+    ):
+        return "first integrity group inc"
 
-    if words in ['deutsche bank national tr']:
-        return 'deutsche bank national trust company'
+    if words in ["deutsche bank national tr"]:
+        return "deutsche bank national trust company"
 
-    if any(x in words for x in ['cirrus investment group l', 'cirrus investment group']):
-        return 'cirrus investment group'
+    if any(
+        x in words for x in ["cirrus investment group l", "cirrus investment group"]
+    ):
+        return "cirrus investment group"
 
-    if any(x in words for x in ['fannie mae aka federal na',
-                                'fannie mae a k a federal', 'federal national mortgage']):
-        return 'fannie mae'
+    if any(
+        x in words
+        for x in [
+            "fannie mae aka federal na",
+            "fannie mae a k a federal",
+            "federal national mortgage",
+        ]
+    ):
+        return "fannie mae"
 
-    if any(x in words for x in ['the judicial sales corpor', 'judicial sales corp',
-                                'judicial sales corporatio', 'judicial sale corp', 'the judicial sales corp']):
-        return 'the judicial sales corporation'
+    if any(
+        x in words
+        for x in [
+            "the judicial sales corpor",
+            "judicial sales corp",
+            "judicial sales corporatio",
+            "judicial sale corp",
+            "the judicial sales corp",
+        ]
+    ):
+        return "the judicial sales corporation"
 
-    if any(x in words for x in ['jpmorgan chase bank n a', 'jpmorgan chase bank nati']):
-        return 'jp morgan chase bank'
+    if any(x in words for x in ["jpmorgan chase bank n a", "jpmorgan chase bank nati"]):
+        return "jp morgan chase bank"
 
-    if any(x in words for x in ['wells fargo bank na',  'wells fargo bank n a',
-                                'wells fargo bank nationa',  'wells fargo bank n a a']):
-        return 'wells fargo bank national'
+    if any(
+        x in words
+        for x in [
+            "wells fargo bank na",
+            "wells fargo bank n a",
+            "wells fargo bank nationa",
+            "wells fargo bank n a a",
+        ]
+    ):
+        return "wells fargo bank national"
 
-    if any(x in words for x in ['bayview loan servicing l',  'bayview loan servicing ll']):
-        return 'bayview loan servicing llc'
+    if any(
+        x in words for x in ["bayview loan servicing l", "bayview loan servicing ll"]
+    ):
+        return "bayview loan servicing llc"
 
-    if any(x in words for x in ['thr property illinois l', 'thr property illinois lp']):
-        return 'thr property illinois lp'
+    if any(x in words for x in ["thr property illinois l", "thr property illinois lp"]):
+        return "thr property illinois lp"
 
-    if any(x in words for x in ['ih3 property illinois lp', 'ih3 property illinois l']):
-        return 'ih3 property illinois lp'
+    if any(x in words for x in ["ih3 property illinois lp", "ih3 property illinois l"]):
+        return "ih3 property illinois lp"
 
-    if any(x in words for x in ['ih2 property illinois lp', 'ih2 property illinois l']):
-        return 'ih2 property illinois lp'
+    if any(x in words for x in ["ih2 property illinois lp", "ih2 property illinois l"]):
+        return "ih2 property illinois lp"
 
-    if any(x in words for x in ['secretary of housing and',
-                                'the secretary of housing', 'secretary of housing ']):
-        return 'secretary of housing and urban development'
+    if any(
+        x in words
+        for x in [
+            "secretary of housing and",
+            "the secretary of housing",
+            "secretary of housing ",
+        ]
+    ):
+        return "secretary of housing and urban development"
 
-    if any(x in words for x in ['secretary of veterans aff', 'the secretary of veterans']):
-        return 'secretary of veterans affairs'
+    if any(
+        x in words for x in ["secretary of veterans aff", "the secretary of veterans"]
+    ):
+        return "secretary of veterans affairs"
 
-    if any(x in words for x in ['bank of america n a',
-                                'bank of america na', 'bank of america national',]):
-        return 'bank of america national'
+    if any(
+        x in words
+        for x in [
+            "bank of america n a",
+            "bank of america na",
+            "bank of america national",
+        ]
+    ):
+        return "bank of america national"
 
-    if any(x in words for x in ['us bank national association', 'u s bank national assoc',
-                                'u s bank national associ', 'u s bank trust n a as', 'u s bank n a',
-                                'us bank national associat', 'u s bank trust national']):
-        return 'us bank national association'
+    if any(
+        x in words
+        for x in [
+            "us bank national association",
+            "u s bank national assoc",
+            "u s bank national associ",
+            "u s bank trust n a as",
+            "u s bank n a",
+            "us bank national associat",
+            "u s bank trust national",
+        ]
+    ):
+        return "us bank national association"
 
-    words = re.sub('suc t$|as succ t$|successor tr$|successor tru$|'\
-                   'successor trus$|successor trust$|successor truste$|'\
-                   'successor trustee$|successor t$|as successor t$',
-                   'as successor trustee', words)
-    words = re.sub('as t$|as s t$|as sole t$|as tr$|as tru$|as trus$|as trust$|'\
-                   'as truste$|as trustee$|as trustee o$|as trustee of$|trustee of$|'\
-                   'trustee of$|tr$|tru$|trus$|truste$|trustee$|, t|, tr|, tru|, trus|'\
-                   ', trust|, truste',
-                   'as trustee', words)
-    words = re.sub('su$|suc$|succ$|succe$|succes$|success$|successo$|successor$|as s$|as su$|'\
-                   'as suc$|as succ$|as succe$|as sucess$|as successo$|, s$|, su$|, suc$|, succ$|'\
-                   ', succe$|, succes$|, success$|, successo$',
-                   'as successor', words)
+    words = re.sub(
+        "suc t$|as succ t$|successor tr$|successor tru$|"
+        "successor trus$|successor trust$|successor truste$|"
+        "successor trustee$|successor t$|as successor t$",
+        "as successor trustee",
+        words,
+    )
+    words = re.sub(
+        "as t$|as s t$|as sole t$|as tr$|as tru$|as trus$|as trust$|"
+        "as truste$|as trustee$|as trustee o$|as trustee of$|trustee of$|"
+        "trustee of$|tr$|tru$|trus$|truste$|trustee$|, t|, tr|, tru|, trus|"
+        ", trust|, truste",
+        "as trustee",
+        words,
+    )
+    words = re.sub(
+        "su$|suc$|succ$|succe$|succes$|success$|successo$|successor$|as s$|as su$|"
+        "as suc$|as succ$|as succe$|as sucess$|as successo$|, s$|, su$|, suc$|, succ$|"
+        ", succe$|, succes$|, success$|, successo$",
+        "as successor",
+        words,
+    )
 
-    if re.search(entity_keywords, words) or re.search(r'\d{4}|\d{3}', words) or \
-        re.search('as trustee$|as successor$|as successor trustee$', words):
+    if (
+        re.search(entity_keywords, words)
+        or re.search(r"\d{4}|\d{3}", words)
+        or re.search("as trustee$|as successor$|as successor trustee$", words)
+    ):
         id = words
         return id
 
-    words = re.sub(' in$|indi$|indiv$|indivi$|indivi$|individ$|individu$|individua$|individual$'\
-                   '|not i$|not ind$| ind$| inde$|indep$|indepe$|indepen$|independ$|independe$'\
-                   '|independen$|independent$',
-                   '', words)
+    words = re.sub(
+        " in$|indi$|indiv$|indivi$|indivi$|individ$|individu$|individua$|individual$"
+        "|not i$|not ind$| ind$| inde$|indep$|indepe$|indepen$|independ$|independe$"
+        "|independen$|independent$",
+        "",
+        words,
+    )
 
     tokens = split_logic(words)
 
@@ -798,15 +954,18 @@ def split_logic(words: str):
         tokens (list): lsit of tokens in string from split
     """
 
-    words = re.sub(' +', ' ', words)
+    words = re.sub(" +", " ", words)
 
-    if words.isspace() or re.search(r'^[.]*$', words) or words == 'Empty Name':
-        return 'Empty Name'
+    if words.isspace() or re.search(r"^[.]*$", words) or words == "Empty Name":
+        return "Empty Name"
 
-    words = re.sub(' as$| as $|as $','', words)
+    words = re.sub(" as$| as $|as $", "", words)
 
-    _and = re.search(r'\b and\b|\b an$\b|\b a$\b|f k a|\bfka\b| n k a|\bnka\b|'\
-                     r'\b aka\b|a k a|\b kna\b|k n a| f k$|n k$|a k$|\b not\b| married', words)
+    _and = re.search(
+        r"\b and\b|\b an$\b|\b a$\b|f k a|\bfka\b| n k a|\bnka\b|"
+        r"\b aka\b|a k a|\b kna\b|k n a| f k$|n k$|a k$|\b not\b| married",
+        words,
+    )
 
     if _and:
         tokens = words.split(_and.group())
@@ -826,12 +985,12 @@ def name_selector(tokens) -> str:
         'Empty Name' if name is empty.
         id (str): identified last name
     """
-    if tokens == 'Empty Name':
+    if tokens == "Empty Name":
         return tokens
     # Ex: John Smith Jr
-    if tokens[-1] in ['jr', 'sr', 'ii', 'iii', 'iv', 'v']:
+    if tokens[-1] in ["jr", "sr", "ii", "iii", "iv", "v"]:
         tokens = tokens[:-1]
-    #Ex: John Smith
+    # Ex: John Smith
     if len(tokens) == 2:
         id = tokens[1]
     # John George Smith
@@ -852,18 +1011,18 @@ def get_category(row: pd.Series, col: str) -> str:
         row: from pandas dataframe
         col (str): column to process. 'buyer' or 'seller'
     Outputs:
-        category (str): category of buyer/seller id    
+        category (str): category of buyer/seller id
     """
 
-    column = col + '_id'
+    column = col + "_id"
     words = row[column]
 
     if re.search(entity_keywords, words):
-        category = 'legal_entity'
-    elif words == 'Empty Name':
-        category = 'none'
+        category = "legal_entity"
+    elif words == "Empty Name":
+        category = "none"
     else:
-        category = 'person'
+        category = "person"
 
     return category
 
@@ -881,12 +1040,12 @@ def get_role(row: pd.Series, col: str) -> str:
 
     """
     role = None
-    column = col + '_id'
+    column = col + "_id"
     words = row[column]
 
-    suc_trust = re.search(' as successor trustee' , words)
-    suc = re.search(' as successor' , words)
-    trust = re.search(' as trustee' , words)
+    suc_trust = re.search(" as successor trustee", words)
+    suc = re.search(" as successor", words)
+    trust = re.search(" as trustee", words)
 
     if suc_trust:
         role = suc_trust.group()
@@ -910,15 +1069,17 @@ def clean_id(row: pd.Series, col: str) -> str:
         words (str): seller/buyer id without role.
     """
 
-    column = col + '_id'
+    column = col + "_id"
     words = row[column]
 
-    words = re.sub(r' as successor trustee|\b as successor\b| as trustee', '', words)
-    words = re.sub(' as$| as $|as $','', words)
+    words = re.sub(r" as successor trustee|\b as successor\b| as trustee", "", words)
+    words = re.sub(" as$| as $|as $", "", words)
 
-    if not (re.search(entity_keywords, words) or \
-            re.search(r'\d{4}|\d{3}', words) or \
-            len(words.split()) == 1):
+    if not (
+        re.search(entity_keywords, words)
+        or re.search(r"\d{4}|\d{3}", words)
+        or len(words.split()) == 1
+    ):
         words = name_selector(split_logic(words))
 
     return words
@@ -934,8 +1095,14 @@ def create_judicial_flag(df: pd.DataFrame) -> pd.DataFrame:
         df (pd.DataFrame): dataframe with 'sv_is_judicial_sale' column
     """
 
-    df['sv_is_judicial_sale'] = np.select([(df['sv_seller_id'] == 'the judicial sale corporation') | (df['sv_seller_id'] == 'intercounty judicial sale')],
-                                        ['1'], default = '0' )
+    df["sv_is_judicial_sale"] = np.select(
+        [
+            (df["sv_seller_id"] == "the judicial sale corporation")
+            | (df["sv_seller_id"] == "intercounty judicial sale")
+        ],
+        ["1"],
+        default="0",
+    )
 
     return df
 
@@ -949,10 +1116,10 @@ def create_match_flag(row: pd.Series) -> str:
     Outputs:
         value (str): whether the buyer and seller ID match
     """
-    if row['buyer_id'] == row['seller_id'] and row['buyer_id'] != 'Empty Name':
-        value = 'Buyer ID and Seller ID match'
+    if row["buyer_id"] == row["seller_id"] and row["buyer_id"] != "Empty Name":
+        value = "Buyer ID and Seller ID match"
     else:
-        value = 'No match'
+        value = "No match"
 
     return value
 
@@ -966,10 +1133,10 @@ def create_name_match(row: pd.Series) -> str:
     Outputs:
         value (str or None): string match if applicable, None otherwise
     """
-    if row['sv_buyer_id'] == row['sv_seller_id'] and row['sv_buyer_id'] != 'Empty Name':
-        value = row['sv_seller_id']
+    if row["sv_buyer_id"] == row["sv_seller_id"] and row["sv_buyer_id"] != "Empty Name":
+        value = row["sv_seller_id"]
     else:
-        value = 'No match'
+        value = "No match"
 
     return value
 
@@ -985,20 +1152,28 @@ def string_processing(df: pd.DataFrame) -> pd.DataFrame:
     Ouputs:
         df(pd.DataFrame): dataframe with 7 new columns from apply functions
     """
-    df.meta_sale_buyer_name = df.meta_sale_buyer_name.str.encode('ascii', 'ignore').str.decode('ascii')
-    df.meta_sale_seller_name = df.meta_sale_seller_name.str.encode('ascii', 'ignore').str.decode('ascii')
-    df.meta_sale_buyer_name = df.meta_sale_buyer_name.str.replace(r'[^a-zA-Z0-9\-]', ' ', regex=True).str.strip()
-    df.meta_sale_seller_name = df.meta_sale_seller_name.str.replace(r'[^a-zA-Z0-9\-]', ' ', regex=True).str.strip()
+    df.meta_sale_buyer_name = df.meta_sale_buyer_name.str.encode(
+        "ascii", "ignore"
+    ).str.decode("ascii")
+    df.meta_sale_seller_name = df.meta_sale_seller_name.str.encode(
+        "ascii", "ignore"
+    ).str.decode("ascii")
+    df.meta_sale_buyer_name = df.meta_sale_buyer_name.str.replace(
+        r"[^a-zA-Z0-9\-]", " ", regex=True
+    ).str.strip()
+    df.meta_sale_seller_name = df.meta_sale_seller_name.str.replace(
+        r"[^a-zA-Z0-9\-]", " ", regex=True
+    ).str.strip()
 
-    df['sv_buyer_id'] = df.apply(get_id, args=('meta_sale_buyer',), axis=1)
-    df['sv_seller_id'] = df.apply(get_id, args=('meta_sale_seller',), axis=1)
-    df['sv_buyer_category'] = df.apply(get_category, args=('sv_buyer',), axis=1)
-    df['sv_seller_category'] = df.apply(get_category, args=('sv_seller',), axis=1)
-    df['sv_buyer_id'] = df.apply(clean_id, args=('sv_buyer',), axis=1)
-    df['sv_seller_id'] = df.apply(clean_id, args=('sv_seller',), axis=1)
-    df['sv_transaction_type'] = df['sv_buyer_category'] + '-' + df['sv_seller_category']
+    df["sv_buyer_id"] = df.apply(get_id, args=("meta_sale_buyer",), axis=1)
+    df["sv_seller_id"] = df.apply(get_id, args=("meta_sale_seller",), axis=1)
+    df["sv_buyer_category"] = df.apply(get_category, args=("sv_buyer",), axis=1)
+    df["sv_seller_category"] = df.apply(get_category, args=("sv_seller",), axis=1)
+    df["sv_buyer_id"] = df.apply(clean_id, args=("sv_buyer",), axis=1)
+    df["sv_seller_id"] = df.apply(clean_id, args=("sv_seller",), axis=1)
+    df["sv_transaction_type"] = df["sv_buyer_category"] + "-" + df["sv_seller_category"]
 
     df = create_judicial_flag(df)
-    df['sv_name_match'] = df.apply(create_name_match, axis=1)
+    df["sv_name_match"] = df.apply(create_name_match, axis=1)
 
     return df

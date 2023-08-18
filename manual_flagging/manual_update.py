@@ -96,8 +96,7 @@ df_flagged = flg_model.go(
 
 # Finish flagging
 df_flagged_final, run_id, timestamp = flg.finish_flags(
-    df=df_flagged, start_date="2019-01-01", exempt_data=exempt_data,
-    manual_update=True
+    df=df_flagged, start_date="2019-01-01", exempt_data=exempt_data, manual_update=True
 )
 
 # - - - - - -
@@ -114,7 +113,9 @@ existing_max_version = (
 
 # Merge, compute new version, and drop unnecessary columns
 df_to_write = (
-    df_flagged_final.merge(existing_max_version, on="meta_sale_document_num", how="left")
+    df_flagged_final.merge(
+        existing_max_version, on="meta_sale_document_num", how="left"
+    )
     .assign(
         version=lambda x: x["existing_version"]
         .apply(lambda y: y + 1 if pd.notnull(y) else 1)
@@ -126,7 +127,7 @@ df_to_write = (
 # Write to flag table
 flg.write_to_table(
     df=df_to_write,
-    table_name = 'flag',
+    table_name="flag",
     s3_warehouse_bucket_path=os.getenv("AWS_S3_WAREHOUSE_BUCKET"),
     run_id=run_id,
 )
@@ -144,7 +145,7 @@ df_parameters = flg.get_parameter_df(
 
 flg.write_to_table(
     df=df_parameters,
-    table_name = 'parameter',
+    table_name="parameter",
     s3_warehouse_bucket_path=os.getenv("AWS_S3_WAREHOUSE_BUCKET"),
     run_id=run_id,
 )
@@ -156,19 +157,20 @@ df_write_group_mean = flg.get_group_mean_df(
 
 flg.write_to_table(
     df=df_write_group_mean,
-    table_name = 'group_mean',
+    table_name="group_mean",
     s3_warehouse_bucket_path=os.getenv("AWS_S3_WAREHOUSE_BUCKET"),
     run_id=run_id,
 )
 
 # Write to metadata table
 commit_sha = sp.getoutput("git rev-parse HEAD")
-df_metadata = flg.get_metadata_df(run_id=run_id, timestamp=timestamp, run_type='manual_update',
-                                  commit_sha=commit_sha)
+df_metadata = flg.get_metadata_df(
+    run_id=run_id, timestamp=timestamp, run_type="manual_update", commit_sha=commit_sha
+)
 
 flg.write_to_table(
     df=df_metadata,
-    table_name = 'metadata',
+    table_name="metadata",
     s3_warehouse_bucket_path=os.getenv("AWS_S3_WAREHOUSE_BUCKET"),
     run_id=run_id,
 )
