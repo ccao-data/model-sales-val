@@ -3,7 +3,7 @@
 | :exclamation:  IMPORTANT   |
 |-----------------------------------------|  
 
-If an edit needs to made to anything in the `glue` directory, there a specific process to be found [here](#aws-integration)  
+If an edit needs to made to anything in the `glue` directory, there a specific process to be found [here](#aws-glue-job-documentation)  
   
 Table of Contents
 ================
