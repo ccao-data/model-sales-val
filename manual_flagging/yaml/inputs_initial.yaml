@@ -1,5 +1,5 @@
 # This file contains relevant inputs for the initial_flagging.py script,
-# which
+# which will be run one time when we first populate the flag table in athena.
 ---
 stat_groups: [
   "rolling_window",
