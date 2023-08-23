@@ -27,7 +27,15 @@ conn = connect(
     region_name=os.getenv("AWS_REGION"),
 )
 
-SQL_QUERY = """
+# Parse yaml to get which sales to flag
+if inputs["time_frame"]["end"] == None:
+    sql_time_frame = f"sale.sale_date >= DATE '{inputs['time_frame']['data_floor']}'"
+else:
+    sql_time_frame = f"""(sale.sale_date 
+        BETWEEN DATE '{inputs['time_frame']['data_floor']}'
+        AND DATE '{inputs['time_frame']['end']}')"""
+
+SQL_QUERY = f"""
 SELECT
     sale.sale_price AS meta_sale_price,
     sale.sale_date AS meta_sale_date,
@@ -44,9 +52,7 @@ FROM default.vw_card_res_char res
 INNER JOIN default.vw_pin_sale sale
     ON sale.pin = res.pin
     AND sale.year = res.year
-WHERE (sale.sale_date
-    BETWEEN DATE '2013-02-01'
-    AND DATE '2021-12-31')
+WHERE {sql_time_frame}
 AND NOT sale.is_multisale
 AND NOT res.pin_is_multicard
 """
@@ -78,7 +84,10 @@ df_flagged = flg_model.go(
 
 # Finish flagging and subset to write to flag table
 df_to_write, run_id, timestamp = flg.finish_flags(
-    df=df_flagged, start_date="2014-01-01", exempt_data=exempt_data, manual_update=False
+    df=df_flagged,
+    start_date=inputs["time_frame"]["start"],
+    exempt_data=exempt_data,
+    manual_update=False,
 )
 
 # Write to flag table

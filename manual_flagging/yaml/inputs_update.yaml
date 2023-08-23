@@ -17,7 +17,13 @@ iso_forest: [
 
 dev_bounds: [2, 3]
 
-# Leave end blank if there is no upper bound on when we want to re-flag
+# 'start' and 'end' determine which sales will be updated and written
+# to the data.flag table. 'date floor' should always be exactly 11 months
+# prior to 'start', this allows the flagging model to use a year long
+# rolling window
+
+# Leave 'end' blank if we want to flag all sales since start date
 time_frame:
-  start: "2018-02-01"
+  data_floor: "2018-02-01"
+  start: "2019-01-01"
   end: "2021-12-31"

@@ -32,10 +32,10 @@ conn = connect(
 
 # Parse yaml to get which sales to flag
 if inputs["time_frame"]["end"] == None:
-    sql_time_frame = f"sale.sale_date >= DATE '{inputs['time_frame']['start']}'"
+    sql_time_frame = f"sale.sale_date >= DATE '{inputs['time_frame']['data_floor']}'"
 else:
     sql_time_frame = f"""(sale.sale_date 
-        BETWEEN DATE '{inputs['time_frame']['start']}'
+        BETWEEN DATE '{inputs['time_frame']['data_floor']}'
         AND DATE '{inputs['time_frame']['end']}')"""
 
 SQL_QUERY = f"""
@@ -96,7 +96,10 @@ df_flagged = flg_model.go(
 
 # Finish flagging
 df_flagged_final, run_id, timestamp = flg.finish_flags(
-    df=df_flagged, start_date="2019-01-01", exempt_data=exempt_data, manual_update=True
+    df=df_flagged,
+    start_date=inputs["time_frame"]["start"],
+    exempt_data=exempt_data,
+    manual_update=True,
 )
 
 # - - - - - -
