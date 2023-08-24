@@ -12,7 +12,7 @@ from pyathena.pandas.util import as_pandas
 from random_word import RandomWords
 
 
-def eleven_months_back(date_str):
+def months_back(date_str, num_months):
     """
     This function returns data from the earliest date needed to be pulled
     in order to calculate all of the flagging operations with the rolling
@@ -28,7 +28,7 @@ def eleven_months_back(date_str):
     given_date = datetime.datetime.strptime(date_str, "%Y-%m-%d")
 
     # Handle the month subtraction
-    new_month = given_date.month - 11
+    new_month = given_date.month - num_months
     if new_month < 1:
         new_month += 12
         new_year = given_date.year - 1

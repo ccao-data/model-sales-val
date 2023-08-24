@@ -27,7 +27,7 @@ conn = connect(
     region_name=os.getenv("AWS_REGION"),
 )
 
-date_floor = flg.eleven_months_back(inputs["time_frame"]["start"])
+date_floor = flg.months_back(date_str=inputs["time_frame"]["start"], num_months=11)
 
 # Parse yaml to get which sales to flag
 if inputs["time_frame"]["end"] == None:
