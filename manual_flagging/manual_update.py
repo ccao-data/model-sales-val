@@ -30,12 +30,14 @@ conn = connect(
     region_name=os.getenv("AWS_REGION"),
 )
 
+date_floor = flg.eleven_months_back(inputs["time_frame"]["start"])
+
 # Parse yaml to get which sales to flag
 if inputs["time_frame"]["end"] == None:
-    sql_time_frame = f"sale.sale_date >= DATE '{inputs['time_frame']['data_floor']}'"
+    sql_time_frame = f"sale.sale_date >= DATE '{date_floor}'"
 else:
     sql_time_frame = f"""(sale.sale_date 
-        BETWEEN DATE '{inputs['time_frame']['data_floor']}'
+        BETWEEN DATE '{date_floor}'
         AND DATE '{inputs['time_frame']['end']}')"""
 
 SQL_QUERY = f"""

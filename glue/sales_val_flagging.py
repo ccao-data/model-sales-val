@@ -12,6 +12,34 @@ from pyathena.pandas.util import as_pandas
 from random_word import RandomWords
 
 
+def eleven_months_back(date_str):
+    """
+    This function returns data from the earliest date needed to be pulled
+    in order to calculate all of the flagging operations with the rolling
+    window operation.
+
+    Inputs:
+        date_str: string that represents earliest date to flag.
+    Outputs:
+        outputs the earliest date to pull from sql for rolling window
+        operation
+    """
+    # Parse the date string to a datetime object
+    given_date = datetime.datetime.strptime(date_str, "%Y-%m-%d")
+
+    # Handle the month subtraction
+    new_month = given_date.month - 11
+    if new_month < 1:
+        new_month += 12
+        new_year = given_date.year - 1
+    else:
+        new_year = given_date.year
+
+    # Create the new date with the first day of the month
+    result_date = given_date.replace(year=new_year, month=new_month, day=1)
+    return result_date.strftime("%Y-%m-%d")
+
+
 def add_rolling_window(df):
     """
     This function implements a rolling window logic such that
