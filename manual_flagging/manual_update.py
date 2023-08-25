@@ -45,7 +45,7 @@ SELECT
     sale.doc_no AS meta_sale_document_num,
     sale.seller_name AS meta_sale_seller_name,
     sale.buyer_name AS meta_sale_buyer_name,
-    sale.sale_filter_is_outlier,
+    sale.sale_filter_ptax_flag,
     res.class AS class,
     res.township_code AS township_code,
     res.year AS year,

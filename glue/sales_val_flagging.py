@@ -82,10 +82,10 @@ def finish_flags(df, start_date, exempt_data, manual_update):
         .assign(
             sv_is_autoval_outlier=lambda df: df["sv_is_autoval_outlier"] == "Outlier",
             sv_is_outlier=lambda df: df["sv_is_autoval_outlier"]
-            | df["sale_filter_is_outlier"],
+            | df["sale_filter_ptax_flag"],
             # Incorporate PTAX in sv_outlier_type
             sv_outlier_type=lambda df: np.where(
-                (df["sv_outlier_type"] == "Not outlier") & df["sale_filter_is_outlier"],
+                (df["sv_outlier_type"] == "Not outlier") & df["sale_filter_ptax_flag"],
                 "PTAX-203 flag",
                 df["sv_outlier_type"],
             ),
@@ -167,6 +167,22 @@ def sql_type_to_pd_type(sql_type):
     # deviation_dollars() in flagging script on line 375
     if sql_type in ["decimal"]:
         return "float64"
+
+
+def fillna_with_false(df: pd.DataFrame, column_name: str) -> pd.DataFrame:
+    """
+    Fill NaN values in a specific column of a DataFrame with 'False'.
+
+    Args:
+    - df (pd.DataFrame): The input DataFrame.
+    - column_name (str): The column in which to replace NaN values.
+
+    Returns:
+    - pd.DataFrame: DataFrame with NaN values in the specified column replaced with 'False'.
+    """
+    df_copy = df.copy()
+    df_copy[column_name] = df_copy[column_name].fillna(False)
+    return df_copy
 
 
 # - - - - - - - - - - - - - -
@@ -383,7 +399,7 @@ if __name__ == "__main__":
         sale.doc_no AS meta_sale_document_num,
         sale.seller_name AS meta_sale_seller_name,
         sale.buyer_name AS meta_sale_buyer_name,
-        sale.sale_filter_is_outlier,
+        sale.sale_filter_ptax_flag,
         res.class AS class,
         res.township_code AS township_code,
         res.year AS year,
@@ -435,6 +451,7 @@ if __name__ == "__main__":
 
         # Data cleaning
         df = df.astype({col[0]: sql_type_to_pd_type(col[1]) for col in metadata})
+        df = fillna_with_false(df, "sale_filter_ptax_flag")
 
         # Exempt sale handling
         exempt_data = df[df["class"] == "EX"]
