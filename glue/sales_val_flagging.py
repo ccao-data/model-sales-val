@@ -169,22 +169,6 @@ def sql_type_to_pd_type(sql_type):
         return "float64"
 
 
-def fillna_with_false(df: pd.DataFrame, column_name: str) -> pd.DataFrame:
-    """
-    Fill NaN values in a specific column of a DataFrame with 'False'.
-
-    Args:
-    - df (pd.DataFrame): The input DataFrame.
-    - column_name (str): The column in which to replace NaN values.
-
-    Returns:
-    - pd.DataFrame: DataFrame with NaN values in the specified column replaced with 'False'.
-    """
-    df_copy = df.copy()
-    df_copy[column_name] = df_copy[column_name].fillna(False)
-    return df_copy
-
-
 # - - - - - - - - - - - - - -
 # Helpers for writing tables
 # - - - - - - - - - - - - - -
@@ -451,7 +435,7 @@ if __name__ == "__main__":
 
         # Data cleaning
         df = df.astype({col[0]: sql_type_to_pd_type(col[1]) for col in metadata})
-        df = fillna_with_false(df, "sale_filter_ptax_flag")
+        df["sale_filter_ptax_flag"].fillna(False, inplace=True)
 
         # Exempt sale handling
         exempt_data = df[df["class"] == "EX"]

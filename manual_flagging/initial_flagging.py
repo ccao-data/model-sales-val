@@ -60,7 +60,7 @@ df = df_ingest
 
 # Data cleaning
 df = df.astype({col[0]: flg.sql_type_to_pd_type(col[1]) for col in metadata})
-df = flg.fillna_with_false(df, "sale_filter_ptax_flag")
+df["sale_filter_ptax_flag"].fillna(False, inplace=True)
 
 # Exempt sale handling
 exempt_data = df[df["class"] == "EX"]
