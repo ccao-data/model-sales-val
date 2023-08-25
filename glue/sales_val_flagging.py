@@ -20,6 +20,8 @@ def months_back(date_str, num_months):
 
     Inputs:
         date_str: string that represents earliest date to flag.
+        num_months: number that inidicates how many months back
+            data will be pulled for rolling window
     Outputs:
         outputs the earliest date to pull from sql for rolling window
         operation
