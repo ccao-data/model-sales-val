@@ -85,7 +85,7 @@ def finish_flags(df, start_date, exempt_data, manual_update):
             | df["sale_filter_ptax_flag"],
             # Incorporate PTAX in sv_outlier_type
             sv_outlier_type=lambda df: np.where(
-                (df["sv_outlier_type"] == "Not outlier") & df["sale_filter_ptax_flag"],
+                df["sale_filter_ptax_flag"],
                 "PTAX-203 flag",
                 df["sv_outlier_type"],
             ),
