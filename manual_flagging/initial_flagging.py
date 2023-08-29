@@ -74,7 +74,7 @@ df = df_ingest
 df = df.astype({col[0]: flg.sql_type_to_pd_type(col[1]) for col in metadata})
 
 # Create rolling window
-df_to_flag = flg.add_rolling_window(df)
+df_to_flag, num_months_rolling = flg.add_rolling_window(df, num_months=12)
 
 # Flag Outliers
 df_flagged = flg_model.go(
@@ -106,6 +106,8 @@ df_parameters = flg.get_parameter_df(
     iso_forest_cols=inputs["iso_forest"],
     stat_groups=inputs["stat_groups"],
     dev_bounds=inputs["dev_bounds"],
+    rolling_window=num_months_rolling,
+    date_floor=inputs["time_frame"]["start"],
     short_term_thresh=SHORT_TERM_OWNER_THRESHOLD,
     run_id=run_id,
 )

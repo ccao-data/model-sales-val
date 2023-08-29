@@ -42,11 +42,14 @@ def months_back(date_str, num_months):
     return result_date.strftime("%Y-%m-%d")
 
 
-def add_rolling_window(df):
+def add_rolling_window(df, num_months):
     """
     This function implements a rolling window logic such that
     the data is formatted for the flagging script to correctly
     run the year-long window grouping for each obs.
+
+    WARNING: num_months cannot go over 12 or this function breaks
+
     Inputs:
         df: dataframe of sales that we need to flag, data should be 11 months back
             from the earliest unflagged sale in order for the rolling window logic to work
@@ -59,7 +62,7 @@ def add_rolling_window(df):
         # Creates dt column with 12 month dates
         df.assign(
             rolling_window=df["meta_sale_date"].apply(
-                lambda x: pd.date_range(start=x, periods=12, freq="M")
+                lambda x: pd.date_range(start=x, periods=num_months, freq="M")
             )
         )
         # Expand rolling_windows dates to individual rows
@@ -81,7 +84,7 @@ def add_rolling_window(df):
         )
     )
 
-    return df
+    return df, num_months
 
 
 def finish_flags(df, start_date, manual_update):
@@ -239,6 +242,8 @@ def get_parameter_df(
     iso_forest_cols,
     stat_groups,
     dev_bounds,
+    rolling_window,
+    date_floor,
     short_term_thresh,
     run_id,
 ):
@@ -253,6 +258,8 @@ def get_parameter_df(
         dev_bounds: standard devation bounds to catch outliers
         short_term_thresh: short-term threshold for mansueto's flagging model
         run_id: unique run_id to flagging program run
+        date_floor: parameter specification that limits earliest flagging write
+        rolling_window: how many months used in rolling window methodology
     Outputs:
         df_parameters: parameters table associated with flagging run
     """
@@ -263,6 +270,8 @@ def get_parameter_df(
     iso_forest_cols = iso_forest_cols
     stat_groups = stat_groups
     dev_bounds = dev_bounds
+    date_floor = date_floor
+    rolling_window = rolling_window
 
     parameter_dict_to_df = {
         "run_id": [run_id],
@@ -273,6 +282,8 @@ def get_parameter_df(
         "iso_forest_cols": [iso_forest_cols],
         "stat_groups": [stat_groups],
         "dev_bounds": [dev_bounds],
+        "rolling_window": [rolling_window],
+        "date_floor": [date_floor],
     }
 
     df_parameters = pd.DataFrame(parameter_dict_to_df)
@@ -339,6 +350,8 @@ if __name__ == "__main__":
             "aws_s3_warehouse_bucket",
             "s3_glue_bucket",
             "stat_groups",
+            "rolling_window_num",
+            "time_frame_start",
             "iso_forest",
             "dev_bounds",
         ],
@@ -376,10 +389,10 @@ if __name__ == "__main__":
     It takes 11 months of data prior to the earliest unflagged sale up
     to the monthly data of the latest unflagged sale
     """
-    SQL_QUERY = """
+    SQL_QUERY = f"""
     WITH NA_Dates AS (
         SELECT
-            MIN(DATE_TRUNC('MONTH', sale.sale_date)) - INTERVAL '11' MONTH AS StartDate,
+            MIN(DATE_TRUNC('MONTH', sale.sale_date)) - INTERVAL '{args["rolling_window_num"]}' MONTH AS StartDate,
             MAX(DATE_TRUNC('MONTH', sale.sale_date)) AS EndDate
         FROM default.vw_card_res_char res
         INNER JOIN default.vw_pin_sale sale
@@ -388,7 +401,7 @@ if __name__ == "__main__":
         LEFT JOIN sale.flag flag
             ON flag.meta_sale_document_num = sale.doc_no
         WHERE flag.sv_is_outlier IS NULL
-            AND sale.sale_date >= DATE '2021-01-01'
+            AND sale.sale_date >= DATE {args["time_frame_start"]}
             AND NOT sale.is_multisale
             AND NOT res.pin_is_multicard
     )
@@ -456,7 +469,9 @@ if __name__ == "__main__":
         df = df.astype({col[0]: sql_type_to_pd_type(col[1]) for col in metadata})
 
         # Create rolling window
-        df_to_flag = add_rolling_window(df)
+        df_to_flag, num_months_rolling = add_rolling_window(
+            df, num_months=int(args["rolling_window_num"]) + 1
+        )
 
         # Parse glue args
         stat_groups_list = args["stat_groups"].split(",")
@@ -475,7 +490,7 @@ if __name__ == "__main__":
         # Finish flagging
         df_flagged_final, run_id, timestamp = finish_flags(
             df=df_flagged,
-            start_date="2021-01-01",
+            start_date={args["time_frame_start"]},
             manual_update=False,
         )
 
@@ -501,6 +516,8 @@ if __name__ == "__main__":
             iso_forest_cols=iso_forest_list,
             stat_groups=stat_groups_list,
             dev_bounds=dev_bounds_list,
+            rolling_window=int(args["rolling_window_num"]) + 1,
+            date_floor=args["time_frame_start"],
             short_term_thresh=SHORT_TERM_OWNER_THRESHOLD,
             run_id=run_id,
         )
