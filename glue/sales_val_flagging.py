@@ -84,7 +84,7 @@ def add_rolling_window(df):
     return df
 
 
-def finish_flags(df, start_date, exempt_data, manual_update):
+def finish_flags(df, start_date, manual_update):
     """
     This functions
         -takes the flagged data from the mansueto code
@@ -93,7 +93,6 @@ def finish_flags(df, start_date, exempt_data, manual_update):
     Inputs:
         df: df flagged with manuesto flagging methodology
         start_date: a limit on how early we flag sales from
-        exempt_data: data of class exempt
         manual_update: whether or not manual_update.py is using this script,
                        if True, adds a versioning capability.
     Outputs:
@@ -138,15 +137,6 @@ def finish_flags(df, start_date, exempt_data, manual_update):
         )
     )
 
-    # Manually impute ex values as non-outliers
-    exempt_to_append = exempt_data.meta_sale_document_num.reset_index().drop(
-        columns="index"
-    )
-    exempt_to_append["sv_is_outlier"] = 0
-    exempt_to_append["sv_is_ptax_outlier"] = 0
-    exempt_to_append["sv_is_heuristic_outlier"] = 0
-    exempt_to_append["sv_outlier_type"] = "Not Outlier"
-
     cols_to_write = [
         "meta_sale_document_num",
         "rolling_window",
@@ -175,13 +165,8 @@ def finish_flags(df, start_date, exempt_data, manual_update):
     if not manual_update:
         dynamic_assignment["version"] = 1
 
-    # Incorporate exempt values and finalize to write to flag table
-    df = (
-        # TODO: exempt will have an NA for rolling_window - make sure that is okay
-        pd.concat([df[cols_to_write], exempt_to_append])
-        .reset_index(drop=True)
-        .assign(**dynamic_assignment)
-    )
+    # Finalize to write to flag table
+    df = df[cols_to_write].assign(**dynamic_assignment)
 
     return df, run_id, timestamp
 
@@ -434,6 +419,10 @@ if __name__ == "__main__":
         ON sale.sale_date BETWEEN NA_Dates.StartDate AND NA_Dates.EndDate
     WHERE NOT sale.is_multisale
     AND NOT res.pin_is_multicard
+    AND res.class IN (
+    '202', '203', '204', '205', '206', '207', '208', '209',
+    '210', '211', '212', '218', '219', '234', '278', '295'
+    )
     """
 
     SQL_QUERY_SALES_VAL = """
@@ -466,10 +455,6 @@ if __name__ == "__main__":
         # Data cleaning
         df = df.astype({col[0]: sql_type_to_pd_type(col[1]) for col in metadata})
 
-        # Exempt sale handling
-        exempt_data = df[df["class"] == "EX"]
-        df = df[df["class"] != "EX"]
-
         # Create rolling window
         df_to_flag = add_rolling_window(df)
 
@@ -491,7 +476,6 @@ if __name__ == "__main__":
         df_flagged_final, run_id, timestamp = finish_flags(
             df=df_flagged,
             start_date="2021-01-01",
-            exempt_data=exempt_data,
             manual_update=False,
         )
 

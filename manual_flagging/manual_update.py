@@ -60,6 +60,10 @@ INNER JOIN default.vw_pin_sale sale
 WHERE {sql_time_frame}
 AND NOT sale.is_multisale
 AND NOT res.pin_is_multicard
+AND res.class IN (
+'202', '203', '204', '205', '206', '207', '208', '209',
+'210', '211', '212', '218', '219', '234', '278', '295'
+)
 """
 
 SQL_QUERY_SALES_VAL = """
@@ -81,10 +85,6 @@ df_flag_table = df_ingest_flag
 # Data cleaning
 df = df.astype({col[0]: flg.sql_type_to_pd_type(col[1]) for col in metadata})
 
-# Exempt sale handling
-exempt_data = df[df["class"] == "EX"]
-df = df[df["class"] != "EX"]
-
 # Create rolling window
 df_to_flag = flg.add_rolling_window(df)
 
@@ -100,7 +100,6 @@ df_flagged = flg_model.go(
 df_flagged_final, run_id, timestamp = flg.finish_flags(
     df=df_flagged,
     start_date=inputs["time_frame"]["start"],
-    exempt_data=exempt_data,
     manual_update=True,
 )
 
