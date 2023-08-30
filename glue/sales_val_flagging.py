@@ -522,6 +522,10 @@ if __name__ == "__main__":
             short_term_thresh=SHORT_TERM_OWNER_THRESHOLD,
             run_id=run_id,
         )
+        print(df_parameters)
+        print(df_parameters.dtypes)
+        print(int(args["rolling_window_num"]))
+        print(args["time_frame_start"])
 
         write_to_table(
             df=df_parameters,
