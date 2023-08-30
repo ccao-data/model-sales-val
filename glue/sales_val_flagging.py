@@ -542,6 +542,12 @@ if __name__ == "__main__":
         print(df_parameters.dtypes)
         print(int(args["rolling_window_num"]))
         print(args["time_frame_start"])
+        # Apply the function to your dataframes
+        df_parameters = modify_dtypes(df_parameters)
+        print(df_parameters)
+        print(df_parameters.dtypes)
+        print(int(args["rolling_window_num"]))
+        print(args["time_frame_start"])
 
         write_to_table(
             df=df_parameters,
