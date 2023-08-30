@@ -77,9 +77,7 @@ df = df_ingest
 df = df.astype({col[0]: flg.sql_type_to_pd_type(col[1]) for col in metadata})
 
 # Create rolling window
-df_to_flag, num_months_rolling = flg.add_rolling_window(
-    df, num_months=inputs["rolling_window_months"]
-)
+df_to_flag = flg.add_rolling_window(df, num_months=inputs["rolling_window_months"])
 
 # Flag Outliers
 df_flagged = flg_model.go(
