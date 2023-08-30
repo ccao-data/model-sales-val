@@ -34,7 +34,7 @@ SELECT
     sale.doc_no AS meta_sale_document_num,
     sale.seller_name AS meta_sale_seller_name,
     sale.buyer_name AS meta_sale_buyer_name,
-    sale.sale_filter_is_outlier,
+    sale.sale_filter_ptax_flag,
     res.class AS class,
     res.township_code AS township_code,
     res.year AS year,
@@ -60,6 +60,7 @@ df = df_ingest
 
 # Data cleaning
 df = df.astype({col[0]: flg.sql_type_to_pd_type(col[1]) for col in metadata})
+df["sale_filter_ptax_flag"].fillna(False, inplace=True)
 
 # Exempt sale handling
 exempt_data = df[df["class"] == "EX"]
