@@ -395,7 +395,7 @@ if __name__ == "__main__":
     SQL_QUERY = f"""
     WITH NA_Dates AS (
         SELECT
-            MIN(DATE_TRUNC('MONTH', sale.sale_date)) - INTERVAL '{args["rolling_window_num"]}' MONTH AS StartDate,
+            MIN(DATE_TRUNC('MONTH', sale.sale_date)) - INTERVAL '{rolling_window_num_sql}' MONTH AS StartDate,
             MAX(DATE_TRUNC('MONTH', sale.sale_date)) AS EndDate
         FROM default.vw_card_res_char res
         INNER JOIN default.vw_pin_sale sale
@@ -404,7 +404,7 @@ if __name__ == "__main__":
         LEFT JOIN sale.flag flag
             ON flag.meta_sale_document_num = sale.doc_no
         WHERE flag.sv_is_outlier IS NULL
-            AND sale.sale_date >= DATE {args["time_frame_start"]}
+            AND sale.sale_date >= DATE '{args["time_frame_start"]}'
             AND NOT sale.is_multisale
             AND NOT res.pin_is_multicard
     )
