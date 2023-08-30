@@ -236,6 +236,22 @@ def get_group_mean_df(df, stat_groups, run_id):
     return df_means
 
 
+def modify_dtypes(df):
+    """
+    Helper function for after get_parameter_df()
+    """
+
+    # Convert object columns to string
+    for col in df.select_dtypes("object").columns:
+        df[col] = df[col].astype("string")
+
+    # Convert Int64 columns to int64
+    for col in df.select_dtypes("Int64").columns:
+        df[col] = df[col].astype("int64")
+
+    return df
+
+
 def get_parameter_df(
     df_to_write,
     df_ingest,

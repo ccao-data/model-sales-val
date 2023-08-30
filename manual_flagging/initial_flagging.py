@@ -115,6 +115,9 @@ df_parameters = flg.get_parameter_df(
     run_id=run_id,
 )
 
+# Apply the function to your dataframes
+df_parameters = flg.modify_dtypes(df_parameters)
+
 flg.write_to_table(
     df=df_parameters,
     table_name="parameter",
