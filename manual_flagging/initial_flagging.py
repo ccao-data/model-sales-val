@@ -27,7 +27,10 @@ conn = connect(
     region_name=os.getenv("AWS_REGION"),
 )
 
-date_floor = flg.months_back(date_str=inputs["time_frame"]["start"], num_months=11)
+date_floor = flg.months_back(
+    date_str=inputs["time_frame"]["start"],
+    num_months=inputs["rolling_window_months"] - 1,
+)
 
 # Parse yaml to get which sales to flag
 if inputs["time_frame"]["end"] == None:
@@ -74,7 +77,9 @@ df = df_ingest
 df = df.astype({col[0]: flg.sql_type_to_pd_type(col[1]) for col in metadata})
 
 # Create rolling window
-df_to_flag, num_months_rolling = flg.add_rolling_window(df, num_months=12)
+df_to_flag, num_months_rolling = flg.add_rolling_window(
+    df, num_months=inputs["rolling_window_months"]
+)
 
 # Flag Outliers
 df_flagged = flg_model.go(
@@ -106,7 +111,7 @@ df_parameters = flg.get_parameter_df(
     iso_forest_cols=inputs["iso_forest"],
     stat_groups=inputs["stat_groups"],
     dev_bounds=inputs["dev_bounds"],
-    rolling_window=num_months_rolling,
+    rolling_window=inputs["rolling_window_months"],
     date_floor=inputs["time_frame"]["start"],
     short_term_thresh=SHORT_TERM_OWNER_THRESHOLD,
     run_id=run_id,

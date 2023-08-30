@@ -24,3 +24,5 @@ dev_bounds: [2, 3]
 time_frame:
   start: "2019-01-01"
   end: "2021-12-31"
+
+rolling_window_months: 12

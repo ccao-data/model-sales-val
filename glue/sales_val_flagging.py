@@ -84,7 +84,7 @@ def add_rolling_window(df, num_months):
         )
     )
 
-    return df, num_months
+    return df
 
 
 def finish_flags(df, start_date, manual_update):
@@ -389,6 +389,9 @@ if __name__ == "__main__":
     It takes 11 months of data prior to the earliest unflagged sale up
     to the monthly data of the latest unflagged sale
     """
+
+    rolling_window_num_sql = str(int(args["rolling_window_num"]) - 1)
+
     SQL_QUERY = f"""
     WITH NA_Dates AS (
         SELECT
@@ -469,9 +472,7 @@ if __name__ == "__main__":
         df = df.astype({col[0]: sql_type_to_pd_type(col[1]) for col in metadata})
 
         # Create rolling window
-        df_to_flag, num_months_rolling = add_rolling_window(
-            df, num_months=int(args["rolling_window_num"]) + 1
-        )
+        df_to_flag = add_rolling_window(df, num_months=int(args["rolling_window_num"]))
 
         # Parse glue args
         stat_groups_list = args["stat_groups"].split(",")
@@ -516,7 +517,7 @@ if __name__ == "__main__":
             iso_forest_cols=iso_forest_list,
             stat_groups=stat_groups_list,
             dev_bounds=dev_bounds_list,
-            rolling_window=int(args["rolling_window_num"]) + 1,
+            rolling_window=int(args["rolling_window_num"]),
             date_floor=args["time_frame_start"],
             short_term_thresh=SHORT_TERM_OWNER_THRESHOLD,
             run_id=run_id,
