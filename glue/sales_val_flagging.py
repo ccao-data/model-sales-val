@@ -491,7 +491,7 @@ if __name__ == "__main__":
         # Finish flagging
         df_flagged_final, run_id, timestamp = finish_flags(
             df=df_flagged,
-            start_date={args["time_frame_start"]},
+            start_date=args["time_frame_start"],
             manual_update=False,
         )
 
