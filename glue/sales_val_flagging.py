@@ -238,7 +238,18 @@ def get_group_mean_df(df, stat_groups, run_id):
 
 def modify_dtypes(df):
     """
-    Helper function for after get_parameter_df()
+    Helper function for resolving athena parquet errors.
+
+    Sometimes, when writing data of pandas dtypes to S3/athena, there
+    are errors with consistent metadata between the parquet files, even though
+    in pandas the dtypes are consistent. This script removes all object types
+    and strandardizes int values. This function has proved to be a fix for
+    problems of this nature.
+
+    Inputs:
+       df: df ready to write to parquet in S3
+    Outputs:
+        df: df of standardized dtypes
     """
 
     # Convert object columns to string
