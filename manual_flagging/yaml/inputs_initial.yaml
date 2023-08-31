@@ -1,5 +1,6 @@
 # This file contains relevant inputs for the initial_flagging.py script,
-# which will be run one time when we first populate the flag table in athena.
+# which will (ideally) be run one time when we first populate the flag
+# table in athena.
 ---
 stat_groups: [
   "rolling_window",
@@ -16,3 +17,13 @@ iso_forest: [
 ]
 
 dev_bounds: [2, 3]
+
+# 'start' and 'end' determine which sales will be written to the
+# sale.flag table.
+
+# Leave 'end' blank if we want to flag all sales since start date
+time_frame:
+  start: "2018-01-01"
+  end: "2020-12-31"
+
+rolling_window_months: 12

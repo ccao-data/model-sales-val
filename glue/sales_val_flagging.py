@@ -12,16 +12,49 @@ from pyathena.pandas.util import as_pandas
 from random_word import RandomWords
 
 
-def add_rolling_window(df):
+def months_back(date_str, num_months):
+    """
+    This function returns data from the earliest date needed to be pulled
+    in order to calculate all of the flagging operations with the rolling
+    window operation.
+
+    Inputs:
+        date_str: string that represents earliest date to flag.
+        num_months: number that inidicates how many months back
+            data will be pulled for rolling window
+    Outputs:
+        outputs the earliest date to pull from sql for rolling window
+        operation
+    """
+    # Parse the date string to a datetime object
+    given_date = datetime.datetime.strptime(date_str, "%Y-%m-%d")
+
+    # Handle the month subtraction
+    new_month = given_date.month - num_months
+    if new_month < 1:
+        new_month += 12
+        new_year = given_date.year - 1
+    else:
+        new_year = given_date.year
+
+    # Create the new date with the first day of the month
+    result_date = given_date.replace(year=new_year, month=new_month, day=1)
+    return result_date.strftime("%Y-%m-%d")
+
+
+def add_rolling_window(df, num_months):
     """
     This function implements a rolling window logic such that
     the data is formatted for the flagging script to correctly
     run the year-long window grouping for each obs.
+
+    WARNING: num_months cannot go over 12 or this function breaks
+
     Inputs:
-        df: dataframe of sales that we need to flag, data should be 11 months back
+        df: dataframe of sales that we need to flag, data should be N months back
             from the earliest unflagged sale in order for the rolling window logic to work
     Outputs:
-        df: dataframe that has exploded each observation into 12 observations with a 12 distinct
+        df: dataframe that has exploded each observation into N observations with a 12 distinct
             rolling window columns
     """
     max_date = df["meta_sale_date"].max()
@@ -29,7 +62,7 @@ def add_rolling_window(df):
         # Creates dt column with 12 month dates
         df.assign(
             rolling_window=df["meta_sale_date"].apply(
-                lambda x: pd.date_range(start=x, periods=12, freq="M")
+                lambda x: pd.date_range(start=x, periods=num_months, freq="M")
             )
         )
         # Expand rolling_windows dates to individual rows
@@ -54,7 +87,7 @@ def add_rolling_window(df):
     return df
 
 
-def finish_flags(df, start_date, exempt_data, manual_update):
+def finish_flags(df, start_date, manual_update):
     """
     This functions
         -takes the flagged data from the mansueto code
@@ -63,7 +96,6 @@ def finish_flags(df, start_date, exempt_data, manual_update):
     Inputs:
         df: df flagged with manuesto flagging methodology
         start_date: a limit on how early we flag sales from
-        exempt_data: data of class exempt
         manual_update: whether or not manual_update.py is using this script,
                        if True, adds a versioning capability.
     Outputs:
@@ -108,15 +140,6 @@ def finish_flags(df, start_date, exempt_data, manual_update):
         )
     )
 
-    # Manually impute ex values as non-outliers
-    exempt_to_append = exempt_data.meta_sale_document_num.reset_index().drop(
-        columns="index"
-    )
-    exempt_to_append["sv_is_outlier"] = 0
-    exempt_to_append["sv_is_ptax_outlier"] = 0
-    exempt_to_append["sv_is_heuristic_outlier"] = 0
-    exempt_to_append["sv_outlier_type"] = "Not Outlier"
-
     cols_to_write = [
         "meta_sale_document_num",
         "rolling_window",
@@ -145,13 +168,8 @@ def finish_flags(df, start_date, exempt_data, manual_update):
     if not manual_update:
         dynamic_assignment["version"] = 1
 
-    # Incorporate exempt values and finalize to write to flag table
-    df = (
-        # TODO: exempt will have an NA for rolling_window - make sure that is okay
-        pd.concat([df[cols_to_write], exempt_to_append])
-        .reset_index(drop=True)
-        .assign(**dynamic_assignment)
-    )
+    # Finalize to write to flag table
+    df = df[cols_to_write].assign(**dynamic_assignment)
 
     return df, run_id, timestamp
 
@@ -218,12 +236,41 @@ def get_group_mean_df(df, stat_groups, run_id):
     return df_means
 
 
+def modify_dtypes(df):
+    """
+    Helper function for resolving athena parquet errors.
+
+    Sometimes, when writing data of pandas dtypes to S3/athena, there
+    are errors with consistent metadata between the parquet files, even though
+    in pandas the dtypes are consistent. This script removes all object types
+    and strandardizes int values. This function has proved to be a fix for
+    problems of this nature.
+
+    Inputs:
+       df: df ready to write to parquet in S3
+    Outputs:
+        df: df of standardized dtypes
+    """
+
+    # Convert object columns to string
+    for col in df.select_dtypes("object").columns:
+        df[col] = df[col].astype("string")
+
+    # Convert Int64 columns to int64
+    for col in df.select_dtypes("Int64").columns:
+        df[col] = df[col].astype("int64")
+
+    return df
+
+
 def get_parameter_df(
     df_to_write,
     df_ingest,
     iso_forest_cols,
     stat_groups,
     dev_bounds,
+    rolling_window,
+    date_floor,
     short_term_thresh,
     run_id,
 ):
@@ -238,6 +285,8 @@ def get_parameter_df(
         dev_bounds: standard devation bounds to catch outliers
         short_term_thresh: short-term threshold for mansueto's flagging model
         run_id: unique run_id to flagging program run
+        date_floor: parameter specification that limits earliest flagging write
+        rolling_window: how many months used in rolling window methodology
     Outputs:
         df_parameters: parameters table associated with flagging run
     """
@@ -248,6 +297,8 @@ def get_parameter_df(
     iso_forest_cols = iso_forest_cols
     stat_groups = stat_groups
     dev_bounds = dev_bounds
+    date_floor = date_floor
+    rolling_window = rolling_window
 
     parameter_dict_to_df = {
         "run_id": [run_id],
@@ -258,6 +309,8 @@ def get_parameter_df(
         "iso_forest_cols": [iso_forest_cols],
         "stat_groups": [stat_groups],
         "dev_bounds": [dev_bounds],
+        "rolling_window": [rolling_window],
+        "date_floor": [date_floor],
     }
 
     df_parameters = pd.DataFrame(parameter_dict_to_df)
@@ -324,6 +377,8 @@ if __name__ == "__main__":
             "aws_s3_warehouse_bucket",
             "s3_glue_bucket",
             "stat_groups",
+            "rolling_window_num",
+            "time_frame_start",
             "iso_forest",
             "dev_bounds",
         ],
@@ -361,10 +416,13 @@ if __name__ == "__main__":
     It takes 11 months of data prior to the earliest unflagged sale up
     to the monthly data of the latest unflagged sale
     """
-    SQL_QUERY = """
+
+    rolling_window_num_sql = str(int(args["rolling_window_num"]) - 1)
+
+    SQL_QUERY = f"""
     WITH NA_Dates AS (
         SELECT
-            MIN(DATE_TRUNC('MONTH', sale.sale_date)) - INTERVAL '11' MONTH AS StartDate,
+            MIN(DATE_TRUNC('MONTH', sale.sale_date)) - INTERVAL '{rolling_window_num_sql}' MONTH AS StartDate,
             MAX(DATE_TRUNC('MONTH', sale.sale_date)) AS EndDate
         FROM default.vw_card_res_char res
         INNER JOIN default.vw_pin_sale sale
@@ -373,7 +431,7 @@ if __name__ == "__main__":
         LEFT JOIN sale.flag flag
             ON flag.meta_sale_document_num = sale.doc_no
         WHERE flag.sv_is_outlier IS NULL
-            AND sale.sale_date >= DATE '2021-01-01'
+            AND sale.sale_date >= DATE '{args["time_frame_start"]}'
             AND NOT sale.is_multisale
             AND NOT res.pin_is_multicard
     )
@@ -404,6 +462,10 @@ if __name__ == "__main__":
         ON sale.sale_date BETWEEN NA_Dates.StartDate AND NA_Dates.EndDate
     WHERE NOT sale.is_multisale
     AND NOT res.pin_is_multicard
+    AND res.class IN (
+        '202', '203', '204', '205', '206', '207', '208', '209',
+        '210', '211', '212', '218', '219', '234', '278', '295'
+    )
     """
 
     SQL_QUERY_SALES_VAL = """
@@ -437,12 +499,8 @@ if __name__ == "__main__":
         df = df.astype({col[0]: sql_type_to_pd_type(col[1]) for col in metadata})
         df["sale_filter_ptax_flag"].fillna(False, inplace=True)
 
-        # Exempt sale handling
-        exempt_data = df[df["class"] == "EX"]
-        df = df[df["class"] != "EX"]
-
         # Create rolling window
-        df_to_flag = add_rolling_window(df)
+        df_to_flag = add_rolling_window(df, num_months=int(args["rolling_window_num"]))
 
         # Parse glue args
         stat_groups_list = args["stat_groups"].split(",")
@@ -461,8 +519,7 @@ if __name__ == "__main__":
         # Finish flagging
         df_flagged_final, run_id, timestamp = finish_flags(
             df=df_flagged,
-            start_date="2021-01-01",
-            exempt_data=exempt_data,
+            start_date=args["time_frame_start"],
             manual_update=False,
         )
 
@@ -488,9 +545,14 @@ if __name__ == "__main__":
             iso_forest_cols=iso_forest_list,
             stat_groups=stat_groups_list,
             dev_bounds=dev_bounds_list,
+            rolling_window=int(args["rolling_window_num"]),
+            date_floor=args["time_frame_start"],
             short_term_thresh=SHORT_TERM_OWNER_THRESHOLD,
             run_id=run_id,
         )
+
+        # Standardize dtypes to prevent athena errors
+        df_parameters = modify_dtypes(df_parameters)
 
         write_to_table(
             df=df_parameters,

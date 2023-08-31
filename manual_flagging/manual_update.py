@@ -30,12 +30,17 @@ conn = connect(
     region_name=os.getenv("AWS_REGION"),
 )
 
+date_floor = flg.months_back(
+    date_str=inputs["time_frame"]["start"],
+    num_months=inputs["rolling_window_months"] - 1,
+)
+
 # Parse yaml to get which sales to flag
 if inputs["time_frame"]["end"] == None:
-    sql_time_frame = f"sale.sale_date >= DATE '{inputs['time_frame']['start']}'"
+    sql_time_frame = f"sale.sale_date >= DATE '{date_floor}'"
 else:
     sql_time_frame = f"""(sale.sale_date 
-        BETWEEN DATE '{inputs['time_frame']['start']}'
+        BETWEEN DATE '{date_floor}'
         AND DATE '{inputs['time_frame']['end']}')"""
 
 SQL_QUERY = f"""
@@ -58,6 +63,10 @@ INNER JOIN default.vw_pin_sale sale
 WHERE {sql_time_frame}
 AND NOT sale.is_multisale
 AND NOT res.pin_is_multicard
+AND res.class IN (
+    '202', '203', '204', '205', '206', '207', '208', '209',
+    '210', '211', '212', '218', '219', '234', '278', '295'
+)
 """
 
 SQL_QUERY_SALES_VAL = """
@@ -80,12 +89,8 @@ df_flag_table = df_ingest_flag
 df = df.astype({col[0]: flg.sql_type_to_pd_type(col[1]) for col in metadata})
 df["sale_filter_ptax_flag"].fillna(False, inplace=True)
 
-# Exempt sale handling
-exempt_data = df[df["class"] == "EX"]
-df = df[df["class"] != "EX"]
-
 # Create rolling window
-df_to_flag = flg.add_rolling_window(df)
+df_to_flag = flg.add_rolling_window(df, num_months=inputs["rolling_window_months"])
 
 # Flag Outliers
 df_flagged = flg_model.go(
@@ -97,7 +102,9 @@ df_flagged = flg_model.go(
 
 # Finish flagging
 df_flagged_final, run_id, timestamp = flg.finish_flags(
-    df=df_flagged, start_date="2019-01-01", exempt_data=exempt_data, manual_update=True
+    df=df_flagged,
+    start_date=inputs["time_frame"]["start"],
+    manual_update=True,
 )
 
 # - - - - - -
@@ -140,9 +147,14 @@ df_parameters = flg.get_parameter_df(
     iso_forest_cols=inputs["iso_forest"],
     stat_groups=inputs["stat_groups"],
     dev_bounds=inputs["dev_bounds"],
+    rolling_window=inputs["rolling_window_months"],
+    date_floor=inputs["time_frame"]["start"],
     short_term_thresh=SHORT_TERM_OWNER_THRESHOLD,
     run_id=run_id,
 )
+
+# Standardize dtypes to prevent athena errors
+df_parameters = flg.modify_dtypes(df_parameters)
 
 flg.write_to_table(
     df=df_parameters,
