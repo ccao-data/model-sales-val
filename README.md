@@ -102,15 +102,13 @@ erDiagram
 # Important Flagging Details  
 
 ### Rolling Window    
-In a number of outlier calculations, our flagging model looks inside a group of sales and classifies them as outliers based on whether or not they are a certain standard devation away from the mean. If there needs to be a change in this methodology, it is important to understand how and where this rolling window is working. The methodology for which group of sales we are looking at is as follows:  
-- We take every sale in the month of the sale date, along with all sale data from the previous 11 months. This window contain roughly 1 year of data  
+In a number of outlier calculations, our flagging model looks inside a group of sales and classifies them as outliers based on whether or not they are a certain standard devation away from the mean. In order to make these groups, we use a rolling window strategy. The current implementation uses a 12 month rolling window. This means that for any sale in a month, the group for these sales is within the given month of the sales, along with all sale data from the previous 11 months. This 12 month figure can be changed by editing the config files: `manual_flagging/yaml/` and `glue/sales_val_flagging.json` files. Here are details on where this code lives:  
+- We take every sale in the month of the sale date, along with all sale data from the previous N months. This window contain roughly 1 year of data  
 - This process start here with a `.explode()` of the data:  https://github.com/ccao-data/model-sales-val/blob/283a1403545019be135b4b9dbc67d86dabb278f4/glue/sales_val_flagging.py#L15  
 - And it ends here subsetting subsetting to the `original_observation` data:  https://github.com/ccao-data/model-sales-val/blob/499f9e31c92882312051837f35455d078d2507ee/glue/sales_val_flagging.py#L57  
 - Corresponding functions in Mansueto's flagging model accomodate this rolling window integration, these functions are defined in each of the flagging functions, one in `manual_flagging/src/flagging_rolling.py`, and one for the glue job in s3 `glue/flagging_script_glue/flagging_<hash>.py`:     
     - https://github.com/ccao-data/model-sales-val/blob/499f9e31c92882312051837f35455d078d2507ee/manual_flagging/src/flagging_rolling.py#L303
     - https://github.com/ccao-data/model-sales-val/blob/283a1403545019be135b4b9dbc67d86dabb278f4/manual_flagging/src/flagging_rolling.py#L456
-
-:exclamation: Based on the logic of the rolling window calculation, the window cannot extend more than 11 months backwards. To accomodate a longer window, the `add_rolling_window()` function would need to be restructured.  
 
 # AWS Glue Job Documentation
 

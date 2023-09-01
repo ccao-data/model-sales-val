@@ -117,7 +117,7 @@ df_parameters = flg.get_parameter_df(
 )
 
 # Standardize dtypes to prevent athena errors
-df_parameters = modify_dtypes(df_parameters)
+df_parameters = flg.modify_dtypes(df_parameters)
 
 flg.write_to_table(
     df=df_parameters,

@@ -10,6 +10,7 @@ import sys
 from pyathena import connect
 from pyathena.pandas.util import as_pandas
 from random_word import RandomWords
+from dateutil.relativedelta import relativedelta
 
 
 def months_back(date_str, num_months):
@@ -20,25 +21,20 @@ def months_back(date_str, num_months):
 
     Inputs:
         date_str: string that represents earliest date to flag.
-        num_months: number that inidicates how many months back
+        num_months: number that indicates how many months back
             data will be pulled for rolling window
     Outputs:
-        outputs the earliest date to pull from sql for rolling window
-        operation
+        str: a date in string format set to the first day of the month
+            that is num_months months back from date_str
     """
-    # Parse the date string to a datetime object
-    given_date = datetime.datetime.strptime(date_str, "%Y-%m-%d")
+    # Parse the date string to a datetime object and subtract the months
+    result_date = datetime.datetime.strptime(date_str, "%Y-%m-%d") - relativedelta(
+        months=num_months
+    )
 
-    # Handle the month subtraction
-    new_month = given_date.month - num_months
-    if new_month < 1:
-        new_month += 12
-        new_year = given_date.year - 1
-    else:
-        new_year = given_date.year
+    # Set the day to 1
+    result_date = result_date.replace(day=1)
 
-    # Create the new date with the first day of the month
-    result_date = given_date.replace(year=new_year, month=new_month, day=1)
     return result_date.strftime("%Y-%m-%d")
 
 
@@ -48,13 +44,11 @@ def add_rolling_window(df, num_months):
     the data is formatted for the flagging script to correctly
     run the year-long window grouping for each obs.
 
-    WARNING: num_months cannot go over 12 or this function breaks
-
     Inputs:
         df: dataframe of sales that we need to flag, data should be N months back
             from the earliest unflagged sale in order for the rolling window logic to work
     Outputs:
-        df: dataframe that has exploded each observation into N observations with a 12 distinct
+        df: dataframe that has exploded each observation into N observations with a N months distinct
             rolling window columns
     """
     max_date = df["meta_sale_date"].max()
@@ -69,8 +63,10 @@ def add_rolling_window(df, num_months):
         .explode("rolling_window")
         # Tag original observations
         .assign(
-            original_observation=lambda df: df["meta_sale_date"].dt.month
-            == df["rolling_window"].dt.month
+            original_observation=lambda df: (
+                df["meta_sale_date"].dt.month == df["rolling_window"].dt.month
+            )
+            & (df["meta_sale_date"].dt.year == df["rolling_window"].dt.year)
         )
         # Simplify to month level
         .assign(rolling_window=lambda df: df["rolling_window"].dt.to_period("M"))
