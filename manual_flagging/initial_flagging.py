@@ -139,9 +139,9 @@ df_res = df[
             "295",
         ]
     )
-]
+].reset_index()
 
-df_condo = df[df["class"].isin(["297", "299", "399"])]
+df_condo = df[df["class"].isin(["297", "299", "399"])].reset_index(drop=True)
 
 
 # Create rolling windows
@@ -161,23 +161,23 @@ df_res_flagged = flg_model.go(
     condos=False,
 )
 
+# Flag condo outliers
 condo_iso_forest = inputs["iso_forest"].copy()
-condo_iso_forest.remove("sv_days_since_last_transaction")
+condo_iso_forest.remove("sv_price_per_sqft")
 
 df_condo_flagged = flg_model.go(
-    df=df_res_to_flag,
+    df=df_condo_to_flag,
     groups=tuple(inputs["stat_groups"]),
     iso_forest_cols=condo_iso_forest,
     dev_bounds=tuple(inputs["dev_bounds"]),
     condos=True,
 )
-# - - -
-# Combine data here
-# - - -
+
+df_merged = pd.concat([df_res_flagged, df_condo_flagged])
 
 # Finish flagging and subset to write to flag table
 df_to_write, run_id, timestamp = flg.finish_flags(
-    df=df_res_flagged,
+    df=df_merged,
     start_date=inputs["time_frame"]["start"],
     manual_update=False,
 )
