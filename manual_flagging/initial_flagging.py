@@ -173,7 +173,7 @@ df_condo_flagged = flg_model.go(
     condos=True,
 )
 
-df_merged = pd.concat([df_res_flagged, df_condo_flagged])
+df_merged = pd.concat([df_res_flagged, df_condo_flagged]).reset_index(drop=True)
 
 # Finish flagging and subset to write to flag table
 df_to_write, run_id, timestamp = flg.finish_flags(
@@ -204,7 +204,7 @@ df_parameters = flg.get_parameter_df(
 )
 
 # Standardize dtypes to prevent athena errors
-df_parameters = modify_dtypes(df_parameters)
+df_parameters = flg.modify_dtypes(df_parameters)
 
 flg.write_to_table(
     df=df_parameters,
@@ -214,8 +214,17 @@ flg.write_to_table(
 )
 
 # Write to group_mean table
-df_write_group_mean = flg.get_group_mean_df(
-    df=df_flagged, stat_groups=inputs["stat_groups"], run_id=run_id
+df_res_group_mean = flg.get_group_mean_df(
+    df=df_res_flagged, stat_groups=inputs["stat_groups"], run_id=run_id
+)
+
+# Write to group_mean table
+df_condo_group_mean = flg.get_group_mean_df(
+    df=df_condo_flagged, stat_groups=inputs["stat_groups"], run_id=run_id
+)
+
+df_group_mean_merged = pd.concat([df_res_group_mean, df_condo_group_mean]).reset_index(
+    drop=True
 )
 
 flg.write_to_table(

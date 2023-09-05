@@ -169,7 +169,7 @@ def finish_flags(df, start_date, manual_update):
         dynamic_assignment["version"] = 1
 
     # Finalize to write to flag table
-    df = df[cols_to_write].assign(**dynamic_assignment)
+    df = df[cols_to_write].assign(**dynamic_assignment).reset_index(drop=True)
 
     return df, run_id, timestamp
 
