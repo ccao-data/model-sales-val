@@ -38,7 +38,10 @@ def go(
     """
 
     condos = condos
-    print(f"Flagging for Condos: {condos}")
+    if condos:
+        print("Flagging for condos")
+    else:
+        print("Flagging for residential")
 
     print("Initialize")
     df = create_stats(df, groups, condos=condos)  # 'year', 'township_code', 'class'
