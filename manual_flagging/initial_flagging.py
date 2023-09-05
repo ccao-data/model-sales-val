@@ -114,10 +114,7 @@ df = df_ingest
 df = df.astype({col[0]: flg.sql_type_to_pd_type(col[1]) for col in metadata})
 df["sale_filter_ptax_flag"].fillna(False, inplace=True)
 
-# - - -
-# separate data  here?
-# - - -
-
+# Separate res and condo sales
 df_res = df[
     df["class"].isin(
         [
@@ -142,7 +139,6 @@ df_res = df[
 ].reset_index()
 
 df_condo = df[df["class"].isin(["297", "299", "399"])].reset_index(drop=True)
-
 
 # Create rolling windows
 df_res_to_flag = flg.add_rolling_window(

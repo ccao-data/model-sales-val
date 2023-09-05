@@ -23,7 +23,7 @@ dev_bounds: [2, 3]
 
 # Leave 'end' blank if we want to flag all sales since start date
 time_frame:
-  start: "2018-01-01"
+  start: "2019-01-01"
   end: "2020-12-31"
 
 rolling_window_months: 12

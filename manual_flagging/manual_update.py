@@ -44,6 +44,41 @@ else:
         AND DATE '{inputs['time_frame']['end']}')"""
 
 SQL_QUERY = f"""
+WITH CombinedData AS (
+    -- Select data from vw_card_res_char
+    SELECT
+        'res_char' AS source_table,
+        res.class AS class,
+        res.township_code AS township_code,
+        res.year AS year,
+        res.pin AS pin,
+        res.char_bldg_sf AS char_bldg_sf,
+        res.pin_is_multicard
+    FROM default.vw_card_res_char res
+    WHERE res.class IN (
+        '202', '203', '204', '205', '206', '207', '208', '209',
+        '210', '211', '212', '218', '219', '234', '278', '295'
+    )
+
+    UNION ALL
+
+    -- Selecting data from vw_pin_condo_char
+    SELECT
+        'condo_char' AS source_table,
+        condo.class AS class,
+        condo.township_code AS township_code,
+        condo.year AS year,
+        condo.pin AS pin,
+        NULL AS char_bldg_sf,
+        FALSE AS pin_is_multicard
+    FROM default.vw_pin_condo_char condo
+    WHERE condo.class IN ('297', '299', '399')
+    AND NOT condo.is_parking_space
+    AND NOT condo.is_common_area
+    AND condo.is_question_garage_unit IS NULL
+)
+
+-- Now, join with sale table and filters
 SELECT
     sale.sale_price AS meta_sale_price,
     sale.sale_date AS meta_sale_date,
@@ -51,21 +86,20 @@ SELECT
     sale.seller_name AS meta_sale_seller_name,
     sale.buyer_name AS meta_sale_buyer_name,
     sale.sale_filter_ptax_flag,
-    res.class AS class,
-    res.township_code AS township_code,
-    res.year AS year,
-    res.pin AS pin,
-    res.char_bldg_sf AS char_bldg_sf
-FROM default.vw_card_res_char res
+    data.class,
+    data.township_code,
+    data.year,
+    data.pin,
+    data.char_bldg_sf
+FROM CombinedData data
 INNER JOIN default.vw_pin_sale sale
-    ON sale.pin = res.pin
-    AND sale.year = res.year
+    ON sale.pin = data.pin
+    AND sale.year = data.year
 WHERE {sql_time_frame}
 AND NOT sale.is_multisale
-AND NOT res.pin_is_multicard
-AND res.class IN (
-    '202', '203', '204', '205', '206', '207', '208', '209',
-    '210', '211', '212', '218', '219', '234', '278', '295'
+AND (
+    NOT data.pin_is_multicard 
+    OR data.source_table = 'condo_char'
 )
 """
 
@@ -89,20 +123,67 @@ df_flag_table = df_ingest_flag
 df = df.astype({col[0]: flg.sql_type_to_pd_type(col[1]) for col in metadata})
 df["sale_filter_ptax_flag"].fillna(False, inplace=True)
 
-# Create rolling window
-df_to_flag = flg.add_rolling_window(df, num_months=inputs["rolling_window_months"])
+# Separate res and condo sales
+df_res = df[
+    df["class"].isin(
+        [
+            "202",
+            "203",
+            "204",
+            "205",
+            "206",
+            "207",
+            "208",
+            "209",
+            "210",
+            "211",
+            "212",
+            "218",
+            "219",
+            "234",
+            "278",
+            "295",
+        ]
+    )
+].reset_index()
 
-# Flag Outliers
-df_flagged = flg_model.go(
-    df=df_to_flag,
+df_condo = df[df["class"].isin(["297", "299", "399"])].reset_index(drop=True)
+
+# Create rolling windows
+df_res_to_flag = flg.add_rolling_window(
+    df_res, num_months=inputs["rolling_window_months"]
+)
+df_condo_to_flag = flg.add_rolling_window(
+    df_condo, num_months=inputs["rolling_window_months"]
+)
+
+
+# Flag Res Outliers
+df_res_flagged = flg_model.go(
+    df=df_res_to_flag,
     groups=tuple(inputs["stat_groups"]),
     iso_forest_cols=inputs["iso_forest"],
     dev_bounds=tuple(inputs["dev_bounds"]),
+    condos=False,
 )
 
-# Finish flagging
+# Flag condo outliers
+condo_iso_forest = inputs["iso_forest"].copy()
+condo_iso_forest.remove("sv_price_per_sqft")
+
+df_condo_flagged = flg_model.go(
+    df=df_condo_to_flag,
+    groups=tuple(inputs["stat_groups"]),
+    iso_forest_cols=condo_iso_forest,
+    dev_bounds=tuple(inputs["dev_bounds"]),
+    condos=True,
+)
+
+df_flagged_merged = pd.concat([df_res_flagged, df_condo_flagged]).reset_index(drop=True)
+
+# Finish flagging and subset to write to flag table
 df_flagged_final, run_id, timestamp = flg.finish_flags(
-    df=df_flagged,
+    df=df_flagged_merged,
     start_date=inputs["time_frame"]["start"],
     manual_update=True,
 )
@@ -164,12 +245,21 @@ flg.write_to_table(
 )
 
 # Write to group_mean table
-df_write_group_mean = flg.get_group_mean_df(
-    df=df_flagged, stat_groups=inputs["stat_groups"], run_id=run_id
+df_res_group_mean = flg.get_group_mean_df(
+    df=df_res_flagged, stat_groups=inputs["stat_groups"], run_id=run_id, condos=False
+)
+
+# Write to group_mean table
+df_condo_group_mean = flg.get_group_mean_df(
+    df=df_condo_flagged, stat_groups=inputs["stat_groups"], run_id=run_id, condos=True
+)
+
+df_group_mean_merged = pd.concat([df_res_group_mean, df_condo_group_mean]).reset_index(
+    drop=True
 )
 
 flg.write_to_table(
-    df=df_write_group_mean,
+    df=df_group_mean_merged,
     table_name="group_mean",
     s3_warehouse_bucket_path=os.getenv("AWS_S3_WAREHOUSE_BUCKET"),
     run_id=run_id,
