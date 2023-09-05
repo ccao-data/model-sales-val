@@ -40,7 +40,44 @@ else:
         BETWEEN DATE '{date_floor}'
         AND DATE '{inputs['time_frame']['end']}')"""
 
+
+# Returning no data for some reason
 SQL_QUERY = f"""
+WITH CombinedData AS (
+    -- Select data from vw_card_res_char
+    SELECT
+        'res_char' AS source_table,
+        res.class AS class,
+        res.township_code AS township_code,
+        res.year AS year,
+        res.pin AS pin,
+        res.char_bldg_sf AS char_bldg_sf,
+        res.pin_is_multicard
+    FROM default.vw_card_res_char res
+    WHERE res.class IN (
+        '202', '203', '204', '205', '206', '207', '208', '209',
+        '210', '211', '212', '218', '219', '234', '278', '295'
+    )
+
+    UNION ALL
+
+    -- Selecting data from vw_pin_condo_char
+    SELECT
+        'condo_char' AS source_table,
+        condo.class AS class,
+        condo.township_code AS township_code,
+        condo.year AS year,
+        condo.pin AS pin,
+        NULL AS char_bldg_sf,
+        FALSE AS pin_is_multicard
+    FROM default.vw_pin_condo_char condo
+    WHERE condo.class IN ('297', '299', '399')
+    AND NOT condo.is_parking_space
+    AND NOT condo.is_common_area
+    AND condo.is_question_garage_unit IS NULL
+)
+
+-- Now, join with sale table and filters
 SELECT
     sale.sale_price AS meta_sale_price,
     sale.sale_date AS meta_sale_date,
@@ -48,23 +85,23 @@ SELECT
     sale.seller_name AS meta_sale_seller_name,
     sale.buyer_name AS meta_sale_buyer_name,
     sale.sale_filter_ptax_flag,
-    res.class AS class,
-    res.township_code AS township_code,
-    res.year AS year,
-    res.pin AS pin,
-    res.char_bldg_sf AS char_bldg_sf
-FROM default.vw_card_res_char res
+    data.class,
+    data.township_code,
+    data.year,
+    data.pin,
+    data.char_bldg_sf
+FROM CombinedData data
 INNER JOIN default.vw_pin_sale sale
-    ON sale.pin = res.pin
-    AND sale.year = res.year
+    ON sale.pin = data.pin
+    AND sale.year = data.year
 WHERE {sql_time_frame}
 AND NOT sale.is_multisale
-AND NOT res.pin_is_multicard
-AND res.class IN (
-    '202', '203', '204', '205', '206', '207', '208', '209',
-    '210', '211', '212', '218', '219', '234', '278', '295'
+AND (
+    NOT data.pin_is_multicard 
+    OR data.source_table = 'condo_char'
 )
 """
+
 
 # Execute query and return as pandas df
 cursor = conn.cursor()
@@ -77,6 +114,36 @@ df = df_ingest
 df = df.astype({col[0]: flg.sql_type_to_pd_type(col[1]) for col in metadata})
 df["sale_filter_ptax_flag"].fillna(False, inplace=True)
 
+# - - -
+# separate data  here?
+# - - -
+
+df_res = df[
+    df["class"].isin(
+        [
+            "202",
+            "203",
+            "204",
+            "205",
+            "206",
+            "207",
+            "208",
+            "209",
+            "210",
+            "211",
+            "212",
+            "218",
+            "219",
+            "234",
+            "278",
+            "295",
+        ]
+    )
+]
+
+df_condo = df[df["class"].isin(["297", "299", "399"])]
+
+
 # Create rolling window
 df_to_flag = flg.add_rolling_window(df, num_months=inputs["rolling_window_months"])
 
@@ -87,6 +154,10 @@ df_flagged = flg_model.go(
     iso_forest_cols=inputs["iso_forest"],
     dev_bounds=tuple(inputs["dev_bounds"]),
 )
+
+# - - -
+# Combine data here
+# - - -
 
 # Finish flagging and subset to write to flag table
 df_to_write, run_id, timestamp = flg.finish_flags(
