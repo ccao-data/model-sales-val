@@ -173,11 +173,11 @@ df_condo_flagged = flg_model.go(
     condos=True,
 )
 
-df_merged = pd.concat([df_res_flagged, df_condo_flagged]).reset_index(drop=True)
+df_flagged_merged = pd.concat([df_res_flagged, df_condo_flagged]).reset_index(drop=True)
 
 # Finish flagging and subset to write to flag table
 df_to_write, run_id, timestamp = flg.finish_flags(
-    df=df_merged,
+    df=df_flagged_merged,
     start_date=inputs["time_frame"]["start"],
     manual_update=False,
 )
@@ -215,12 +215,12 @@ flg.write_to_table(
 
 # Write to group_mean table
 df_res_group_mean = flg.get_group_mean_df(
-    df=df_res_flagged, stat_groups=inputs["stat_groups"], run_id=run_id
+    df=df_res_flagged, stat_groups=inputs["stat_groups"], run_id=run_id, condos=False
 )
 
 # Write to group_mean table
 df_condo_group_mean = flg.get_group_mean_df(
-    df=df_condo_flagged, stat_groups=inputs["stat_groups"], run_id=run_id
+    df=df_condo_flagged, stat_groups=inputs["stat_groups"], run_id=run_id, condos=True
 )
 
 df_group_mean_merged = pd.concat([df_res_group_mean, df_condo_group_mean]).reset_index(
@@ -228,7 +228,7 @@ df_group_mean_merged = pd.concat([df_res_group_mean, df_condo_group_mean]).reset
 )
 
 flg.write_to_table(
-    df=df_write_group_mean,
+    df=df_group_mean_merged,
     table_name="group_mean",
     s3_warehouse_bucket_path=os.getenv("AWS_S3_WAREHOUSE_BUCKET"),
     run_id=run_id,

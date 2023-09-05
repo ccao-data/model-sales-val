@@ -192,7 +192,7 @@ def sql_type_to_pd_type(sql_type):
 # - - - - - - - - - - - - - -
 
 
-def get_group_mean_df(df, stat_groups, run_id):
+def get_group_mean_df(df, stat_groups, run_id, condos):
     """
     This function creates group_mean table to write to athena. This allows
     us to trace back why some sales may have been flagged within our flagging model
@@ -214,7 +214,11 @@ def get_group_mean_df(df, stat_groups, run_id):
     )
 
     groups_string_col = "_".join(map(str, stat_groups))
-    suffixes = ["mean_price", "mean_price_per_sqft"]
+
+    if condos == False:
+        suffixes = ["mean_price", "mean_price_per_sqft"]
+    else:
+        suffixes = ["mean_price"]
 
     cols_to_write_means = stat_groups + [
         f"sv_{suffix}_{groups_string_col}" for suffix in suffixes
