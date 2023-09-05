@@ -144,24 +144,40 @@ df_res = df[
 df_condo = df[df["class"].isin(["297", "299", "399"])]
 
 
-# Create rolling window
-df_to_flag = flg.add_rolling_window(df, num_months=inputs["rolling_window_months"])
+# Create rolling windows
+df_res_to_flag = flg.add_rolling_window(
+    df_res, num_months=inputs["rolling_window_months"]
+)
+df_condo_to_flag = flg.add_rolling_window(
+    df_condo, num_months=inputs["rolling_window_months"]
+)
 
-# Flag Outliers
-df_flagged = flg_model.go(
-    df=df_to_flag,
+# Flag Res Outliers
+df_res_flagged = flg_model.go(
+    df=df_res_to_flag,
     groups=tuple(inputs["stat_groups"]),
     iso_forest_cols=inputs["iso_forest"],
     dev_bounds=tuple(inputs["dev_bounds"]),
+    condos=False,
 )
 
+condo_iso_forest = inputs["iso_forest"].copy()
+condo_iso_forest.remove("sv_days_since_last_transaction")
+
+df_condo_flagged = flg_model.go(
+    df=df_res_to_flag,
+    groups=tuple(inputs["stat_groups"]),
+    iso_forest_cols=condo_iso_forest,
+    dev_bounds=tuple(inputs["dev_bounds"]),
+    condos=True,
+)
 # - - -
 # Combine data here
 # - - -
 
 # Finish flagging and subset to write to flag table
 df_to_write, run_id, timestamp = flg.finish_flags(
-    df=df_flagged,
+    df=df_res_flagged,
     start_date=inputs["time_frame"]["start"],
     manual_update=False,
 )
