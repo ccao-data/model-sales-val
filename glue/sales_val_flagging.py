@@ -522,8 +522,13 @@ if __name__ == "__main__":
     df_ingest_full = as_pandas(cursor)
     df = df_ingest_full
 
+    # Filter the dataframe to look at sales we are interested in flagging, not prior rolling window data
+    filtered_df = df_ingest_full[
+        df_ingest_full["meta_sale_date"] >= args["time_frame_start"]
+    ]
+
     # Skip rest of script if no new unflagged sales
-    if df_ingest_full.sv_outlier_type.isna().sum() == 0:
+    if filtered_df.sv_outlier_type.isna().sum() == 0:
         print("WARNING: No new sales to flag")
     else:
         # Grab existing sales val table for later join
