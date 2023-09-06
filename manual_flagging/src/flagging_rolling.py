@@ -78,6 +78,7 @@ def outlier_taxonomy(df: pd.DataFrame, permut: tuple, groups: tuple, condos: boo
         permut (tuple): permutation of std deviations
         groups (tuple): columns to do grouping on.
                         Probably 'township' and 'class'.
+        condos (bool): Specifies whether we are running function for condos or residential
     Ouputs:
         df (pd.DataFrame): dataframe with outlier taxonomy
     """
@@ -180,6 +181,7 @@ def pricing_info(
         df (pd.DataFrame): dataframe of sales
         permut (tuple): tuple of standard deviation boundaries.
                         Ex: (2,2) is 2 std away on both sides.
+        condos (bool): Specifies whether we are running function for condos or residential
     Outputs:
         df (pd.DataFrame): dataframe with 3 extra columns of price info.
     """
@@ -307,6 +309,7 @@ def price_column(row: pd.Series, thresholds: dict, groups: tuple, condos: bool) 
     If the record is also a price change outlier, than add 'swing' to the string.
     Inputs:
         thresholds (dict): dict of standard deviation thresholds from get_thresh()
+        condos (bool): Specifies whether we are running function for condos or residential
     Outputs:
         value (str): string showing what kind of price outlier the record is.
     """
@@ -402,6 +405,7 @@ def create_stats(df: pd.DataFrame, groups: tuple, condos: bool) -> pd.DataFrame:
     Inputs:
         df (pd.DataFrame): Dataframe to create statistics from
         groups (tuple): grouping for groupby. Usually 'township' and 'class'
+        condos (bool): Specifies whether we are running function for condos or residential
     Outputs:
         df(pd.DataFrame): dataframe with statistical measures calculated.
     """
@@ -528,6 +532,7 @@ def grouping_mean(df: pd.DataFrame, groups: tuple, condos: bool) -> pd.DataFrame
     Inputs:
         df (pd.DataFrame): dataframe with the grouping columns
         groups (tuple): tuple (len == 2) where each element is a column name to be grouped by.
+        condos (bool): Specifies whether we are running function for condos or residential
     Outputs:
         df (pd.DataFrame): dataframe with grouped by mean column
     """
