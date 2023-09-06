@@ -572,7 +572,7 @@ if __name__ == "__main__":
         # Parse glue args
         stat_groups_list = args["stat_groups"].split(",")
         iso_forest_list = args["iso_forest"].split(",")
-        dev_bounds_list = args["dev_bounds"].split(",")
+        dev_bounds_list = list(map(int, args["dev_bounds"].split(",")))
         dev_bounds_tuple = tuple(map(int, args["dev_bounds"].split(",")))
 
         # Flag Res Outliers
