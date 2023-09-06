@@ -136,7 +136,7 @@ df_res = df[
             "295",
         ]
     )
-].reset_index()
+].reset_index(drop=True)
 
 df_condo = df[df["class"].isin(["297", "299", "399"])].reset_index(drop=True)
 
