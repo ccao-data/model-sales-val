@@ -443,6 +443,7 @@ if __name__ == "__main__":
             "s3_staging_dir",
             "aws_s3_warehouse_bucket",
             "s3_glue_bucket",
+            "s3_prefix",
             "stat_groups",
             "rolling_window_num",
             "time_frame_start",
@@ -457,7 +458,7 @@ if __name__ == "__main__":
 
     # List objects in the S3 bucket and prefix
     objects = s3.list_objects(
-        Bucket=args["s3_glue_bucket"], Prefix="scripts/sales-val/"
+        Bucket=args["s3_glue_bucket"], Prefix=args["s3_prefix"]
     )
 
     # Read in flagging script
@@ -536,7 +537,7 @@ if __name__ == "__main__":
         AND NOT sale.is_multisale
         AND (NOT data.pin_is_multicard OR data.source_table = 'condo_char')
     )
-    SELECT 
+    SELECT
         sale.sale_price AS meta_sale_price,
         sale.sale_date AS meta_sale_date,
         sale.doc_no AS meta_sale_document_num,
