@@ -37,7 +37,6 @@ def go(
         df (pandas dataframe):
     """
 
-    condos = condos
     if condos:
         print("Flagging for condos")
     else:
