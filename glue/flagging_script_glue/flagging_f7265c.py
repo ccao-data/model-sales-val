@@ -404,19 +404,18 @@ def create_stats(df: pd.DataFrame, groups: tuple, condos: bool) -> pd.DataFrame:
     Outputs:
         df(pd.DataFrame): dataframe with statistical measures calculated.
     """
-    if condos == True:
-        df = grouping_mean(df, groups, condos=condos)
-        df = dup_stats(df, groups)
-        df = transaction_days(df)
-        df = percent_change(df)
 
-    else:
+    if not condos:
         df = price_sqft(df)
-        df = grouping_mean(df, groups, condos=condos)
+
+    df = grouping_mean(df, groups, condos=condos)
+
+    if not condos:
         df = deviation_dollars(df, groups)
-        df = dup_stats(df, groups)
-        df = transaction_days(df)
-        df = percent_change(df)
+
+    df = dup_stats(df, groups)
+    df = transaction_days(df)
+    df = percent_change(df)
 
     return df
 
