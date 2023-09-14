@@ -309,88 +309,41 @@ def price_column(row: pd.Series, thresholds: dict, groups: tuple, condos: bool) 
     Outputs:
         value (str): string showing what kind of price outlier the record is.
     """
-    value = "Not price outlier"
-    price = False
-
     group_string = create_group_string(groups, "_")
     key = tuple(row[group] for group in groups)
 
-    if condos == True:
-        if thresholds.get(f"sv_price_deviation_{group_string}").get(key):
-            s_std, *s_std_range = thresholds.get(
-                f"sv_price_deviation_{group_string}"
-            ).get(key)
-            s_lower, s_upper = s_std_range
+    price_deviation = f"sv_price_deviation_{group_string}"
+    price_sqft_deviation = f"sv_price_per_sqft_deviation_{group_string}"
+    cgdr_deviation = f"sv_cgdr_deviation_{group_string}"
 
-            if row[f"sv_price_deviation_{group_string}"] > s_upper:
-                value = "High price"
-                price = True
-            elif row[f"sv_price_deviation_{group_string}"] < s_lower:
-                value = "Low price"
-                price = True
+    price_thresholds = thresholds.get(price_deviation, {}).get(key, [None, None, None])
+    sqft_thresholds = thresholds.get(price_sqft_deviation, {}).get(
+        key, [None, None, None]
+    )
+    cgdr_thresholds = thresholds.get(cgdr_deviation, {}).get(key, [None, None, None])
 
-            if (
-                price
-                and pd.notnull(row[f"sv_cgdr_deviation_{group_string}"])
-                and thresholds.get(f"sv_cgdr_deviation_{group_string}").get(key)
-            ):
-                # not every combo will have pct change info so we need this check
-                p_std, *p_std_range = thresholds.get(
-                    f"sv_cgdr_deviation_{group_string}"
-                ).get(key)
+    s_std, s_lower, s_upper = price_thresholds
+    sq_std, sq_lower, sq_upper = sqft_thresholds
+    p_std, p_lower, p_upper = cgdr_thresholds
 
-                p_lower, p_upper = p_std_range
-                if row[
-                    "sv_price_movement"
-                ] == "Away from mean" and not between_two_numbers(
-                    row[f"sv_cgdr_deviation_{group_string}"], p_lower, p_upper
-                ):
-                    value += " swing"
+    value = "Not price outlier"
 
+    if condos:
+        if row[price_deviation] > s_upper:
+            value = "High price"
+        elif row[price_deviation] < s_lower:
+            value = "Low price"
     else:
-        if thresholds.get(f"sv_price_deviation_{group_string}").get(
-            key
-        ) and thresholds.get(f"sv_price_per_sqft_deviation_{group_string}").get(key):
-            s_std, *s_std_range = thresholds.get(
-                f"sv_price_deviation_{group_string}"
-            ).get(key)
-            s_lower, s_upper = s_std_range
+        if row[price_deviation] > s_upper or row[price_sqft_deviation] > sq_upper:
+            value = "High price"
+        elif row[price_deviation] < s_lower or row[price_sqft_deviation] < sq_lower:
+            value = "Low price"
 
-            sq_std, *sq_std_range = thresholds.get(
-                f"sv_price_per_sqft_deviation_{group_string}"
-            ).get(key)
-            sq_lower, sq_upper = sq_std_range
-
-            if (
-                row[f"sv_price_deviation_{group_string}"] > s_upper
-                or row[f"sv_price_per_sqft_deviation_{group_string}"] > sq_upper
-            ):
-                value = "High price"
-                price = True
-            elif (
-                row[f"sv_price_deviation_{group_string}"] < s_lower
-                or row[f"sv_price_per_sqft_deviation_{group_string}"] < sq_lower
-            ):
-                value = "Low price"
-                price = True
-
-            if (
-                price
-                and pd.notnull(row[f"sv_cgdr_deviation_{group_string}"])
-                and thresholds.get(f"sv_cgdr_deviation_{group_string}").get(key)
-            ):
-                # not every combo will have pct change info so we need this check
-                p_std, *p_std_range = thresholds.get(
-                    f"sv_cgdr_deviation_{group_string}"
-                ).get(key)
-
-                p_lower, p_upper = p_std_range
-                if row[
-                    "sv_price_movement"
-                ] == "Away from mean" and not between_two_numbers(
-                    row[f"sv_cgdr_deviation_{group_string}"], p_lower, p_upper
-                ):
-                    value += " swing"
+    if value != "Not price outlier" and pd.notnull(row[cgdr_deviation]):
+        if row["sv_price_movement"] == "Away from mean" and (
+            row[cgdr_deviation] < p_lower or row[cgdr_deviation] > p_upper
+        ):
+            value += " swing"
 
     return value
 
