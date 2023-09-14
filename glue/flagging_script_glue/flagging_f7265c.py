@@ -32,7 +32,7 @@ def go(
         dev_bounds (tuple): how many std deviations on either side to select as outliers.
                             Ex: (2,2) selects outliers as being farther away than 2
                                 std deviations on both sides.
-        conods (boolean): determines whether we are running the flaggind model for res or condos
+        condos (boolean): determines whether we are running the flagging model for res or condos
     Outputs:
         df (pandas dataframe):
     """
