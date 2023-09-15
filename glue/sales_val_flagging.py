@@ -427,6 +427,7 @@ if __name__ == "__main__":
     WITH CombinedData AS (
         SELECT
             'res_char' AS source_table,
+            'res' AS indicator, -- Indicator column for 'res'
             res.class AS class,
             res.township_code AS township_code,
             res.year AS year,
@@ -443,6 +444,7 @@ if __name__ == "__main__":
 
         SELECT
             'condo_char' AS source_table,
+            'condo' AS indicator, -- Indicator column for 'condo'
             condo.class AS class,
             condo.township_code AS township_code,
             condo.year AS year,
@@ -482,6 +484,7 @@ if __name__ == "__main__":
         data.year,
         data.pin,
         data.char_bldg_sf,
+        data.indicator -- Selecting the indicator column
         flag.run_id,
         flag.sv_is_outlier,
         flag.sv_is_ptax_outlier,
@@ -540,31 +543,9 @@ if __name__ == "__main__":
         df = df.astype({col[0]: sql_type_to_pd_type(col[1]) for col in metadata})
         df["sale_filter_ptax_flag"].fillna(False, inplace=True)
 
-        # Separate res and condo sales
-        df_res = df[
-            df["class"].isin(
-                [
-                    "202",
-                    "203",
-                    "204",
-                    "205",
-                    "206",
-                    "207",
-                    "208",
-                    "209",
-                    "210",
-                    "211",
-                    "212",
-                    "218",
-                    "219",
-                    "234",
-                    "278",
-                    "295",
-                ]
-            )
-        ].reset_index(drop=True)
-
-        df_condo = df[df["class"].isin(["297", "299", "399"])].reset_index(drop=True)
+        # Separate res and condo sales based on the indicator column
+        df_res = df[df["indicator"] == "res"].reset_index(drop=True)
+        df_condo = df[df["indicator"] == "condo"].reset_index(drop=True)
 
         # Create rolling windows
         df_res_to_flag = add_rolling_window(
