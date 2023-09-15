@@ -48,6 +48,7 @@ WITH CombinedData AS (
     -- Select data from vw_card_res_char
     SELECT
         'res_char' AS source_table,
+        'res' AS indicator,  -- Indicator column for 'res'
         res.class AS class,
         res.township_code AS township_code,
         res.year AS year,
@@ -65,6 +66,7 @@ WITH CombinedData AS (
     -- Selecting data from vw_pin_condo_char
     SELECT
         'condo_char' AS source_table,
+        'condo' AS indicator,  -- Indicator column for 'condo'
         condo.class AS class,
         condo.township_code AS township_code,
         condo.year AS year,
@@ -75,7 +77,6 @@ WITH CombinedData AS (
     WHERE condo.class IN ('297', '299', '399')
     AND NOT condo.is_parking_space
     AND NOT condo.is_common_area
-    AND condo.is_question_garage_unit IS NULL
 )
 
 -- Now, join with sale table and filters
@@ -90,7 +91,8 @@ SELECT
     data.township_code,
     data.year,
     data.pin,
-    data.char_bldg_sf
+    data.char_bldg_sf,
+    data.indicator  -- Selecting the indicator column
 FROM CombinedData data
 INNER JOIN default.vw_pin_sale sale
     ON sale.pin = data.pin
@@ -123,31 +125,9 @@ df_flag_table = df_ingest_flag
 df = df.astype({col[0]: flg.sql_type_to_pd_type(col[1]) for col in metadata})
 df["sale_filter_ptax_flag"].fillna(False, inplace=True)
 
-# Separate res and condo sales
-df_res = df[
-    df["class"].isin(
-        [
-            "202",
-            "203",
-            "204",
-            "205",
-            "206",
-            "207",
-            "208",
-            "209",
-            "210",
-            "211",
-            "212",
-            "218",
-            "219",
-            "234",
-            "278",
-            "295",
-        ]
-    )
-].reset_index(drop=True)
-
-df_condo = df[df["class"].isin(["297", "299", "399"])].reset_index(drop=True)
+# Separate res and condo sales based on the indicator column
+df_res = df[df["indicator"] == "res"].reset_index(drop=True)
+df_condo = df[df["indicator"] == "condo"].reset_index(drop=True)
 
 # Create rolling windows
 df_res_to_flag = flg.add_rolling_window(

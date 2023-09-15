@@ -76,7 +76,6 @@ WITH CombinedData AS (
     WHERE condo.class IN ('297', '299', '399')
     AND NOT condo.is_parking_space
     AND NOT condo.is_common_area
-    AND condo.is_question_garage_unit IS NULL
 )
 
 -- Now, join with sale table and filters
