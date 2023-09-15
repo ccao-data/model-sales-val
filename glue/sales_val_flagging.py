@@ -484,7 +484,7 @@ if __name__ == "__main__":
         data.year,
         data.pin,
         data.char_bldg_sf,
-        data.indicator -- Selecting the indicator column
+        data.indicator, -- Selecting the indicator column
         flag.run_id,
         flag.sv_is_outlier,
         flag.sv_is_ptax_outlier,
