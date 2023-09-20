@@ -1,0 +1,64 @@
+---
+name: deploy-terraform
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  deploy-terraform:
+    runs-on: ubuntu-latest
+    # These permissions are needed to interact with GitHub's OIDC Token endpoint
+    # so that we can authenticate with AWS
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_IAM_ROLE_TO_ASSUME_ARN }}
+          aws-region: us-east-1
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v2
+
+      - name: Initialize Terraform
+        run: terraform init
+        shell: bash
+
+      - name: Determine Terraform workspace
+        run: |
+          # # GITHUB_HEAD_REF is only set on pull_request events, so if it's
+          # present, we must be in a PR context
+          if [ -n "$GITHUB_HEAD_REF" ]; then
+            echo "On pull request branch, setting terraform env to CI"
+            # TODO: Process this?
+            echo "WORKSPACE=$GITHUB_HEAD_REF" >> "$GITHUB_ENV"
+          elif [[ $GITHUB_REF_NAME == 'master' ]]; then
+            echo "On master branch, setting terraform env to prod"
+            echo "WORKSPACE=prod" >> "$GITHUB_ENV"
+          else
+            echo "CI context did not match any of the expected environments"
+            exit 1
+          fi
+        shell: bash
+
+      - name: Select Terraform workspace
+        run: terraform workspace select "$WORKSPACE"
+        shell: bash
+
+      - name: Validate Terraform config
+        run: terraform validate
+        shell: bash
+
+      - name: Apply Terraform changes
+        run: apply -auto-approve -var "iam_role_arn=$IAM_ROLE_ARN"
+        shell: bash
+        env:
+          IAM_ROLE_ARN: ${{ secrets.TERRAFORM_IAM_ROLE_ARN }}
