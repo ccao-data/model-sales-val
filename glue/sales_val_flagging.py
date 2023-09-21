@@ -457,9 +457,7 @@ if __name__ == "__main__":
     pattern = "^flagging_([0-9a-z]{6})\.py$"
 
     # List objects in the S3 bucket and prefix
-    objects = s3.list_objects(
-        Bucket=args["s3_glue_bucket"], Prefix=args["s3_prefix"]
-    )
+    objects = s3.list_objects(Bucket=args["s3_glue_bucket"], Prefix=args["s3_prefix"])
 
     # Read in flagging script
     for obj in objects["Contents"]:
