@@ -165,7 +165,7 @@ def finish_flags(df, start_date, manual_update):
         dynamic_assignment["version"] = 1
 
     # Finalize to write to flag table
-    df = df[cols_to_write].assign(**dynamic_assignment)
+    df = df[cols_to_write].assign(**dynamic_assignment).reset_index(drop=True)
 
     return df, run_id, timestamp
 
@@ -188,7 +188,7 @@ def sql_type_to_pd_type(sql_type):
 # - - - - - - - - - - - - - -
 
 
-def get_group_mean_df(df, stat_groups, run_id):
+def get_group_mean_df(df, stat_groups, run_id, condos):
     """
     This function creates group_mean table to write to athena. This allows
     us to trace back why some sales may have been flagged within our flagging model
@@ -210,7 +210,11 @@ def get_group_mean_df(df, stat_groups, run_id):
     )
 
     groups_string_col = "_".join(map(str, stat_groups))
-    suffixes = ["mean_price", "mean_price_per_sqft"]
+
+    if condos == False:
+        suffixes = ["mean_price", "mean_price_per_sqft"]
+    else:
+        suffixes = ["mean_price"]
 
     cols_to_write_means = stat_groups + [
         f"sv_{suffix}_{groups_string_col}" for suffix in suffixes
@@ -416,20 +420,53 @@ if __name__ == "__main__":
     rolling_window_num_sql = str(int(args["rolling_window_num"]) - 1)
 
     SQL_QUERY = f"""
-    WITH NA_Dates AS (
+    WITH CombinedData AS (
+        SELECT
+            'res_char' AS source_table,
+            'res' AS indicator, -- Indicator column for 'res'
+            res.class AS class,
+            res.township_code AS township_code,
+            res.year AS year,
+            res.pin AS pin,
+            res.char_bldg_sf AS char_bldg_sf,
+            res.pin_is_multicard
+        FROM default.vw_card_res_char res
+        WHERE res.class IN (
+            '202', '203', '204', '205', '206', '207', '208', '209',
+            '210', '211', '212', '218', '219', '234', '278', '295'
+        )
+
+        UNION ALL
+
+        SELECT
+            'condo_char' AS source_table,
+            'condo' AS indicator, -- Indicator column for 'condo'
+            condo.class AS class,
+            condo.township_code AS township_code,
+            condo.year AS year,
+            condo.pin AS pin,
+            NULL AS char_bldg_sf,
+            FALSE AS pin_is_multicard
+        FROM default.vw_pin_condo_char condo
+        WHERE condo.class IN ('297', '299', '399')
+        AND NOT condo.is_parking_space
+        AND NOT condo.is_common_area
+        AND condo.is_question_garage_unit IS NULL
+    ),
+    NA_Dates AS (
         SELECT
             MIN(DATE_TRUNC('MONTH', sale.sale_date)) - INTERVAL '{rolling_window_num_sql}' MONTH AS StartDate,
             MAX(DATE_TRUNC('MONTH', sale.sale_date)) AS EndDate
-        FROM default.vw_card_res_char res
+        FROM CombinedData data
         INNER JOIN default.vw_pin_sale sale
-            ON sale.pin = res.pin
-            AND sale.year = res.year
+            ON sale.pin = data.pin
+            AND sale.year = data.year
         LEFT JOIN sale.flag flag
             ON flag.meta_sale_document_num = sale.doc_no
         WHERE flag.sv_is_outlier IS NULL
-            AND sale.sale_date >= DATE '{args["time_frame_start"]}'
-            AND NOT sale.is_multisale
-            AND NOT res.pin_is_multicard
+        AND sale.sale_date >= DATE '{args["time_frame_start"]}'
+        AND NOT sale.is_multisale
+        AND (NOT data.pin_is_multicard OR data.source_table = 'condo_char')
     )
     SELECT 
         sale.sale_price AS meta_sale_price,
@@ -438,29 +475,31 @@ if __name__ == "__main__":
         sale.seller_name AS meta_sale_seller_name,
         sale.buyer_name AS meta_sale_buyer_name,
         sale.sale_filter_ptax_flag,
-        res.class AS class,
-        res.township_code AS township_code,
-        res.year AS year,
-        res.pin AS pin,
-        res.char_bldg_sf AS char_bldg_sf,
+        data.class,
+        data.township_code,
+        data.year,
+        data.pin,
+        data.char_bldg_sf,
+        data.indicator, -- Selecting the indicator column
         flag.run_id,
         flag.sv_is_outlier,
         flag.sv_is_ptax_outlier,
         flag.sv_is_heuristic_outlier,
         flag.sv_outlier_type
-    FROM default.vw_card_res_char res
+    FROM CombinedData data
     INNER JOIN default.vw_pin_sale sale
-        ON sale.pin = res.pin
-        AND sale.year = res.year
+        ON sale.pin = data.pin
+        AND sale.year = data.year
     LEFT JOIN sale.flag flag
         ON flag.meta_sale_document_num = sale.doc_no
     INNER JOIN NA_Dates
         ON sale.sale_date BETWEEN NA_Dates.StartDate AND NA_Dates.EndDate
     WHERE NOT sale.is_multisale
-    AND NOT res.pin_is_multicard
-    AND res.class IN (
+    AND (NOT data.pin_is_multicard OR data.source_table = 'condo_char')
+    AND data.class IN (
         '202', '203', '204', '205', '206', '207', '208', '209',
-        '210', '211', '212', '218', '219', '234', '278', '295'
+        '210', '211', '212', '218', '219', '234', '278', '295',
+        '297', '299', '399'
     )
     """
 
@@ -482,8 +521,13 @@ if __name__ == "__main__":
     df_ingest_full = as_pandas(cursor)
     df = df_ingest_full
 
+    # Filter the dataframe to look at sales we are interested in flagging, not prior rolling window data
+    filtered_df = df_ingest_full[
+        df_ingest_full["meta_sale_date"] >= args["time_frame_start"]
+    ]
+
     # Skip rest of script if no new unflagged sales
-    if df_ingest_full.sv_outlier_type.isna().sum() == 0:
+    if filtered_df.sv_outlier_type.isna().sum() == 0:
         print("WARNING: No new sales to flag")
     else:
         # Grab existing sales val table for later join
@@ -495,26 +539,52 @@ if __name__ == "__main__":
         df = df.astype({col[0]: sql_type_to_pd_type(col[1]) for col in metadata})
         df["sale_filter_ptax_flag"].fillna(False, inplace=True)
 
-        # Create rolling window
-        df_to_flag = add_rolling_window(df, num_months=int(args["rolling_window_num"]))
+        # Separate res and condo sales based on the indicator column
+        df_res = df[df["indicator"] == "res"].reset_index(drop=True)
+        df_condo = df[df["indicator"] == "condo"].reset_index(drop=True)
+
+        # Create rolling windows
+        df_res_to_flag = add_rolling_window(
+            df_res, num_months=int(args["rolling_window_num"])
+        )
+        df_condo_to_flag = add_rolling_window(
+            df_condo, num_months=int(args["rolling_window_num"])
+        )
 
         # Parse glue args
         stat_groups_list = args["stat_groups"].split(",")
         iso_forest_list = args["iso_forest"].split(",")
-        dev_bounds_list = args["dev_bounds"].split(",")
+        dev_bounds_list = list(map(int, args["dev_bounds"].split(",")))
         dev_bounds_tuple = tuple(map(int, args["dev_bounds"].split(",")))
 
-        # Flag Outliers
-        df_flagged = go(
-            df=df_to_flag,
+        # Flag Res Outliers
+        df_res_flagged = go(
+            df=df_res_to_flag,
             groups=tuple(stat_groups_list),
             iso_forest_cols=iso_forest_list,
             dev_bounds=dev_bounds_tuple,
+            condos=False,
+        )
+
+        # Flag condo outliers
+        condo_iso_forest = iso_forest_list.copy()
+        condo_iso_forest.remove("sv_price_per_sqft")
+
+        df_condo_flagged = go(
+            df=df_condo_to_flag,
+            groups=tuple(stat_groups_list),
+            iso_forest_cols=condo_iso_forest,
+            dev_bounds=dev_bounds_tuple,
+            condos=True,
+        )
+
+        df_flagged_merged = pd.concat([df_res_flagged, df_condo_flagged]).reset_index(
+            drop=True
         )
 
         # Finish flagging
         df_flagged_final, run_id, timestamp = finish_flags(
-            df=df_flagged,
+            df=df_flagged_merged,
             start_date=args["time_frame_start"],
             manual_update=False,
         )
@@ -558,12 +628,24 @@ if __name__ == "__main__":
         )
 
         # Write to group_mean table
-        df_write_group_mean = get_group_mean_df(
-            df=df_flagged, stat_groups=stat_groups_list, run_id=run_id
+        df_res_group_mean = get_group_mean_df(
+            df=df_res_flagged, stat_groups=stat_groups_list, run_id=run_id, condos=False
         )
 
+        # Write to group_mean table
+        df_condo_group_mean = get_group_mean_df(
+            df=df_condo_flagged,
+            stat_groups=stat_groups_list,
+            run_id=run_id,
+            condos=True,
+        )
+
+        df_group_mean_merged = pd.concat(
+            [df_res_group_mean, df_condo_group_mean]
+        ).reset_index(drop=True)
+
         write_to_table(
-            df=df_write_group_mean,
+            df=df_group_mean_merged,
             table_name="group_mean",
             s3_warehouse_bucket_path=args["aws_s3_warehouse_bucket"],
             run_id=run_id,
