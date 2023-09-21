@@ -83,6 +83,63 @@ def add_rolling_window(df, num_months):
     return df
 
 
+def group_size_adjustment(df, stat_groups: list, min_threshold, condos: bool):
+    """
+    Within the groups of sales we are looking at to flag outliers, some
+    are very small, with a large portion of groups with even 1 total sale.
+
+    This function manually sets all sales to 'Not Outlier' if they belong
+    to a group that is under our 'min_threshold' argument.
+
+    Inputs:
+        df: The data right after we perform the flagging script (go()), when the exploded
+            rolling window hasn't been reduced.
+        stat_groups: stat groups we are using for the groups within which we flag outliers
+        min_threshold: at which group size we want to manually set values to 'Not Outlier'
+        condos: boolean that tells the function to work with condos or res
+    Outputs:
+        df: dataframe with newly manually adjusted outlier values.
+
+    """
+    group_counts = df.groupby(stat_groups).size().reset_index(name="count")
+    filtered_groups = group_counts[group_counts["count"] <= min_threshold]
+
+    # Merge df_flagged with filtered_groups on the columns to get the matching rows
+    merged_df = pd.merge(
+        df, filtered_groups[stat_groups], on=stat_groups, how="left", indicator=True
+    )
+
+    # List of sv_outlier_type values to check
+    if condos == False:
+        outlier_types_to_check = [
+            "Low price (raw & sqft)",
+            "Low price (raw)",
+            "Low price (sqft)",
+            "High price (raw & sqft)",
+            "High price (raw)",
+            "High price (sqft)",
+        ]
+    else:
+        outlier_types_to_check = [
+            "Low price (raw)",
+            "High price (raw)",
+        ]
+
+    # Modify the .loc condition to include checking for sv_outlier_type values
+    condition = (merged_df["_merge"] == "both") & (
+        merged_df["sv_outlier_type"].isin(outlier_types_to_check)
+    )
+
+    # Using .loc[] to set the desired values for rows meeting the condition
+    merged_df.loc[condition, "sv_outlier_type"] = "Not outlier"
+    merged_df.loc[condition, "sv_is_outlier"] = 0
+
+    # Drop the _merge column
+    df_flagged_updated = merged_df.drop(columns=["_merge"])
+
+    return df_flagged_updated
+
+
 def finish_flags(df, start_date, manual_update):
     """
     This functions
@@ -199,6 +256,11 @@ def get_group_mean_df(df, stat_groups, run_id, condos):
     Outputs:
         df: dataframe that is ready to be written to athena as a parquet
     """
+
+    # Calculate group sizes
+    group_sizes = df.groupby(stat_groups).size().reset_index(name="group_size")
+    df = df.merge(group_sizes, on=stat_groups, how="left")
+
     unique_groups = (
         df.drop_duplicates(subset=stat_groups, keep="first")
         .reset_index(drop=True)
@@ -216,9 +278,11 @@ def get_group_mean_df(df, stat_groups, run_id, condos):
     else:
         suffixes = ["mean_price"]
 
-    cols_to_write_means = stat_groups + [
-        f"sv_{suffix}_{groups_string_col}" for suffix in suffixes
-    ]
+    cols_to_write_means = (
+        stat_groups
+        + ["group_size"]
+        + [f"sv_{suffix}_{groups_string_col}" for suffix in suffixes]
+    )
     rename_dict = {
         f"sv_{suffix}_{groups_string_col}": f"{suffix}" for suffix in suffixes
     }
@@ -272,6 +336,7 @@ def get_parameter_df(
     rolling_window,
     date_floor,
     short_term_thresh,
+    min_group_thresh,
     run_id,
 ):
     """
@@ -299,6 +364,7 @@ def get_parameter_df(
     dev_bounds = dev_bounds
     date_floor = date_floor
     rolling_window = rolling_window
+    min_group_thresh = min_group_thresh
 
     parameter_dict_to_df = {
         "run_id": [run_id],
@@ -311,6 +377,7 @@ def get_parameter_df(
         "dev_bounds": [dev_bounds],
         "rolling_window": [rolling_window],
         "date_floor": [date_floor],
+        "min_group_thresh": [min_group_thresh],
     }
 
     df_parameters = pd.DataFrame(parameter_dict_to_df)
@@ -380,6 +447,7 @@ if __name__ == "__main__":
             "rolling_window_num",
             "time_frame_start",
             "iso_forest",
+            "min_groups_threshold",
             "dev_bounds",
         ],
     )
@@ -566,6 +634,13 @@ if __name__ == "__main__":
             condos=False,
         )
 
+        df_res_flagged_updated = group_size_adjustment(
+            df=df_res_flagged,
+            stat_groups=tuple(stat_groups_list),
+            min_threshold=int(args["min_groups_threshold"]),
+            condos=False,
+        )
+
         # Flag condo outliers
         condo_iso_forest = iso_forest_list.copy()
         condo_iso_forest.remove("sv_price_per_sqft")
@@ -578,9 +653,16 @@ if __name__ == "__main__":
             condos=True,
         )
 
-        df_flagged_merged = pd.concat([df_res_flagged, df_condo_flagged]).reset_index(
-            drop=True
+        df_condo_flagged_updated = group_size_adjustment(
+            df=df_condo_flagged,
+            stat_groups=tuple(stat_groups_list),
+            min_threshold=int(args["min_groups_threshold"]),
+            condos=True,
         )
+
+        df_flagged_merged = pd.concat(
+            [df_res_flagged_updated, df_condo_flagged_updated]
+        ).reset_index(drop=True)
 
         # Finish flagging
         df_flagged_final, run_id, timestamp = finish_flags(
@@ -614,6 +696,7 @@ if __name__ == "__main__":
             rolling_window=int(args["rolling_window_num"]),
             date_floor=args["time_frame_start"],
             short_term_thresh=SHORT_TERM_OWNER_THRESHOLD,
+            min_group_thresh=int(args["min_groups_threshold"]),
             run_id=run_id,
         )
 

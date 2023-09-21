@@ -27,3 +27,5 @@ time_frame:
   end: "2020-06-30"
 
 rolling_window_months: 12
+
+min_groups_threshold: 30

@@ -89,9 +89,13 @@ erDiagram
         arraystring iso_forest_cols
         arraystring stat_groups
         arraybigint dev_bounds
+        bigint rolling_window
+        string date_floor
+        bigint min_group_thresh
     }
 
     group_mean {
+        bigint group_size
         double mean_price
         double mean_price_sqft
         string run_id PK

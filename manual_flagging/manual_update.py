@@ -147,6 +147,13 @@ df_res_flagged = flg_model.go(
     condos=False,
 )
 
+df_res_flagged_updated = flg.group_size_adjustment(
+    df=df_res_flagged,
+    stat_groups=inputs["stat_groups"],
+    min_threshold=inputs["min_groups_threshold"],
+    condos=False,
+)
+
 # Flag condo outliers
 condo_iso_forest = inputs["iso_forest"].copy()
 condo_iso_forest.remove("sv_price_per_sqft")
@@ -159,7 +166,16 @@ df_condo_flagged = flg_model.go(
     condos=True,
 )
 
-df_flagged_merged = pd.concat([df_res_flagged, df_condo_flagged]).reset_index(drop=True)
+df_condo_flagged_updated = flg.group_size_adjustment(
+    df=df_condo_flagged,
+    stat_groups=inputs["stat_groups"],
+    min_threshold=inputs["min_groups_threshold"],
+    condos=True,
+)
+
+df_flagged_merged = pd.concat(
+    [df_res_flagged_updated, df_condo_flagged_updated]
+).reset_index(drop=True)
 
 # Finish flagging and subset to write to flag table
 df_flagged_final, run_id, timestamp = flg.finish_flags(
@@ -211,6 +227,7 @@ df_parameters = flg.get_parameter_df(
     rolling_window=inputs["rolling_window_months"],
     date_floor=inputs["time_frame"]["start"],
     short_term_thresh=SHORT_TERM_OWNER_THRESHOLD,
+    min_group_thresh=inputs["min_groups_threshold"],
     run_id=run_id,
 )
 
