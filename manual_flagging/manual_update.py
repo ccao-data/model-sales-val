@@ -137,6 +137,9 @@ df_condo_to_flag = flg.add_rolling_window(
     df_condo, num_months=inputs["rolling_window_months"]
 )
 
+# Create condo stat groups
+condo_stat_groups = inputs["stat_groups"].copy()
+condo_stat_groups.remove("class")
 
 # Flag Res Outliers
 df_res_flagged = flg_model.go(
@@ -160,7 +163,7 @@ condo_iso_forest.remove("sv_price_per_sqft")
 
 df_condo_flagged = flg_model.go(
     df=df_condo_to_flag,
-    groups=tuple(inputs["stat_groups"]),
+    groups=tuple(condo_stat_groups),
     iso_forest_cols=condo_iso_forest,
     dev_bounds=tuple(inputs["dev_bounds"]),
     condos=True,
@@ -168,7 +171,7 @@ df_condo_flagged = flg_model.go(
 
 df_condo_flagged_updated = flg.group_size_adjustment(
     df=df_condo_flagged,
-    stat_groups=inputs["stat_groups"],
+    stat_groups=condo_stat_groups,
     min_threshold=inputs["min_groups_threshold"],
     condos=True,
 )
