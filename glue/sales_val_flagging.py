@@ -674,7 +674,7 @@ if __name__ == "__main__":
 
         df_res_flagged_updated = group_size_adjustment(
             df=df_res_flagged,
-            stat_groups=tuple(stat_groups_list),
+            stat_groups=stat_groups_list,
             min_threshold=int(args["min_groups_threshold"]),
             condos=False,
         )
@@ -693,7 +693,7 @@ if __name__ == "__main__":
 
         df_condo_flagged_updated = group_size_adjustment(
             df=df_condo_flagged,
-            stat_groups=tuple(stat_groups_list),
+            stat_groups=stat_groups_list,
             min_threshold=int(args["min_groups_threshold"]),
             condos=True,
         )
@@ -708,7 +708,7 @@ if __name__ == "__main__":
 
         # Finish flagging
         df_flagged_final, run_id, timestamp = finish_flags(
-            df=df_flagged_merged,
+            df=df_flagged_ptax,
             start_date=args["time_frame_start"],
             manual_update=False,
         )
