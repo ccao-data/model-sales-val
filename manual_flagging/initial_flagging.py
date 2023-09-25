@@ -167,6 +167,10 @@ df_flagged_merged = pd.concat(
     [df_res_flagged_updated, df_condo_flagged_updated]
 ).reset_index(drop=True)
 
+df_flagged_ptax = flg.ptax_adjustment(
+    df=df_flagged, groups=inputs["stat_groups"], ptax_sd=inputs["ptax_sd"]
+)
+
 # Finish flagging and subset to write to flag table
 df_to_write, run_id, timestamp = flg.finish_flags(
     df=df_flagged_merged,
@@ -189,6 +193,7 @@ df_parameters = flg.get_parameter_df(
     iso_forest_cols=inputs["iso_forest"],
     stat_groups=inputs["stat_groups"],
     dev_bounds=inputs["dev_bounds"],
+    ptax_sd=inputs["ptax_sd"],
     rolling_window=inputs["rolling_window_months"],
     date_floor=inputs["time_frame"]["start"],
     short_term_thresh=SHORT_TERM_OWNER_THRESHOLD,

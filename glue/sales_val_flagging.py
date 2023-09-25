@@ -83,6 +83,37 @@ def add_rolling_window(df, num_months):
     return df
 
 
+def ptax_adjustment(df, groups, ptax_sd):
+    """
+    This function manually applies a ptax adjustment, keeping only
+    ptax flags that are outside of a certain standard deviation
+    range in terms of raw price or price per sqft. It creates the
+    new column and preserves the old ptax column
+
+    Inputs:
+        df: dataframe after flagging has been done
+        ptax_sd: a list that look like this - [low sd, high sd]
+    Outputs:
+        df: ptax adjusted dataframe
+    """
+
+    group_string = "_".join(groups)
+    df["ptax_flag_original"] = df["sale_filter_ptax_flag"]
+
+    df["sale_filter_ptax_flag"] = df.apply(
+        lambda row: row["sale_filter_ptax_flag"]
+        and (
+            (row[f"sv_price_deviation_{group_string}"] >= ptax_sd[1])
+            or (row[f"sv_price_deviation_{group_string}"] <= -ptax_sd[0])
+            or (row[f"sv_price_per_sqft_deviation_{group_string}"] >= ptax_sd[1])
+            or (row[f"sv_price_per_sqft_deviation_{group_string}"] <= -ptax_sd[0])
+        ),
+        axis=1,
+    )
+
+    return df
+
+
 def group_size_adjustment(df, stat_groups: list, min_threshold, condos: bool):
     """
     Within the groups of sales we are looking at to flag outliers, some
@@ -156,6 +187,7 @@ def finish_flags(df, start_date, manual_update):
         run_id: unique run_id used for metadata. etc.
         timestamp: unique timestamp for metadata
     """
+
     # Remove duplicate rows
     df = df[df["original_observation"]]
     # Discard pre-2014 data
@@ -198,6 +230,7 @@ def finish_flags(df, start_date, manual_update):
         "rolling_window",
         "sv_is_outlier",
         "sv_is_ptax_outlier",
+        "ptax_flag_original",
         "sv_is_heuristic_outlier",
         "sv_outlier_type",
     ]
@@ -333,6 +366,7 @@ def get_parameter_df(
     iso_forest_cols,
     stat_groups,
     dev_bounds,
+    ptax_sd,
     rolling_window,
     date_floor,
     short_term_thresh,
@@ -364,6 +398,7 @@ def get_parameter_df(
     dev_bounds = dev_bounds
     date_floor = date_floor
     rolling_window = rolling_window
+    ptax_sd = ptax_sd
     min_group_thresh = min_group_thresh
 
     parameter_dict_to_df = {
@@ -375,6 +410,7 @@ def get_parameter_df(
         "iso_forest_cols": [iso_forest_cols],
         "stat_groups": [stat_groups],
         "dev_bounds": [dev_bounds],
+        "ptax_sd": [ptax_sd],
         "rolling_window": [rolling_window],
         "date_floor": [date_floor],
         "min_group_thresh": [min_group_thresh],
@@ -449,6 +485,7 @@ if __name__ == "__main__":
             "iso_forest",
             "min_groups_threshold",
             "dev_bounds",
+            "ptax_sd",
         ],
     )
 
@@ -624,6 +661,7 @@ if __name__ == "__main__":
         iso_forest_list = args["iso_forest"].split(",")
         dev_bounds_list = list(map(int, args["dev_bounds"].split(",")))
         dev_bounds_tuple = tuple(map(int, args["dev_bounds"].split(",")))
+        ptax_sd_list = list(map(int, args["ptax_sd"].split(",")))
 
         # Flag Res Outliers
         df_res_flagged = go(
@@ -664,6 +702,10 @@ if __name__ == "__main__":
             [df_res_flagged_updated, df_condo_flagged_updated]
         ).reset_index(drop=True)
 
+        df_flagged_ptax = ptax_adjustment(
+            df=df_flagged_merged, groups=stat_groups_list, ptax_sd=ptax_sd_list
+        )
+
         # Finish flagging
         df_flagged_final, run_id, timestamp = finish_flags(
             df=df_flagged_merged,
@@ -693,6 +735,7 @@ if __name__ == "__main__":
             iso_forest_cols=iso_forest_list,
             stat_groups=stat_groups_list,
             dev_bounds=dev_bounds_list,
+            ptax_sd=ptax_sd_list,
             rolling_window=int(args["rolling_window_num"]),
             date_floor=args["time_frame_start"],
             short_term_thresh=SHORT_TERM_OWNER_THRESHOLD,
