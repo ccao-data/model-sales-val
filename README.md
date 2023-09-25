@@ -3,6 +3,8 @@
 | :exclamation:  IMPORTANT   |
 |-----------------------------------------|  
 
+This repo is under active development and is not yet in production.
+
 If an edit needs to made to anything in the `glue` directory, there a specific process to be found [here](#aws-glue-job-documentation)  
   
 Table of Contents
@@ -110,7 +112,7 @@ In a number of outlier calculations, our flagging model looks inside a group of 
 - We take every sale in the month of the sale date, along with all sale data from the previous N months. This window contain roughly 1 year of data  
 - This process start here with a `.explode()` of the data:  https://github.com/ccao-data/model-sales-val/blob/283a1403545019be135b4b9dbc67d86dabb278f4/glue/sales_val_flagging.py#L15  
 - And it ends here subsetting subsetting to the `original_observation` data:  https://github.com/ccao-data/model-sales-val/blob/499f9e31c92882312051837f35455d078d2507ee/glue/sales_val_flagging.py#L57  
-- Corresponding functions in Mansueto's flagging model accomodate this rolling window integration, these functions are defined in each of the flagging functions, one in `manual_flagging/src/flagging_rolling.py`, and one for the glue job in s3 `glue/flagging_script_glue/flagging_<hash>.py`:     
+- Corresponding functions in [Mansueto](https://miurban.uchicago.edu/)'s flagging model accomodate this rolling window integration, these functions are defined in each of the flagging functions, one in `manual_flagging/src/flagging_rolling.py`, and one for the glue job in s3 `glue/flagging_script_glue/flagging_<hash>.py`:     
     - https://github.com/ccao-data/model-sales-val/blob/499f9e31c92882312051837f35455d078d2507ee/manual_flagging/src/flagging_rolling.py#L303
     - https://github.com/ccao-data/model-sales-val/blob/283a1403545019be135b4b9dbc67d86dabb278f4/manual_flagging/src/flagging_rolling.py#L456
 
