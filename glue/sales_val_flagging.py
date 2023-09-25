@@ -625,6 +625,10 @@ if __name__ == "__main__":
         dev_bounds_list = list(map(int, args["dev_bounds"].split(",")))
         dev_bounds_tuple = tuple(map(int, args["dev_bounds"].split(",")))
 
+        # Create condo stat groups
+        condo_stat_groups = stat_groups_list.copy()
+        condo_stat_groups.remove("class")
+
         # Flag Res Outliers
         df_res_flagged = go(
             df=df_res_to_flag,
@@ -636,7 +640,7 @@ if __name__ == "__main__":
 
         df_res_flagged_updated = group_size_adjustment(
             df=df_res_flagged,
-            stat_groups=tuple(stat_groups_list),
+            stat_groups=stat_groups_list,
             min_threshold=int(args["min_groups_threshold"]),
             condos=False,
         )
@@ -647,7 +651,7 @@ if __name__ == "__main__":
 
         df_condo_flagged = go(
             df=df_condo_to_flag,
-            groups=tuple(stat_groups_list),
+            groups=tuple(condo_stat_groups),
             iso_forest_cols=condo_iso_forest,
             dev_bounds=dev_bounds_tuple,
             condos=True,
@@ -655,7 +659,7 @@ if __name__ == "__main__":
 
         df_condo_flagged_updated = group_size_adjustment(
             df=df_condo_flagged,
-            stat_groups=tuple(stat_groups_list),
+            stat_groups=condo_stat_groups,
             min_threshold=int(args["min_groups_threshold"]),
             condos=True,
         )
