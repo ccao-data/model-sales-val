@@ -168,12 +168,12 @@ df_flagged_merged = pd.concat(
 ).reset_index(drop=True)
 
 df_flagged_ptax = flg.ptax_adjustment(
-    df=df_flagged, groups=inputs["stat_groups"], ptax_sd=inputs["ptax_sd"]
+    df=df_flagged_merged, groups=inputs["stat_groups"], ptax_sd=inputs["ptax_sd"]
 )
 
 # Finish flagging and subset to write to flag table
 df_to_write, run_id, timestamp = flg.finish_flags(
-    df=df_flagged_merged,
+    df=df_flagged_ptax,
     start_date=inputs["time_frame"]["start"],
     manual_update=False,
 )
