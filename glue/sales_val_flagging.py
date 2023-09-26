@@ -101,9 +101,7 @@ def ptax_adjustment(df, groups, ptax_sd):
 
     group_string = "_".join(groups)
 
-    df["ptax_flag_original"] = df["sale_filter_ptax_flag"]
-
-    df["sale_filter_ptax_flag"] = df["sale_filter_ptax_flag"] & (
+    df["ptax_flag_w_deviation"] = df["ptax_flag_original"] & (
         (df[f"sv_price_deviation_{group_string}"] >= ptax_sd[1])
         | (df[f"sv_price_deviation_{group_string}"] <= -ptax_sd[0])
         | (df[f"sv_price_per_sqft_deviation_{group_string}"] >= ptax_sd[1])
@@ -177,7 +175,7 @@ def finish_flags(df, start_date, manual_update):
         -removes the unneeded observations used for the rolling window calculation
         -finishes adding sales val cols for flag table upload
     Inputs:
-        df: df flagged with manuesto flagging methodology
+        df: df flagged with mansueto flagging methodology
         start_date: a limit on how early we flag sales from
         manual_update: whether or not manual_update.py is using this script,
                        if True, adds a versioning capability.
@@ -198,10 +196,10 @@ def finish_flags(df, start_date, manual_update):
         .assign(
             sv_is_autoval_outlier=lambda df: df["sv_is_autoval_outlier"] == "Outlier",
             sv_is_outlier=lambda df: df["sv_is_autoval_outlier"]
-            | df["sale_filter_ptax_flag"],
+            | df["ptax_flag_w_deviation"],
             # Incorporate PTAX in sv_outlier_type
             sv_outlier_type=lambda df: np.where(
-                df["sale_filter_ptax_flag"],
+                df["ptax_flag_w_deviation"],
                 "PTAX-203 flag",
                 df["sv_outlier_type"],
             ),
