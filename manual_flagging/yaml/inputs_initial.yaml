@@ -26,6 +26,11 @@ time_frame:
   start: "2019-01-01"
   end: "2020-06-30"
 
+# How many total months to include in the grouping methodology
 rolling_window_months: 12
+
+# PTAX flags are only kept if the raw or sqft price is at least this
+# many standard deviations away from the mean
+ptax_sd: [1, 1]
 
 min_groups_threshold: 30

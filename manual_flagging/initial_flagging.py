@@ -85,7 +85,7 @@ SELECT
     sale.doc_no AS meta_sale_document_num,
     sale.seller_name AS meta_sale_seller_name,
     sale.buyer_name AS meta_sale_buyer_name,
-    sale.sale_filter_ptax_flag,
+    sale.sale_filter_ptax_flag AS ptax_flag_original,
     data.class,
     data.township_code,
     data.year,
@@ -171,9 +171,13 @@ df_flagged_merged = pd.concat(
     [df_res_flagged_updated, df_condo_flagged_updated]
 ).reset_index(drop=True)
 
+df_flagged_ptax = flg.ptax_adjustment(
+    df=df_flagged_merged, groups=inputs["stat_groups"], ptax_sd=inputs["ptax_sd"]
+)
+
 # Finish flagging and subset to write to flag table
 df_to_write, run_id, timestamp = flg.finish_flags(
-    df=df_flagged_merged,
+    df=df_flagged_ptax,
     start_date=inputs["time_frame"]["start"],
     manual_update=False,
 )
@@ -194,6 +198,7 @@ df_parameters = flg.get_parameter_df(
     res_stat_groups=inputs["stat_groups"],
     condo_stat_groups=condo_stat_groups,
     dev_bounds=inputs["dev_bounds"],
+    ptax_sd=inputs["ptax_sd"],
     rolling_window=inputs["rolling_window_months"],
     date_floor=inputs["time_frame"]["start"],
     short_term_thresh=SHORT_TERM_OWNER_THRESHOLD,
