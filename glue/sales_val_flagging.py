@@ -576,7 +576,7 @@ if __name__ == "__main__":
         sale.doc_no AS meta_sale_document_num,
         sale.seller_name AS meta_sale_seller_name,
         sale.buyer_name AS meta_sale_buyer_name,
-        sale.sale_filter_ptax_flag,
+        sale.sale_filter_ptax_flag AS ptax_flag_original,
         data.class,
         data.township_code,
         data.year,
