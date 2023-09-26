@@ -92,7 +92,9 @@ def ptax_adjustment(df, groups, ptax_sd):
 
     Inputs:
         df: dataframe after flagging has been done
+        groups: stat groups used for outlier classification
         ptax_sd: a list that look like this - [low sd, high sd]
+            - both values should be positive
     Outputs:
         df: ptax adjusted dataframe
     """

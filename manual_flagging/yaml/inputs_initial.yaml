@@ -30,7 +30,7 @@ time_frame:
 rolling_window_months: 12
 
 # PTAX flags are only kept if the raw or sqft price is at least this
-# many standard devciations away from the mean
+# many standard deviations away from the mean
 ptax_sd: [1, 1]
 
 min_groups_threshold: 30
