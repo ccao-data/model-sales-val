@@ -100,17 +100,14 @@ def ptax_adjustment(df, groups, ptax_sd):
     """
 
     group_string = "_".join(groups)
+
     df["ptax_flag_original"] = df["sale_filter_ptax_flag"]
 
-    df["sale_filter_ptax_flag"] = df.apply(
-        lambda row: row["sale_filter_ptax_flag"]
-        and (
-            (row[f"sv_price_deviation_{group_string}"] >= ptax_sd[1])
-            or (row[f"sv_price_deviation_{group_string}"] <= -ptax_sd[0])
-            or (row[f"sv_price_per_sqft_deviation_{group_string}"] >= ptax_sd[1])
-            or (row[f"sv_price_per_sqft_deviation_{group_string}"] <= -ptax_sd[0])
-        ),
-        axis=1,
+    df["sale_filter_ptax_flag"] = df["sale_filter_ptax_flag"] & (
+        (df[f"sv_price_deviation_{group_string}"] >= ptax_sd[1])
+        | (df[f"sv_price_deviation_{group_string}"] <= -ptax_sd[0])
+        | (df[f"sv_price_per_sqft_deviation_{group_string}"] >= ptax_sd[1])
+        | (df[f"sv_price_per_sqft_deviation_{group_string}"] <= -ptax_sd[0])
     )
 
     return df
