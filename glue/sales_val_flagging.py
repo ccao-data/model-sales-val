@@ -331,7 +331,8 @@ def get_parameter_df(
     df_to_write,
     df_ingest,
     iso_forest_cols,
-    stat_groups,
+    res_stat_groups,
+    condo_stat_groups,
     dev_bounds,
     rolling_window,
     date_floor,
@@ -346,8 +347,9 @@ def get_parameter_df(
         df_to_write: The final table used to write data to the sales.flag table
         df_ingest: raw data read in to perform flagging
         iso_forest_cols: columns used in iso_forest model in mansueto's flagging model
-        stat_groups: which groups were used for mansueto's flagging model
-        dev_bounds: standard devation bounds to catch outliers
+        res_stat_groups: which groups were used for mansueto's flagging model
+        condo_stat_groups: which groups were used for condos
+        dev_bounds: standard deviation bounds to catch outliers
         short_term_thresh: short-term threshold for mansueto's flagging model
         run_id: unique run_id to flagging program run
         date_floor: parameter specification that limits earliest flagging write
@@ -360,7 +362,8 @@ def get_parameter_df(
     latest_sale_ingest = df_ingest.meta_sale_date.max()
     short_term_owner_threshold = short_term_thresh
     iso_forest_cols = iso_forest_cols
-    stat_groups = stat_groups
+    res_stat_groups = res_stat_groups
+    condo_stat_groups = condo_stat_groups
     dev_bounds = dev_bounds
     date_floor = date_floor
     rolling_window = rolling_window
@@ -373,7 +376,8 @@ def get_parameter_df(
         "latest_data_ingest": [latest_sale_ingest],
         "short_term_owner_threshold": [short_term_owner_threshold],
         "iso_forest_cols": [iso_forest_cols],
-        "stat_groups": [stat_groups],
+        "res_stat_groups": [res_stat_groups],
+        "condo_stat_groups": [condo_stat_groups],
         "dev_bounds": [dev_bounds],
         "rolling_window": [rolling_window],
         "date_floor": [date_floor],
@@ -695,7 +699,8 @@ if __name__ == "__main__":
             df_to_write=rows_to_append,
             df_ingest=df_ingest_full,
             iso_forest_cols=iso_forest_list,
-            stat_groups=stat_groups_list,
+            res_stat_groups=inputs["stat_groups"],
+            condo_stat_groups=condo_stat_groups,
             dev_bounds=dev_bounds_list,
             rolling_window=int(args["rolling_window_num"]),
             date_floor=args["time_frame_start"],
