@@ -361,7 +361,8 @@ def get_parameter_df(
     df_to_write,
     df_ingest,
     iso_forest_cols,
-    stat_groups,
+    res_stat_groups,
+    condo_stat_groups,
     dev_bounds,
     ptax_sd,
     rolling_window,
@@ -377,8 +378,9 @@ def get_parameter_df(
         df_to_write: The final table used to write data to the sales.flag table
         df_ingest: raw data read in to perform flagging
         iso_forest_cols: columns used in iso_forest model in mansueto's flagging model
-        stat_groups: which groups were used for mansueto's flagging model
-        dev_bounds: standard devation bounds to catch outliers
+        res_stat_groups: which groups were used for mansueto's flagging model
+        condo_stat_groups: which groups were used for condos
+        dev_bounds: standard deviation bounds to catch outliers
         short_term_thresh: short-term threshold for mansueto's flagging model
         run_id: unique run_id to flagging program run
         date_floor: parameter specification that limits earliest flagging write
@@ -391,7 +393,8 @@ def get_parameter_df(
     latest_sale_ingest = df_ingest.meta_sale_date.max()
     short_term_owner_threshold = short_term_thresh
     iso_forest_cols = iso_forest_cols
-    stat_groups = stat_groups
+    res_stat_groups = res_stat_groups
+    condo_stat_groups = condo_stat_groups
     dev_bounds = dev_bounds
     date_floor = date_floor
     rolling_window = rolling_window
@@ -405,7 +408,8 @@ def get_parameter_df(
         "latest_data_ingest": [latest_sale_ingest],
         "short_term_owner_threshold": [short_term_owner_threshold],
         "iso_forest_cols": [iso_forest_cols],
-        "stat_groups": [stat_groups],
+        "res_stat_groups": [res_stat_groups],
+        "condo_stat_groups": [condo_stat_groups],
         "dev_bounds": [dev_bounds],
         "ptax_sd": [ptax_sd],
         "rolling_window": [rolling_window],
@@ -660,6 +664,10 @@ if __name__ == "__main__":
         dev_bounds_tuple = tuple(map(int, args["dev_bounds"].split(",")))
         ptax_sd_list = list(map(int, args["ptax_sd"].split(",")))
 
+        # Create condo stat groups
+        condo_stat_groups = stat_groups_list.copy()
+        condo_stat_groups.remove("class")
+
         # Flag Res Outliers
         df_res_flagged = go(
             df=df_res_to_flag,
@@ -682,7 +690,7 @@ if __name__ == "__main__":
 
         df_condo_flagged = go(
             df=df_condo_to_flag,
-            groups=tuple(stat_groups_list),
+            groups=tuple(condo_stat_groups),
             iso_forest_cols=condo_iso_forest,
             dev_bounds=dev_bounds_tuple,
             condos=True,
@@ -690,7 +698,7 @@ if __name__ == "__main__":
 
         df_condo_flagged_updated = group_size_adjustment(
             df=df_condo_flagged,
-            stat_groups=stat_groups_list,
+            stat_groups=condo_stat_groups,
             min_threshold=int(args["min_groups_threshold"]),
             condos=True,
         )
@@ -730,7 +738,8 @@ if __name__ == "__main__":
             df_to_write=rows_to_append,
             df_ingest=df_ingest_full,
             iso_forest_cols=iso_forest_list,
-            stat_groups=stat_groups_list,
+            res_stat_groups=inputs["stat_groups"],
+            condo_stat_groups=condo_stat_groups,
             dev_bounds=dev_bounds_list,
             ptax_sd=ptax_sd_list,
             rolling_window=int(args["rolling_window_num"]),
