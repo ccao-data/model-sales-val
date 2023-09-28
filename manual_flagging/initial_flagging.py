@@ -225,7 +225,7 @@ df_res_group_mean = flg.get_group_mean_df(
 )
 
 df_condo_group_mean = flg.get_group_mean_df(
-    df=df_condo_flagged, stat_groups=inputs["stat_groups"], run_id=run_id, condos=True
+    df=df_condo_flagged, stat_groups=condo_stat_groups, run_id=run_id, condos=True
 )
 
 df_group_mean_merged = pd.concat([df_res_group_mean, df_condo_group_mean]).reset_index(

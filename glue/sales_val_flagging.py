@@ -776,7 +776,7 @@ if __name__ == "__main__":
         # Write to sale.group_mean table
         df_condo_group_mean = get_group_mean_df(
             df=df_condo_flagged,
-            stat_groups=stat_groups_list,
+            stat_groups=condo_stat_groups,
             run_id=run_id,
             condos=True,
         )
