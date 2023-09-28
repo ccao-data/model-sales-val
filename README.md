@@ -87,7 +87,8 @@ erDiagram
         timestamp latest_data_ingest
         bigint short_term_owner_threshold
         arraystring iso_forest_cols
-        arraystring stat_groups
+        arraystring res_stat_groups
+        arraystring condo_stat_groups
         arraybigint dev_bounds
         bigint rolling_window
         string date_floor
