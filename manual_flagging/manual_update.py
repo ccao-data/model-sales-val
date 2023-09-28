@@ -13,18 +13,18 @@ from pyathena import connect
 from pyathena.pandas.util import as_pandas
 from random_word import RandomWords
 
-# Set working to manual_update, standardize yaml and src locations
+# Set working dir to manual_update, standardize yaml and src locations
 root = sp.getoutput("git rev-parse --show-toplevel")
 os.chdir(os.path.join(root, "manual_flagging"))
 
 # Set time for run_id
 chicago_tz = pytz.timezone("America/Chicago")
 
-# Inputs yaml as inputs
+# Use yaml as inputs
 with open(os.path.join("yaml", "inputs_update.yaml"), "r") as stream:
     inputs = yaml.safe_load(stream)
 
-# Connect to athena
+# Connect to Athena
 conn = connect(
     s3_staging_dir=os.getenv("AWS_ATHENA_S3_STAGING_DIR"),
     region_name=os.getenv("AWS_REGION"),
@@ -39,10 +39,11 @@ date_floor = flg.months_back(
 if inputs["time_frame"]["end"] == None:
     sql_time_frame = f"sale.sale_date >= DATE '{date_floor}'"
 else:
-    sql_time_frame = f"""(sale.sale_date 
+    sql_time_frame = f"""(sale.sale_date
         BETWEEN DATE '{date_floor}'
         AND DATE '{inputs['time_frame']['end']}')"""
 
+# Fetch sales and characteristics from Athena
 SQL_QUERY = f"""
 WITH CombinedData AS (
     -- Select data from vw_card_res_char
@@ -100,7 +101,7 @@ INNER JOIN default.vw_pin_sale sale
 WHERE {sql_time_frame}
 AND NOT sale.is_multisale
 AND (
-    NOT data.pin_is_multicard 
+    NOT data.pin_is_multicard
     OR data.source_table = 'condo_char'
 )
 """
@@ -114,6 +115,7 @@ FROM sale.flag
 cursor = conn.cursor()
 cursor.execute(SQL_QUERY)
 metadata = cursor.description
+
 df_ingest = as_pandas(cursor)
 df = df_ingest
 
@@ -121,7 +123,6 @@ cursor.execute(SQL_QUERY_SALES_VAL)
 df_ingest_flag = as_pandas(cursor)
 df_flag_table = df_ingest_flag
 
-# Data cleaning
 df = df.astype({col[0]: flg.sql_type_to_pd_type(col[1]) for col in metadata})
 df["sale_filter_ptax_flag"].fillna(False, inplace=True)
 
@@ -137,11 +138,12 @@ df_condo_to_flag = flg.add_rolling_window(
     df_condo, num_months=inputs["rolling_window_months"]
 )
 
-# Create condo stat groups
+# Create condo stat groups. Condos are all collapsed into a single class,
+# since there are very few 297s or 399s
 condo_stat_groups = inputs["stat_groups"].copy()
 condo_stat_groups.remove("class")
 
-# Flag Res Outliers
+# Flag outliers using the main flagging model
 df_res_flagged = flg_model.go(
     df=df_res_to_flag,
     groups=tuple(inputs["stat_groups"]),
@@ -150,6 +152,7 @@ df_res_flagged = flg_model.go(
     condos=False,
 )
 
+# Discard any flags with a group size under the threshold
 df_res_flagged_updated = flg.group_size_adjustment(
     df=df_res_flagged,
     stat_groups=inputs["stat_groups"],
@@ -157,7 +160,8 @@ df_res_flagged_updated = flg.group_size_adjustment(
     condos=False,
 )
 
-# Flag condo outliers
+# Flag condo outliers, here we remove price per sqft as an input
+# for the isolation forest model since condos don't have a unit sqft
 condo_iso_forest = inputs["iso_forest"].copy()
 condo_iso_forest.remove("sv_price_per_sqft")
 
@@ -180,20 +184,22 @@ df_flagged_merged = pd.concat(
     [df_res_flagged_updated, df_condo_flagged_updated]
 ).reset_index(drop=True)
 
+# Update the PTAX flag column with an additional std dev conditional
 df_flagged_ptax = flg.ptax_adjustment(
     df=df_flagged_merged, groups=inputs["stat_groups"], ptax_sd=inputs["ptax_sd"]
 )
 
-# Finish flagging
+# Finish flagging and subset to write to flag table
 df_flagged_final, run_id, timestamp = flg.finish_flags(
     df=df_flagged_ptax,
     start_date=inputs["time_frame"]["start"],
     manual_update=True,
 )
 
-# - - - - - -
-# Update version of re-flagged entries
-# - - - - - -
+
+# -----------------------------------------------------------------------------
+# Update version of re-flagged sales
+# -----------------------------------------------------------------------------
 
 # Group the existing data by 'ID' and find the maximum 'version' for each sale
 existing_max_version = (
@@ -216,7 +222,7 @@ df_to_write = (
     .drop(columns=["existing_version"])
 )
 
-# Write to flag table
+# Write to sale.flag table
 flg.write_to_table(
     df=df_to_write,
     table_name="flag",
@@ -224,7 +230,7 @@ flg.write_to_table(
     run_id=run_id,
 )
 
-# Write to parameter table
+# Write to sale.parameter table
 df_parameters = flg.get_parameter_df(
     df_to_write=df_to_write,
     df_ingest=df_ingest,
@@ -240,7 +246,7 @@ df_parameters = flg.get_parameter_df(
     run_id=run_id,
 )
 
-# Standardize dtypes to prevent athena errors
+# Standardize dtypes to prevent Athena errors
 df_parameters = flg.modify_dtypes(df_parameters)
 
 flg.write_to_table(
@@ -250,12 +256,11 @@ flg.write_to_table(
     run_id=run_id,
 )
 
-# Write to group_mean table
+# Write to sale.group_mean table
 df_res_group_mean = flg.get_group_mean_df(
     df=df_res_flagged, stat_groups=inputs["stat_groups"], run_id=run_id, condos=False
 )
 
-# Write to group_mean table
 df_condo_group_mean = flg.get_group_mean_df(
     df=df_condo_flagged, stat_groups=inputs["stat_groups"], run_id=run_id, condos=True
 )
@@ -271,7 +276,7 @@ flg.write_to_table(
     run_id=run_id,
 )
 
-# Write to metadata table
+# Write to sale.metadata table
 commit_sha = sp.getoutput("git rev-parse HEAD")
 df_metadata = flg.get_metadata_df(
     run_id=run_id, timestamp=timestamp, run_type="manual_update", commit_sha=commit_sha
