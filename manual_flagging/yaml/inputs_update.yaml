@@ -17,10 +17,9 @@ iso_forest: [
 
 dev_bounds: [2, 3]
 
-# 'start' and 'end' determine which sales will be updated and written
-# to the sale.flag table.
-
-# Leave 'end' blank if we want to flag all sales since start date
+# 'start' and 'end' determine which sales will be written to the
+# sale.flag table. Leave 'end' blank if we want to flag all sales
+# since the start date
 time_frame:
   start: "2019-01-01"
   end: "2021-12-31"
@@ -32,4 +31,5 @@ rolling_window_months: 12
 # many standard deviations away from the mean
 ptax_sd: [1, 1]
 
+# Flags are only applied if there are at least this many sales in the group
 min_groups_threshold: 30

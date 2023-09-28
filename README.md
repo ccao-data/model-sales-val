@@ -1,68 +1,66 @@
-# model-sales-val (docs in progress) 
-  
-| :exclamation:  IMPORTANT   |
-|-----------------------------------------|  
+# Sales validation model (work in progress)
 
-This repo is under active development and is not yet in production.
+> :exclamation: IMPORTANT: This repo is under active development and is not yet in production.
+>
+> If an edit needs to made to anything in the `glue` directory, there is a specific process to be found [here](#aws-glue-job-documentation).
 
-If an edit needs to made to anything in the `glue` directory, there a specific process to be found [here](#aws-glue-job-documentation)  
-  
 Table of Contents
 ================
 
-- [Overview](#overview)  
-- [Structure of Data](#structure-of-data)  
-- [Important Flagging Details](#important-flagging-details)
-- [AWS Glue integration](#aws-glue-job-documentation)
+- [Overview](#overview)
+- [Structure of data](#structure-of-data)
+- [Important flagging details](#important-flagging-details)
+- [AWS Glue job documentation](#aws-glue-job-documentation)
 
 # Overview
-The model-sales-val system is a critical component of our data integrity framework, designed to oversee the complex process of identifying and flagging sales that may be non-arms-length transactions. These sales can distort our analyses and models, since they don't adhere to the principle of an open and competitive market. A non-arms-length sale occurs when the buyer and seller have a relationship that might influence the transaction price, leading to a sale that doesn't reflect the true market value of the property. This relationship might exist between family members, business partners, or other close connections.
 
-The workflow of the sales flagging is as follows:  
-* There will be an intitial run of the `manual_flagging/initial_flagging.py`, which instantiates all tables, and flags a large portion of the sales as either outliers or non-outliers.
-* Then, we have `glue/sales_val_flagging.py`, a script connected to AWS glue that flags all new unflagged sales. This script will be automated such that it runs on a schedule (eg. monthly).  
-* In the case of an error with the flagging or if we want to update the methodology on already-flagged sales, we can run the `manual_flagging/manual_update.py` and select a subset of sales to re-flag. These updated values will have a version number that is 1 higher than the previous sale. When utilizing our sales views, we will pull the flag data with the highest version value to keep it up-to-date.
+This repository contains code to identify and flag sales that may be non-arms-length transactions. A non-arms-length sale occurs when the buyer and seller have a relationship that might influence the transaction price, leading to a sale that doesn't reflect the true market value of the property. These sales can distort our analyses and models, since they don't adhere to the principle of an open and competitive market.
 
-On the left, we see the normal workflow of the process. Represented on the right is the use of `manual_update.py` to update/re-flag sales.  
+The workflow for sale flagging is as follows:
 
-  ``` mermaid
+* A manual initial run of `manual_flagging/initial_flagging.py` instantiates all tables and flags all specified sales as either outliers or non-outliers.
+* Next, `glue/sales_val_flagging.py` flags all new, unflagged sales. This script is automated such that it runs on a schedule (e.g. monthly).
+* If an error occurs or we want to update the methodology on previously-flagged sales, `manual_flagging/manual_update.py` is used to select a subset of sales to re-flag. All sales have a version number that is incremented on update. When utilizing our sales views, we pull the flag data with the highest version value to keep it up-to-date.
+
+On the left, we see the normal workflow of the process. Represented on the right is the use of `manual_update.py` to update/re-flag sales.
+
+```mermaid
 graph TD
 
-    A[Initialize]
-    B{{Create Initial Table<br>of Flagged Values}}
-    C{{Perform Reoccurring Job:<br>Flag New Non-Flagged Values}}
-    D[>Some Need to Re-Flag]
-    E[Subset Sales in yaml - Run manual_update.py]
-    F[If Sale Already Flagged<br>Incremenet Version Column by 1]
-    G{If Sale Unflagged,<br>Assign Version 1}
+    A{{No sales are flagged}}
+    B[Run initial_flagging.py locally]
 
-    class B,C recurringProcess;
-    class D,E,F,G secondaryProcess;
+    C[Flags added to sales<br>via flagging.py with<br>Version = 1]
+    D[Flags joined to<br>default.vw_pin_sale]
 
     A --> B
-    B --> C
+    B -- Sales pulled from within<br>specified time window --> C
+    C -- Results saved to S3<br>with unique run ID --> D
 
-    D --> E
-    E --> G
-    G --> F
+    E{{Some sales need re-flagging}}
+    F[Subset sales in yaml, run<br>manual_update.py locally]
+    G[If sale already flagged<br>increment Version += 1]
+    H{If sale unflagged,<br>assign Version = 1}
+    I[Flags update existing<br>default.vw_pin_sale records]
+
     E --> F
+    F --> G
+    F --> H
+    H --> G
+    G -- Results saved to S3<br>with new run ID --> I
 
-    classDef recurringProcess fill:#f9d6d6,stroke:#f26a6a,stroke-width:2px;
-    classDef secondaryProcess fill:#e0e0e0,stroke:#a0a0a0,stroke-width:1px;
+```
 
+# Structure of data
 
-  ```
+All flagging runs populate 3 Athena tables with metadata, flag results, and other information. These tables can be used to determine _why_ an individual sale was flagged as an outlier. The structure of the tables is:
 
-
-# Structure of Data  
-With any flagging done, there will be 3 auxiliary tables produced with contain metadata and other information that can help track down exactly why any individual sale was flagged as an outlier.  Structure of data production below:  
-
-``` mermaid
+```mermaid
 erDiagram
-    flag ||--|{ metadata : describes
-    flag ||--|{ parameter : describes
-    flag ||--|{ group_mean : describes
-    
+    flag }|--|| metadata : describes
+    flag }|--|{ parameter : describes
+    flag }|--|{ group_mean : describes
+
     flag {
         string meta_sale_document_num PK
         date rolling_window
@@ -70,7 +68,7 @@ erDiagram
         bigint sv_is_ptax_outlier
         bigint sv_is_heuristic_outlier
         string sv_outlier_type
-        string run_id 
+        string run_id FK
         bigint version PK
 
     }
@@ -86,10 +84,11 @@ erDiagram
         string run_id PK
         bigint sales_flagged
         timestamp earliest_data_ingest
-        timestamp latest_data_ingest 
+        timestamp latest_data_ingest
         bigint short_term_owner_threshold
         arraystring iso_forest_cols
-        arraystring stat_groups
+        arraystring res_stat_groups
+        arraystring condo_stat_groups
         arraybigint dev_bounds
         bigint rolling_window
         string date_floor
@@ -105,18 +104,20 @@ erDiagram
     }
 ```
 
-# Important Flagging Details  
+# Important flagging details
 
-### Rolling Window    
-In a number of outlier calculations, our flagging model looks inside a group of sales and classifies them as outliers based on whether or not they are a certain standard devation away from the mean. In order to make these groups, we use a rolling window strategy. The current implementation uses a 12 month rolling window. This means that for any sale in a month, the group for these sales is within the given month of the sales, along with all sale data from the previous 11 months. This 12 month figure can be changed by editing the config files: `manual_flagging/yaml/` and `glue/sales_val_flagging.json` files. Here are details on where this code lives:  
-- We take every sale in the month of the sale date, along with all sale data from the previous N months. This window contain roughly 1 year of data  
-- This process start here with a `.explode()` of the data:  https://github.com/ccao-data/model-sales-val/blob/283a1403545019be135b4b9dbc67d86dabb278f4/glue/sales_val_flagging.py#L15  
-- And it ends here subsetting subsetting to the `original_observation` data:  https://github.com/ccao-data/model-sales-val/blob/499f9e31c92882312051837f35455d078d2507ee/glue/sales_val_flagging.py#L57  
-- Corresponding functions in [Mansueto](https://miurban.uchicago.edu/)'s flagging model accomodate this rolling window integration, these functions are defined in each of the flagging functions, one in `manual_flagging/src/flagging_rolling.py`, and one for the glue job in s3 `glue/flagging_script_glue/flagging_<hash>.py`:     
-    - https://github.com/ccao-data/model-sales-val/blob/499f9e31c92882312051837f35455d078d2507ee/manual_flagging/src/flagging_rolling.py#L303
-    - https://github.com/ccao-data/model-sales-val/blob/283a1403545019be135b4b9dbc67d86dabb278f4/manual_flagging/src/flagging_rolling.py#L456
+### Rolling Window
 
-# AWS Glue Job Documentation
+The flagging model uses group means to determine the statistical deviation of sales, and flags them beyond a certain threshold. Group means are constructed using a rolling window strategy.
+
+The current implementation uses a 12 month rolling window. This means that for any sale, the "group" contains all sales within the same month, along with all sales from the previous 11 months. This 12 month window can be changed by editing the config files: `manual_flagging/yaml/` and `glue/sales_val_flagging.json`. Additional notes on the rolling window implementation:
+
+- We take every sale in the same month of the sale date, along with all sale data from the previous N months. This window contains roughly 1 year of data.
+- This process starts with an `.explode()` call. Example [here](https://github.com/ccao-data/model-sales-val/blob/283a1403545019be135b4b9dbc67d86dabb278f4/glue/sales_val_flagging.py#L15).
+- It ends by subsetting to the `original_observation` data. Example [here](https://github.com/ccao-data/model-sales-val/blob/499f9e31c92882312051837f35455d078d2507ee/glue/sales_val_flagging.py#L57).
+- Corresponding functions in [Mansueto](https://miurban.uchicago.edu/)'s flagging model accommodate this rolling window integration, these functions are defined in each of the flagging functions, one in `manual_flagging/src/flagging_rolling.py`, and one for the Glue job in `glue/flagging_script_glue/*.py`.
+
+# AWS Glue job documentation
 
 This repository manages the configurations, scripts, and details for an AWS Glue Job. It's essential to maintain consistency and version control for all changes related to the job. Therefore, specific procedures have been established.
 
