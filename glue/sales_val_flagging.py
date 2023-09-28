@@ -450,28 +450,20 @@ if __name__ == "__main__":
             "iso_forest",
             "min_groups_threshold",
             "dev_bounds",
+            "commit_sha",
         ],
     )
 
-    # Define pattern to match flagging script in s3
-    pattern = "^flagging_([0-9a-z]{6})\.py$"
-
-    # List objects in the S3 bucket and prefix
-    objects = s3.list_objects(Bucket=args["s3_glue_bucket"], Prefix=args["s3_prefix"])
-
-    # Read in flagging script
-    for obj in objects["Contents"]:
-        key = obj["Key"]
-        filename = os.path.basename(key)
-        local_path = f"/tmp/{key.split('/')[-1]}"
-        if re.match(pattern, filename):
-            # If a match is found, download the file
-            s3.download_file(args["s3_glue_bucket"], key, local_path)
-            hash_to_save = re.search(pattern, filename).group(1)
-
-            # Load the python flagging script
-            exec(open(local_path).read())
-            break
+    # Load the python flagging script.
+    # We should refactor this to use a wheel that Glue can install. See:
+    # https://docs.aws.amazon.com/glue/latest/dg/aws-glue-programming-python-libraries.html#addl-python-modules-support
+    local_path = f"/tmp/flagging.py"
+    s3.download_file(
+        args["s3_glue_bucket"],
+        os.path.join(args["s3_prefix"], "flagging.py"),
+        local_path
+    )
+    exec(open(local_path).read())
 
     # Connect to athena
     conn = connect(
@@ -736,7 +728,7 @@ if __name__ == "__main__":
         # Write to metadata table
         job_name = "sales_val_flagging"
         response = glue.get_job(JobName=job_name)
-        commit_sha = response["Job"]["SourceControlDetails"]["LastCommitId"]
+        commit_sha = args["commit_sha"]
 
         # Write to metadata table
         df_metadata = get_metadata_df(
@@ -744,7 +736,7 @@ if __name__ == "__main__":
             timestamp=timestamp,
             run_type="recurring",
             commit_sha=commit_sha,
-            flagging_hash=hash_to_save,
+            flagging_hash=commit_sha,
         )
 
         write_to_table(
