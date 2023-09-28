@@ -274,6 +274,7 @@ def sql_type_to_pd_type(sql_type):
 # Helpers for writing tables
 # -----------------------------------------------------------------------------
 
+
 def get_group_mean_df(df, stat_groups, run_id, condos):
     """
     This function creates group_mean table to write to athena. This allows
@@ -368,7 +369,7 @@ def get_parameter_df(
     date_floor,
     short_term_thresh,
     min_group_thresh,
-    run_id
+    run_id,
 ):
     """
     This functions extracts relevant data to write a parameter table,
@@ -617,7 +618,6 @@ if __name__ == "__main__":
     SELECT *
     FROM sale.flag
     """
-
 
     # -------------------------------------------------------------------------
     # Execute queries and return as pandas df
