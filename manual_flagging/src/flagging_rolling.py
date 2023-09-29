@@ -1,6 +1,6 @@
 """
 This file contains all necessary functions to create a DataFrame ready to use for
-non-arms length transaction detection using statistical and heurstic methods.
+non-arms length transaction detection using statistical and heuristic methods.
 """
 
 import re
