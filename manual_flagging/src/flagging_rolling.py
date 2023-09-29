@@ -1052,7 +1052,7 @@ def split_logic(words: str):
         words (str): cleaned str from get_id
     Outputs:
         'Empty Name' if string is empty
-        tokens (list): lsit of tokens in string from split
+        tokens (list): list of tokens in string from split
     """
 
     words = re.sub(" +", " ", words)
@@ -1086,6 +1086,8 @@ def name_selector(tokens) -> str:
         'Empty Name' if name is empty.
         id (str): identified last name
     """
+    if not tokens:
+        return "Empty Name"
     if tokens == "Empty Name":
         return tokens
     # Ex: John Smith Jr
@@ -1095,7 +1097,7 @@ def name_selector(tokens) -> str:
     if len(tokens) == 2:
         id = tokens[1]
     # John George Smith
-    if len(tokens) == 3:
+    elif len(tokens) == 3:
         id = tokens[2]
     # John George Theodore Smith
     else:
@@ -1164,7 +1166,7 @@ def clean_id(row: pd.Series, col: str) -> str:
     """
     Cleans id field after get_role() by removing role.
     Inputs:
-        row: from padnas dataframe
+        row: from pandas dataframe
         col (str): column to process. 'seller' or 'buyer'
     Outputs:
         words (str): seller/buyer id without role.

@@ -112,6 +112,19 @@ metadata = cursor.description
 df_ingest = as_pandas(cursor)
 df = df_ingest
 
+
+buyer_na_dates = df_ingest[df_ingest["meta_sale_buyer_name"].isna()]["meta_sale_date"]
+
+print(buyer_na_dates.min())
+print(buyer_na_dates.max())
+
+
+seller_na_dates = df_ingest[df_ingest["meta_sale_seller_name"].isna()]["meta_sale_date"]
+
+print(seller_na_dates.min())
+print(seller_na_dates.max())
+
+
 df = df.astype({col[0]: flg.sql_type_to_pd_type(col[1]) for col in metadata})
 df["ptax_flag_original"].fillna(False, inplace=True)
 
@@ -154,8 +167,16 @@ df_res_flagged_updated = flg.group_size_adjustment(
 condo_iso_forest = inputs["iso_forest"].copy()
 condo_iso_forest.remove("sv_price_per_sqft")
 
+
+# Define the cutoff date
+cutoff_date = "2017-01-01"  # Replace 'YYYY-MM-DD' with the desired date in this format
+
+# Subset the DataFrame
+df_after_cutoff = df_condo_to_flag[df_condo_to_flag["meta_sale_date"] > cutoff_date]
+
+
 df_condo_flagged = flg_model.go(
-    df=df_condo_to_flag,
+    df=df_after_cutoff,
     groups=tuple(condo_stat_groups),
     iso_forest_cols=condo_iso_forest,
     dev_bounds=tuple(inputs["dev_bounds"]),
