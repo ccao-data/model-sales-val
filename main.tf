@@ -21,9 +21,11 @@ provider "aws" {
 }
 
 locals {
-  s3_prefix           = "script/sales-val${terraform.workspace == "prod" ? "" : "-${terraform.workspace}"}"
-  s3_warehouse_bucket = "s3://ccao-data-warehouse-us-east-1${terraform.workspace == "prod" ? "" : "/sale-dev/${terraform.workspace}"}"
-  glue_job_name       = "sales_val_flagging${terraform.workspace == "prod" ? "" : "_${terraform.workspace}"}"
+  s3_prefix                = "script/sales-val${terraform.workspace == "prod" ? "" : "-${terraform.workspace}"}"
+  s3_bucket_data_warehouse = terraform.workspace == "prod" ? "ccao-data-warehouse-us-east-1" : aws_s3_bucket.data_warehouse[0].id
+  s3_bucket_glue_assets    = terraform.workspace == "prod" ? "ccao-glue-assets-us-east-1" : aws_s3_bucket.glue_assets[0].id
+  glue_job_name            = "sales_val_flagging${terraform.workspace == "prod" ? "" : "_${terraform.workspace}"}"
+  glue_crawler_name        = "ccao-data-warehouse-sale-crawler${terraform.workspace == "prod" ? "" : "-${terraform.workspace}"}"
 }
 
 variable "iam_role_arn" {
@@ -42,27 +44,58 @@ variable "commit_sha" {
   nullable    = false
 }
 
-variable "glue_job_s3_bucket" {
-  type        = string
-  description = "S3 bucket name where the script and its modules should be stored"
-  default     = "ccao-glue-assets-us-east-1"
-  nullable    = false
+resource "aws_s3_bucket" "glue_assets" {
+  # Prod buckets are managed outside this config
+  count         = terraform.workspace == "prod" ? 0 : 1
+  bucket        = "ccao-tmp-glue-assets-${terraform.workspace}-us-east-1"
+  force_destroy = true
+}
+
+resource "aws_s3_bucket_public_access_block" "glue_assets" {
+  count  = terraform.workspace == "prod" ? 0 : 1
+  bucket = local.s3_bucket_glue_assets
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket" "data_warehouse" {
+  count         = terraform.workspace == "prod" ? 0 : 1
+  bucket        = "ccao-tmp-data-warehouse-${terraform.workspace}-us-east-1"
+  force_destroy = true
+}
+
+resource "aws_s3_bucket_public_access_block" "data_warehouse" {
+  count  = terraform.workspace == "prod" ? 0 : 1
+  bucket = local.s3_bucket_data_warehouse
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
 }
 
 resource "aws_s3_object" "sales_val_flagging" {
-  bucket = var.glue_job_s3_bucket
+  bucket = local.s3_bucket_glue_assets
   key    = "${local.s3_prefix}/sales_val_flagging.py"
   source = "${path.module}/glue/sales_val_flagging.py"
   etag   = filemd5("${path.module}/glue/sales_val_flagging.py")
 }
 
 resource "aws_s3_object" "flagging_script" {
-  bucket = var.glue_job_s3_bucket
+  bucket = local.s3_bucket_glue_assets
   key    = "${local.s3_prefix}/flagging.py"
   source = "${path.module}/glue/flagging_script_glue/flagging.py"
 }
 
-resource "aws_glue_job" "sales_val_flagging_glue_job" {
+import {
+  to = aws_glue_job.sales_val_flagging
+  id = "sales_val_flagging"
+}
+
+resource "aws_glue_job" "sales_val_flagging" {
   name            = local.glue_job_name
   role_arn        = var.iam_role_arn
   max_retries     = 0
@@ -77,15 +110,13 @@ resource "aws_glue_job" "sales_val_flagging_glue_job" {
   }
 
   default_arguments = {
-    # TODO: Perhaps we need to manage these buckets with Terraform
-    # so that we can delete them?
-    "--s3_glue_bucket"            = "s3://${var.glue_job_s3_bucket}"
+    "--s3_glue_bucket"            = local.s3_bucket_glue_assets
     "--s3_prefix"                 = "${local.s3_prefix}/"
-    "--aws_s3_warehouse_bucket"   = local.s3_warehouse_bucket
+    "--aws_s3_warehouse_bucket"   = "s3://${local.s3_bucket_data_warehouse}"
     "--enable-job-insights"       = false
     "--region_name"               = "us-east-1"
     "--job-language"              = "python"
-    "--TempDir"                   = "${var.glue_job_s3_bucket}/temporary/"
+    "--TempDir"                   = "s3://${local.s3_bucket_glue_assets}/temporary/"
     "--s3_staging_dir"            = "s3://ccao-athena-results-us-east-1"
     "--stat_groups"               = "rolling_window,township_code,class"
     "--iso_forest"                = "meta_sale_price,sv_price_per_sqft,sv_days_since_last_transaction,sv_cgdr,sv_sale_dup_counts"
@@ -94,10 +125,34 @@ resource "aws_glue_job" "sales_val_flagging_glue_job" {
     "--dev_bounds"                = "2,3"
     "--additional-python-modules" = "Random-Word==1.0.11,boto3==1.28.12"
     "--commit_sha"                = var.commit_sha
+    "--min_groups_threshold"      = "30"
+    "--ptax_sd"                   = "1,1"
   }
 }
 
 import {
   to = aws_glue_crawler.ccao_data_warehouse_sale_crawler
   id = "ccao-data-warehouse-sale-crawler"
+}
+
+resource "aws_glue_crawler" "ccao_data_warehouse_sale_crawler" {
+  name          = local.glue_crawler_name
+  database_name = "sale"
+  role          = "ccao-glue-service-role"
+
+  configuration = jsonencode({
+    Version = 1,
+    Grouping = {
+      TableLevelConfiguration = 3
+    }
+  })
+
+  s3_target {
+    path = "s3://${local.s3_bucket_data_warehouse}/sale"
+  }
+
+  schema_change_policy {
+    delete_behavior = "DELETE_FROM_DATABASE"
+    update_behavior = "UPDATE_IN_DATABASE"
+  }
 }

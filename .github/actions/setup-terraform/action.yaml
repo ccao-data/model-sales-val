@@ -28,31 +28,32 @@ runs:
       run: terraform init
       shell: bash
 
-    - name: Determine Terraform workspace and set variables
-      id: determine-workspace
+    - name: Set Terraform variables
       run: |
-        echo "iam_role_arn = \"$IAM_ROLE_ARN\"" > "$TFVARS_FILE"
+        {
+          echo "iam_role_arn = \"$IAM_ROLE_ARN\"";
+          echo "commit_sha = \"$GITHUB_SHA\"";
+        } > "$TFVARS_FILE"
+      shell: bash
+
+    - name: Select Terraform workspace
+      run: |
         # # GITHUB_HEAD_REF is only set on pull_request events, so if it's
         # present, we must be in a PR context
         if [ -n "$GITHUB_HEAD_REF" ]; then
-          echo "On pull request branch, setting terraform env to CI"
-          echo "workspace=$GITHUB_HEAD_REF" >> "$GITHUB_OUTPUT"
-          echo "commit_sha = \"$GITHUB_HEAD_REF\"" >> "$TFVARS_FILE"
+          echo "On pull request branch, setting terraform workspace to CI"
+          # Replace slashes with hyphens in the workspace name, since we need
+          # to use it to name S3 buckets
+          echo "WORKSPACE=\"${GITHUB_HEAD_REF//\//-}\"" >> "$GITHUB_OUTPUT"
         elif [[ $GITHUB_REF_NAME == 'main' ]]; then
-          echo "On master branch, setting terraform env to prod"
-          echo "workspace=prod" >> "$GITHUB_OUTPUT"
-          echo "commit_sha = \"$(printf %.6s $GITHUB_SHA)\"" >> "$TFVARS_FILE"
+          echo "On master branch, setting terraform workspace to prod"
+          echo "WORKSPACE=prod" >> "$GITHUB_OUTPUT"
         else
           echo "CI context did not match any of the expected environments"
           exit 1
         fi
+        terraform workspace select -or-create "$WORKSPACE"
       shell: bash
       env:
         IAM_ROLE_ARN: ${{ secrets.TERRAFORM_IAM_ROLE_ARN }}
         TFVARS_FILE: ${{ inputs.tfvars-file }}
-
-    - name: Select Terraform workspace
-      run: terraform workspace select "$WORKSPACE"
-      shell: bash
-      env:
-        WORKSPACE: ${{ steps.determine-workspace.outputs.workspace }}

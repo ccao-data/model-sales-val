@@ -385,7 +385,7 @@ def get_parameter_df(
     return df_parameters
 
 
-def get_metadata_df(run_id, timestamp, run_type, commit_sha, flagging_hash=""):
+def get_metadata_df(run_id, timestamp, run_type, commit_sha):
     """
     Function creates a table to be written to s3 with a unique set of
     metadata for the flagging run
@@ -402,7 +402,6 @@ def get_metadata_df(run_id, timestamp, run_type, commit_sha, flagging_hash=""):
         "short_commit_sha": commit_sha[0:8],
         "run_timestamp": timestamp,
         "run_type": run_type,
-        "flagging_hash": flagging_hash,
     }
 
     df_metadata = pd.DataFrame(metadata_dict_to_df)
@@ -736,7 +735,6 @@ if __name__ == "__main__":
             timestamp=timestamp,
             run_type="recurring",
             commit_sha=commit_sha,
-            flagging_hash=commit_sha,
         )
 
         write_to_table(
