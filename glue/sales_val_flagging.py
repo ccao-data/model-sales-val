@@ -648,7 +648,7 @@ if __name__ == "__main__":
         df_sales_val = df_ingest_sales_val
 
         df = df.astype({col[0]: sql_type_to_pd_type(col[1]) for col in metadata})
-        df["sale_filter_ptax_flag"].fillna(False, inplace=True)
+        df["ptax_flag_original"].fillna(False, inplace=True)
 
         # Separate res and condo sales based on the indicator column
         df_res = df[df["indicator"] == "res"].reset_index(drop=True)
