@@ -30,6 +30,5 @@ jobs:
         shell: bash
 
       - name: Apply Terraform changes
-        # run: terraform apply -auto-approve
-        run: terraform plan
+        run: terraform apply -auto-approve
         shell: bash
