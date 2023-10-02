@@ -47,10 +47,10 @@ runs:
           echo "On pull request branch, setting terraform workspace to CI"
           # Replace slashes with hyphens in the workspace name, since we need
           # to use it to name S3 buckets
-          echo "WORKSPACE=\"${GITHUB_HEAD_REF//\//-}\"" >> "$GITHUB_OUTPUT"
+          WORKSPACE="${GITHUB_HEAD_REF//\//-}"
         elif [[ $GITHUB_REF_NAME == 'main' ]]; then
           echo "On master branch, setting terraform workspace to prod"
-          echo "WORKSPACE=prod" >> "$GITHUB_OUTPUT"
+          WORKSPACE="prod"
         else
           echo "CI context did not match any of the expected environments"
           exit 1
