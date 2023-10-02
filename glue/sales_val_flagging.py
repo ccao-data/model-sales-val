@@ -83,6 +83,34 @@ def add_rolling_window(df, num_months):
     return df
 
 
+def ptax_adjustment(df, groups, ptax_sd):
+    """
+    This function manually applies a ptax adjustment, keeping only
+    ptax flags that are outside of a certain standard deviation
+    range in terms of raw price or price per sqft. It creates the
+    new column and preserves the old ptax column
+
+    Inputs:
+        df: dataframe after flagging has been done
+        groups: stat groups used for outlier classification
+        ptax_sd: a list that look like this - [low sd, high sd]
+            - both values should be positive
+    Outputs:
+        df: ptax adjusted dataframe
+    """
+
+    group_string = "_".join(groups)
+
+    df["ptax_flag_w_deviation"] = df["ptax_flag_original"] & (
+        (df[f"sv_price_deviation_{group_string}"] >= ptax_sd[1])
+        | (df[f"sv_price_deviation_{group_string}"] <= -ptax_sd[0])
+        | (df[f"sv_price_per_sqft_deviation_{group_string}"] >= ptax_sd[1])
+        | (df[f"sv_price_per_sqft_deviation_{group_string}"] <= -ptax_sd[0])
+    )
+
+    return df
+
+
 def group_size_adjustment(df, stat_groups: list, min_threshold, condos: bool):
     """
     Within the groups of sales we are looking at to flag outliers, some
@@ -147,7 +175,7 @@ def finish_flags(df, start_date, manual_update):
         -removes the unneeded observations used for the rolling window calculation
         -finishes adding sales val cols for flag table upload
     Inputs:
-        df: df flagged with manuesto flagging methodology
+        df: df flagged with mansueto flagging methodology
         start_date: a limit on how early we flag sales from
         manual_update: whether or not manual_update.py is using this script,
                        if True, adds a versioning capability.
@@ -156,6 +184,7 @@ def finish_flags(df, start_date, manual_update):
         run_id: unique run_id used for metadata. etc.
         timestamp: unique timestamp for metadata
     """
+
     # Remove duplicate rows
     df = df[df["original_observation"]]
     # Discard pre-2014 data
@@ -167,10 +196,10 @@ def finish_flags(df, start_date, manual_update):
         .assign(
             sv_is_autoval_outlier=lambda df: df["sv_is_autoval_outlier"] == "Outlier",
             sv_is_outlier=lambda df: df["sv_is_autoval_outlier"]
-            | df["sale_filter_ptax_flag"],
+            | df["ptax_flag_w_deviation"],
             # Incorporate PTAX in sv_outlier_type
             sv_outlier_type=lambda df: np.where(
-                df["sale_filter_ptax_flag"],
+                df["ptax_flag_w_deviation"],
                 "PTAX-203 flag",
                 df["sv_outlier_type"],
             ),
@@ -198,6 +227,7 @@ def finish_flags(df, start_date, manual_update):
         "rolling_window",
         "sv_is_outlier",
         "sv_is_ptax_outlier",
+        "ptax_flag_original",
         "sv_is_heuristic_outlier",
         "sv_outlier_type",
     ]
@@ -221,7 +251,7 @@ def finish_flags(df, start_date, manual_update):
     if not manual_update:
         dynamic_assignment["version"] = 1
 
-    # Finalize to write to flag table
+    # Finalize to write to sale.flag table
     df = df[cols_to_write].assign(**dynamic_assignment).reset_index(drop=True)
 
     return df, run_id, timestamp
@@ -240,9 +270,9 @@ def sql_type_to_pd_type(sql_type):
         return "float64"
 
 
-# - - - - - - - - - - - - - -
+# -----------------------------------------------------------------------------
 # Helpers for writing tables
-# - - - - - - - - - - - - - -
+# -----------------------------------------------------------------------------
 
 
 def get_group_mean_df(df, stat_groups, run_id, condos):
@@ -302,7 +332,7 @@ def get_group_mean_df(df, stat_groups, run_id, condos):
 
 def modify_dtypes(df):
     """
-    Helper function for resolving athena parquet errors.
+    Helper function for resolving Athena parquet errors.
 
     Sometimes, when writing data of pandas dtypes to S3/athena, there
     are errors with consistent metadata between the parquet files, even though
@@ -331,8 +361,10 @@ def get_parameter_df(
     df_to_write,
     df_ingest,
     iso_forest_cols,
-    stat_groups,
+    res_stat_groups,
+    condo_stat_groups,
     dev_bounds,
+    ptax_sd,
     rolling_window,
     date_floor,
     short_term_thresh,
@@ -343,27 +375,32 @@ def get_parameter_df(
     This functions extracts relevant data to write a parameter table,
     which tracks important information about the flagging run.
     Inputs:
-        df_to_write: The final table used to write data to the sales.flag table
+        df_to_write: The final table used to write data to the sale.flag table
         df_ingest: raw data read in to perform flagging
-        iso_forest_cols: columns used in iso_forest model in mansueto's flagging model
-        stat_groups: which groups were used for mansueto's flagging model
-        dev_bounds: standard devation bounds to catch outliers
-        short_term_thresh: short-term threshold for mansueto's flagging model
-        run_id: unique run_id to flagging program run
-        date_floor: parameter specification that limits earliest flagging write
+        iso_forest_cols: columns used in iso_forest model in Mansueto's flagging model
+        res_stat_groups: which groups were used for mansueto's flagging model
+        condo_stat_groups: which groups were used for condos
+        dev_bounds: standard deviation bounds to catch outliers
+        ptax_sd: list of standard deviations used for ptax flagging
         rolling_window: how many months used in rolling window methodology
+        date_floor: parameter specification that limits earliest flagging write
+        short_term_thresh: short-term threshold for Mansueto's flagging model
+        min_group_thresh: minimum group size threshold needed to flag as outlier
+        run_id: unique run_id to flagging program run
     Outputs:
         df_parameters: parameters table associated with flagging run
     """
     sales_flagged = df_to_write.shape[0]
     earliest_sale_ingest = df_ingest.meta_sale_date.min()
     latest_sale_ingest = df_ingest.meta_sale_date.max()
-    short_term_owner_threshold = short_term_thresh
     iso_forest_cols = iso_forest_cols
-    stat_groups = stat_groups
+    res_stat_groups = res_stat_groups
+    condo_stat_groups = condo_stat_groups
     dev_bounds = dev_bounds
-    date_floor = date_floor
+    ptax_sd = ptax_sd
     rolling_window = rolling_window
+    date_floor = date_floor
+    short_term_owner_threshold = short_term_thresh
     min_group_thresh = min_group_thresh
 
     parameter_dict_to_df = {
@@ -371,12 +408,14 @@ def get_parameter_df(
         "sales_flagged": [sales_flagged],
         "earliest_data_ingest": [earliest_sale_ingest],
         "latest_data_ingest": [latest_sale_ingest],
-        "short_term_owner_threshold": [short_term_owner_threshold],
         "iso_forest_cols": [iso_forest_cols],
-        "stat_groups": [stat_groups],
+        "res_stat_groups": [res_stat_groups],
+        "condo_stat_groups": [condo_stat_groups],
         "dev_bounds": [dev_bounds],
+        "ptax_sd": [ptax_sd],
         "rolling_window": [rolling_window],
         "date_floor": [date_floor],
+        "short_term_owner_threshold": [short_term_owner_threshold],
         "min_group_thresh": [min_group_thresh],
     }
 
@@ -392,6 +431,9 @@ def get_metadata_df(run_id, timestamp, run_type, commit_sha):
     Inputs:
         run_id: unique run_id for flagging run
         timestamp: unique timestamp for program run
+        run_type: initial, manual, or Glue/recurring
+        commit_sha: SHA1 hash of the commit used to run the flagging script
+        flagging_hash: MD5 hash of the flagging script
     Outputs:
         df_metadata: table to be written to s3
     """
@@ -434,7 +476,7 @@ if __name__ == "__main__":
     # Set timezone for run_id
     chicago_tz = pytz.timezone("America/Chicago")
 
-    # Load in glue job parameters
+    # Load in Glue job parameters
     args = getResolvedOptions(
         sys.argv,
         [
@@ -450,6 +492,7 @@ if __name__ == "__main__":
             "min_groups_threshold",
             "dev_bounds",
             "commit_sha",
+            "ptax_sd",
         ],
     )
 
@@ -464,7 +507,7 @@ if __name__ == "__main__":
     )
     exec(open(local_path).read())
 
-    # Connect to athena
+    # Connect to Athena
     conn = connect(
         s3_staging_dir=args["s3_staging_dir"], region_name=args["region_name"]
     )
@@ -532,7 +575,7 @@ if __name__ == "__main__":
         sale.doc_no AS meta_sale_document_num,
         sale.seller_name AS meta_sale_seller_name,
         sale.buyer_name AS meta_sale_buyer_name,
-        sale.sale_filter_ptax_flag,
+        sale.sale_filter_ptax_flag AS ptax_flag_original,
         data.class,
         data.township_code,
         data.year,
@@ -566,9 +609,9 @@ if __name__ == "__main__":
     FROM sale.flag
     """
 
-    # ----
+    # -------------------------------------------------------------------------
     # Execute queries and return as pandas df
-    # ----
+    # -------------------------------------------------------------------------
 
     # Instantiate cursor
     cursor = conn.cursor()
@@ -579,7 +622,8 @@ if __name__ == "__main__":
     df_ingest_full = as_pandas(cursor)
     df = df_ingest_full
 
-    # Filter the dataframe to look at sales we are interested in flagging, not prior rolling window data
+    # Filter the dataframe to look at sales we are interested in flagging,
+    # not prior rolling window data
     filtered_df = df_ingest_full[
         df_ingest_full["meta_sale_date"] >= args["time_frame_start"]
     ]
@@ -593,9 +637,8 @@ if __name__ == "__main__":
         df_ingest_sales_val = as_pandas(cursor)
         df_sales_val = df_ingest_sales_val
 
-        # Data cleaning
         df = df.astype({col[0]: sql_type_to_pd_type(col[1]) for col in metadata})
-        df["sale_filter_ptax_flag"].fillna(False, inplace=True)
+        df["ptax_flag_original"].fillna(False, inplace=True)
 
         # Separate res and condo sales based on the indicator column
         df_res = df[df["indicator"] == "res"].reset_index(drop=True)
@@ -614,8 +657,14 @@ if __name__ == "__main__":
         iso_forest_list = args["iso_forest"].split(",")
         dev_bounds_list = list(map(int, args["dev_bounds"].split(",")))
         dev_bounds_tuple = tuple(map(int, args["dev_bounds"].split(",")))
+        ptax_sd_list = list(map(int, args["ptax_sd"].split(",")))
 
-        # Flag Res Outliers
+        # Create condo stat groups. Condos are all collapsed into a single
+        # class, since there are very few 297s or 399s
+        condo_stat_groups = stat_groups_list.copy()
+        condo_stat_groups.remove("class")
+
+        # Flag outliers using the main flagging model
         df_res_flagged = go(
             df=df_res_to_flag,
             groups=tuple(stat_groups_list),
@@ -624,20 +673,22 @@ if __name__ == "__main__":
             condos=False,
         )
 
+        # Discard any flags with a group size under the threshold
         df_res_flagged_updated = group_size_adjustment(
             df=df_res_flagged,
-            stat_groups=tuple(stat_groups_list),
+            stat_groups=stat_groups_list,
             min_threshold=int(args["min_groups_threshold"]),
             condos=False,
         )
 
-        # Flag condo outliers
+        # Flag condo outliers, here we remove price per sqft as an input
+        # for the isolation forest model since condos don't have a unit sqft
         condo_iso_forest = iso_forest_list.copy()
         condo_iso_forest.remove("sv_price_per_sqft")
 
         df_condo_flagged = go(
             df=df_condo_to_flag,
-            groups=tuple(stat_groups_list),
+            groups=tuple(condo_stat_groups),
             iso_forest_cols=condo_iso_forest,
             dev_bounds=dev_bounds_tuple,
             condos=True,
@@ -645,7 +696,7 @@ if __name__ == "__main__":
 
         df_condo_flagged_updated = group_size_adjustment(
             df=df_condo_flagged,
-            stat_groups=tuple(stat_groups_list),
+            stat_groups=condo_stat_groups,
             min_threshold=int(args["min_groups_threshold"]),
             condos=True,
         )
@@ -654,9 +705,14 @@ if __name__ == "__main__":
             [df_res_flagged_updated, df_condo_flagged_updated]
         ).reset_index(drop=True)
 
+        # Update the PTAX flag column with an additional std dev conditional
+        df_flagged_ptax = ptax_adjustment(
+            df=df_flagged_merged, groups=stat_groups_list, ptax_sd=ptax_sd_list
+        )
+
         # Finish flagging
         df_flagged_final, run_id, timestamp = finish_flags(
-            df=df_flagged_merged,
+            df=df_flagged_ptax,
             start_date=args["time_frame_start"],
             manual_update=False,
         )
@@ -668,7 +724,7 @@ if __name__ == "__main__":
             )
         ].reset_index(drop=True)
 
-        # Write to flag table
+        # Write to sale.flag table
         write_to_table(
             df=rows_to_append,
             table_name="flag",
@@ -676,13 +732,15 @@ if __name__ == "__main__":
             run_id=run_id,
         )
 
-        # Write to parameter table
+        # Write to sale.parameter table
         df_parameters = get_parameter_df(
             df_to_write=rows_to_append,
             df_ingest=df_ingest_full,
             iso_forest_cols=iso_forest_list,
-            stat_groups=stat_groups_list,
+            res_stat_groups=inputs["stat_groups"],
+            condo_stat_groups=condo_stat_groups,
             dev_bounds=dev_bounds_list,
+            ptax_sd=ptax_sd_list,
             rolling_window=int(args["rolling_window_num"]),
             date_floor=args["time_frame_start"],
             short_term_thresh=SHORT_TERM_OWNER_THRESHOLD,
@@ -690,7 +748,7 @@ if __name__ == "__main__":
             run_id=run_id,
         )
 
-        # Standardize dtypes to prevent athena errors
+        # Standardize dtypes to prevent Athena errors
         df_parameters = modify_dtypes(df_parameters)
 
         write_to_table(
@@ -700,15 +758,15 @@ if __name__ == "__main__":
             run_id=run_id,
         )
 
-        # Write to group_mean table
+        # Write to sale.group_mean table
         df_res_group_mean = get_group_mean_df(
             df=df_res_flagged, stat_groups=stat_groups_list, run_id=run_id, condos=False
         )
 
-        # Write to group_mean table
+        # Write to sale.group_mean table
         df_condo_group_mean = get_group_mean_df(
             df=df_condo_flagged,
-            stat_groups=stat_groups_list,
+            stat_groups=condo_stat_groups,
             run_id=run_id,
             condos=True,
         )
@@ -724,12 +782,12 @@ if __name__ == "__main__":
             run_id=run_id,
         )
 
-        # Write to metadata table
+        # Write to sale.metadata table
         job_name = "sales_val_flagging"
         response = glue.get_job(JobName=job_name)
         commit_sha = args["commit_sha"]
 
-        # Write to metadata table
+        # Write to sale.metadata table
         df_metadata = get_metadata_df(
             run_id=run_id,
             timestamp=timestamp,
