@@ -28,3 +28,5 @@ jobs:
       - name: Delete resources using Terraform
         run: terraform destroy -auto-approve
         shell: bash
+        env:
+          TF_LOG: DEBUG
