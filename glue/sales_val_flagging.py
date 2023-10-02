@@ -503,7 +503,7 @@ if __name__ == "__main__":
     s3.download_file(
         args["s3_glue_bucket"],
         os.path.join(args["s3_prefix"], "flagging.py"),
-        local_path
+        local_path,
     )
     exec(open(local_path).read())
 
