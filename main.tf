@@ -47,7 +47,7 @@ variable "commit_sha" {
 resource "aws_s3_bucket" "glue_assets" {
   # Prod buckets are managed outside this config
   count         = terraform.workspace == "prod" ? 0 : 1
-  bucket        = "ccao-tmp-glue-assets-${terraform.workspace}-us-east-1"
+  bucket        = "ccao-glue-assets-${terraform.workspace}-us-east-1"
   force_destroy = true
 }
 
@@ -63,7 +63,7 @@ resource "aws_s3_bucket_public_access_block" "glue_assets" {
 
 resource "aws_s3_bucket" "data_warehouse" {
   count         = terraform.workspace == "prod" ? 0 : 1
-  bucket        = "ccao-tmp-data-warehouse-${terraform.workspace}-us-east-1"
+  bucket        = "ccao-data-warehouse-${terraform.workspace}-us-east-1"
   force_destroy = true
 }
 
