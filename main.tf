@@ -21,7 +21,7 @@ provider "aws" {
 }
 
 locals {
-  s3_prefix                = "scripts/sales-val${terraform.workspace == "prod" ? "" : "-${terraform.workspace}"}"
+  s3_prefix                = "scripts/sales-val"
   s3_bucket_data_warehouse = terraform.workspace == "prod" ? "ccao-data-warehouse-us-east-1" : aws_s3_bucket.data_warehouse[0].id
   s3_bucket_glue_assets    = terraform.workspace == "prod" ? "ccao-glue-assets-us-east-1" : aws_s3_bucket.glue_assets[0].id
   glue_job_name            = "sales_val_flagging${terraform.workspace == "prod" ? "" : "_${terraform.workspace}"}"
