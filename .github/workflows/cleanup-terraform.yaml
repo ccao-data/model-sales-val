@@ -19,9 +19,8 @@ jobs:
         uses: ./.github/actions/setup-terraform
         with:
           role-to-assume: ${{ secrets.AWS_IAM_ROLE_TO_ASSUME_ARN }}
+          terraform-iam-role-arn: ${{ secrets.TERRAFORM_IAM_ROLE_ARN }}
 
       - name: Delete resources using Terraform
         run: terraform destroy -auto-approve
         shell: bash
-        env:
-          IAM_ROLE_ARN: ${{ secrets.TERRAFORM_IAM_ROLE_ARN }}

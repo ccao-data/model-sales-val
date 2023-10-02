@@ -5,6 +5,9 @@ inputs:
   role-to-assume:
     description: AWS IAM role to assume when running Terraform operations.
     required: true
+  terraform-iam-role-arn:
+    description: AWS IAM role to use for running the Glue job being deployed.
+    required: true
   tfvars-vile:
     description: File to store Terraform variables.
     required: false
@@ -55,5 +58,5 @@ runs:
         terraform workspace select -or-create "$WORKSPACE"
       shell: bash
       env:
-        IAM_ROLE_ARN: ${{ secrets.TERRAFORM_IAM_ROLE_ARN }}
+        IAM_ROLE_ARN: ${{ inputs.terraform-iam-role-arn }}
         TFVARS_FILE: ${{ inputs.tfvars-file }}
