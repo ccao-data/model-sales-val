@@ -21,7 +21,7 @@ provider "aws" {
 }
 
 locals {
-  s3_prefix                = "script/sales-val${terraform.workspace == "prod" ? "" : "-${terraform.workspace}"}"
+  s3_prefix                = "scripts/sales-val${terraform.workspace == "prod" ? "" : "-${terraform.workspace}"}"
   s3_bucket_data_warehouse = terraform.workspace == "prod" ? "ccao-data-warehouse-us-east-1" : aws_s3_bucket.data_warehouse[0].id
   s3_bucket_glue_assets    = terraform.workspace == "prod" ? "ccao-glue-assets-us-east-1" : aws_s3_bucket.glue_assets[0].id
   glue_job_name            = "sales_val_flagging${terraform.workspace == "prod" ? "" : "_${terraform.workspace}"}"
@@ -90,11 +90,6 @@ resource "aws_s3_object" "flagging_script" {
   source = "${path.module}/glue/flagging_script_glue/flagging.py"
 }
 
-import {
-  to = aws_glue_job.sales_val_flagging
-  id = "sales_val_flagging"
-}
-
 resource "aws_glue_job" "sales_val_flagging" {
   name            = local.glue_job_name
   role_arn        = var.iam_role_arn
@@ -105,7 +100,7 @@ resource "aws_glue_job" "sales_val_flagging" {
 
   command {
     name            = "pythonshell"
-    script_location = aws_s3_object.sales_val_flagging.id
+    script_location = "s3://${aws_s3_object.sales_val_flagging.id}"
     python_version  = "3.9"
   }
 
@@ -128,11 +123,6 @@ resource "aws_glue_job" "sales_val_flagging" {
     "--min_groups_threshold"      = "30"
     "--ptax_sd"                   = "1,1"
   }
-}
-
-import {
-  to = aws_glue_crawler.ccao_data_warehouse_sale_crawler
-  id = "ccao-data-warehouse-sale-crawler"
 }
 
 resource "aws_glue_crawler" "ccao_data_warehouse_sale_crawler" {
