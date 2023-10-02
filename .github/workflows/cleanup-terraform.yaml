@@ -23,6 +23,7 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_IAM_ROLE_TO_ASSUME_ARN }}
           terraform-iam-role-arn: ${{ secrets.TERRAFORM_IAM_ROLE_ARN }}
+          aws-account-id: ${{ secrets.AWS_ACCOUNT_ID }}
 
       - name: Delete resources using Terraform
         run: terraform destroy -auto-approve

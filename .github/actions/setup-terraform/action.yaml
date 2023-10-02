@@ -8,6 +8,9 @@ inputs:
   terraform-iam-role-arn:
     description: AWS IAM role to use for running the Glue job being deployed.
     required: true
+  aws-account-id:
+    description: AWS account ID to use to create resources.
+    required: true
   tfvars-file:
     description: File to store Terraform variables.
     required: false
@@ -26,6 +29,13 @@ runs:
 
     - name: Initialize Terraform
       run: terraform init
+      shell: bash
+
+    - name: Mask Terraform variables
+      run: |
+        echo "::add-mask::${{ inputs.role-to-assume }}"
+        echo "::add-mask::${{ inputs.terraform-iam-role-arn }}"
+        echo "::add-mask::${{ inputs.aws-account-id }}"
       shell: bash
 
     - name: Set Terraform variables
