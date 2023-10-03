@@ -22,7 +22,7 @@ dev_bounds: [2, 3]
 # sale.flag table. Leave 'end' blank if we want to flag all sales
 # since the start date
 time_frame:
-  start: "2019-01-01"
+  start: "2014-01-01"
   end: "2020-06-30"
 
 # How many total months to include in the grouping methodology

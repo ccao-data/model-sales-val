@@ -892,6 +892,10 @@ def get_id(row: pd.Series, col: str) -> str:
         id = "Empty Name"
         return id
 
+    if pd.isnull(row[column]):
+        id = "Empty Name"
+        return id
+
     if any(x in words for x in ["vt investment corpor", "v t investment corp"]):
         return "vt investment corporation"
 
@@ -1086,13 +1090,12 @@ def name_selector(tokens) -> str:
         'Empty Name' if name is empty.
         id (str): identified last name
     """
+
     if not tokens:
         return "Empty Name"
-    elif tokens == "Empty Name":
-        return tokens
-    # Ex: John Smith Jr
     elif tokens[-1] in ["jr", "sr", "ii", "iii", "iv", "v"]:
         tokens = tokens[:-1]
+    print(f"tokens before accessing last element: {tokens}")
 
     id = tokens[-1]
 
@@ -1201,23 +1204,6 @@ def create_judicial_flag(df: pd.DataFrame) -> pd.DataFrame:
     )
 
     return df
-
-
-def create_match_flag(row: pd.Series) -> str:
-    """
-    Creates a column that says whether the buyer/seller id match.
-    Meant for apply().
-    Inputs:
-        row: from dataframe
-    Outputs:
-        value (str): whether the buyer and seller ID match
-    """
-    if row["buyer_id"] == row["seller_id"] and row["buyer_id"] != "Empty Name":
-        value = "Buyer ID and Seller ID match"
-    else:
-        value = "No match"
-
-    return value
 
 
 def create_name_match(row: pd.Series) -> str:
