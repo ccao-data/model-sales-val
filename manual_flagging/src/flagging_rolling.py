@@ -1093,15 +1093,8 @@ def name_selector(tokens) -> str:
     # Ex: John Smith Jr
     elif tokens[-1] in ["jr", "sr", "ii", "iii", "iv", "v"]:
         tokens = tokens[:-1]
-    # Ex: John Smith
-    elif len(tokens) == 2:
-        id = tokens[1]
-    # John George Smith
-    elif len(tokens) == 3:
-        id = tokens[2]
-    # John George Theodore Smith
-    else:
-        id = tokens[-1]
+
+    id = tokens[-1]
 
     return id
 
