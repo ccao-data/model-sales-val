@@ -106,6 +106,7 @@ resource "aws_s3_object" "flagging_script" {
   bucket = local.s3_bucket_glue_assets
   key    = "${local.s3_prefix}/flagging.py"
   source = "${path.module}/glue/flagging_script_glue/flagging.py"
+  etag   = filemd5("${path.module}/glue/flagging_script_glue/flagging.py")
 }
 
 resource "aws_glue_job" "sales_val_flagging" {
@@ -136,7 +137,7 @@ resource "aws_glue_job" "sales_val_flagging" {
     "--rolling_window_num"        = 12
     "--time_frame_start"          = "2023-01-01"
     "--dev_bounds"                = "2,3"
-    "--additional-python-modules" = "Random-Word==1.0.11,boto3==1.28.12"
+    "--additional-python-modules" = "Random-Word==1.0.11,boto3==1.28.12,pandas=2.1.1"
     "--commit_sha"                = var.commit_sha
     "--min_groups_threshold"      = "30"
     "--ptax_sd"                   = "1,1"
