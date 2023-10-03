@@ -747,7 +747,7 @@ if __name__ == "__main__":
             df_to_write=rows_to_append,
             df_ingest=df_ingest_full,
             iso_forest_cols=iso_forest_list,
-            res_stat_groups=inputs["stat_groups"],
+            res_stat_groups=stat_groups_list,
             condo_stat_groups=condo_stat_groups,
             dev_bounds=dev_bounds_list,
             ptax_sd=ptax_sd_list,
