@@ -78,7 +78,6 @@ erDiagram
         string short_commit_sha
         string run_timestamp
         string run_type
-        string flagging_hash
     }
     parameter {
         string run_id PK
@@ -106,7 +105,7 @@ erDiagram
 
 # Important flagging details
 
-### Rolling Window
+### Rolling window
 
 The flagging model uses group means to determine the statistical deviation of sales, and flags them beyond a certain threshold. Group means are constructed using a rolling window strategy.
 
@@ -121,45 +120,26 @@ The current implementation uses a 12 month rolling window. This means that for a
 
 This repository manages the configurations, scripts, and details for an AWS Glue Job. It's essential to maintain consistency and version control for all changes related to the job. Therefore, specific procedures have been established.
 
-## ⚠️ Important Guidelines
+## ⚠️ Important guidelines
 
 1. **DO NOT** modify the Glue job script, its associated flagging python script, or any of its job details directly via the AWS Console.
 2. All changes to these components should originate from this repository. This ensures that every modification is tracked and version-controlled.
 3. The **only** advisable actions in the AWS Console concerning this Glue job are:
     - Running the job
-    - Pulling updates from the repo through AWS's version control system.
+4. To test a change to the Glue job script or the flagging script, make an edit on a branch and open a pull request. Our GitHub Actions configuration will deploy a staging version of your job, named `sales_val_flagging_<your_branch_name>`, that you can run to test your changes. See the [Modifying the Glue job](#modifying-the-glue-job-its-flagging-script-or-its-settings) section below for more details.
 
-## Modifying the Glue Job Script or Details
+## Modifying the Glue job, its flagging script, or its settings
 
-1. Locate the desired files:
+The Glue job and its flagging script are written in Python, while the job details and settings are defined in a [Terraform](https://developer.hashicorp.com/terraform/intro) configuration file. These files can be edited to modify the Glue job script, its flagging script, or its job settings.
+
+1. Locate the desired files to edit:
     - Glue script: `glue/sales_val_flagging.py`
-    - Job details/settings: `glue/sales_val_flagging.json`
+    - Flagging script: `glue/flagging_script_glue/flagging.py`
+    - Job details/settings: `main.tf`, under the resource block `aws_glue_job.sales_val_flagging` (see [the Terraform AWS provider docs](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/glue_job) for details)
 2. Any changes to these files should be made in the following sequence:
-    - Push modifications to the master branch of this repo.
-    - Pull these changes from the AWS Console.
-
-    > Note: AWS Glue is integrated with GitHub for version control. Ensure you have the necessary authentication. If required, use a personal access token. See [this guide](https://aws.amazon.com/blogs/big-data/code-versioning-using-aws-glue-studio-and-github/) for more details. Make these changes from the `Version Control` tab of the AWS Glue job.
-
-## Modifying the S3 Flagging Script
-
-The S3 flagging script `glue/flagging_script_glue/flagging_<hash>.py` is uniquely identified through a hash. This helps in tracking changes efficiently.
-
-### How Hashing Works:
-
-- The script name will include the first 6 characters of its hash.
-- Upon execucution of a glue job, these characters are then logged in the `sale.metadata` table in Athena.
-- This enables us to track and locate any flagging file used by the Glue script, matching the commit hash and the flagging file within `glue/flagging_script_glue/`.
-
-The hashing process utilizes the bash script `glue/flagging_script_glue/hash.sh`.
-
-### Steps to Modify the S3 Flagging Script:
-
-1. Edit file: `glue/flagging_script_glue/hash.sh`
-2. Save your changes locally.
-3. Run the `hash.sh` script. This action:
-    - Rehashes the updated file.
-    - Renames the file, appending the first 6 characters of the new hash.
-    - Removes the previously hashed flagging file.
-4. The updated hash file should reflect in both the S3 bucket and this repository.
-5. Push the changes to the master branch.
-
+    - Make a new git branch for your changes.
+    - Edit the files as necessary.
+    - Open a pull request for your changes against the `main` branch. A GitHub Actions workflow called `deploy-terraform` will deploy a staging version of your job named `sales_val_flagging_<your_branch_name>` that you can run to test your changes.
+    - If you need to make further changes, push commits to your branch and GitHub Actions will deploy the changes to the staging job and its associated resources.
+    - Once you're happy with your changes, request review on your PR.
+    - Once your PR is approved, merge it into `main`. A GitHub Actions workflow called `cleanup-terraform` will delete the staging resources that were created for your branch, while a separate `deploy-terraform` run will deploy your changes to the production job and its associated resources.
