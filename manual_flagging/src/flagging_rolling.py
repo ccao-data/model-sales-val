@@ -1088,13 +1088,13 @@ def name_selector(tokens) -> str:
     """
     if not tokens:
         return "Empty Name"
-    if tokens == "Empty Name":
+    elif tokens == "Empty Name":
         return tokens
     # Ex: John Smith Jr
-    if tokens[-1] in ["jr", "sr", "ii", "iii", "iv", "v"]:
+    elif tokens[-1] in ["jr", "sr", "ii", "iii", "iv", "v"]:
         tokens = tokens[:-1]
     # Ex: John Smith
-    if len(tokens) == 2:
+    elif len(tokens) == 2:
         id = tokens[1]
     # John George Smith
     elif len(tokens) == 3:
