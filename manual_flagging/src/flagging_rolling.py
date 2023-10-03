@@ -891,11 +891,15 @@ def get_id(row: pd.Series, col: str) -> str:
     if words.isspace() or re.search(r"^[.]*$", words):
         id = "Empty Name"
         return id
-
+    """
     if pd.isnull(row[column]):
         id = "Empty Name"
         return id
-
+    
+    if words in ["none", "nan"]:
+        id = "Empty Name"
+        return id
+    """
     if any(x in words for x in ["vt investment corpor", "v t investment corp"]):
         return "vt investment corporation"
 
@@ -1091,13 +1095,20 @@ def name_selector(tokens) -> str:
         id (str): identified last name
     """
 
-    if not tokens:
-        return "Empty Name"
-    elif tokens[-1] in ["jr", "sr", "ii", "iii", "iv", "v"]:
+    if tokens == "Empty Name":
+        return tokens
+    # Ex: John Smith Jr
+    if tokens[-1] in ["jr", "sr", "ii", "iii", "iv", "v"]:
         tokens = tokens[:-1]
-    print(f"tokens before accessing last element: {tokens}")
-
-    id = tokens[-1]
+    # Ex: John Smith
+    if len(tokens) == 2:
+        id = tokens[1]
+    # John George Smith
+    if len(tokens) == 3:
+        id = tokens[2]
+    # John George Theodore Smith
+    else:
+        id = tokens[-1]
 
     return id
 
