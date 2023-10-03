@@ -885,6 +885,11 @@ def get_id(row: pd.Series, col: str) -> str:
     column = col + "_name"
     words = str(row[column]).lower()
 
+    # Check for missing values first
+    if pd.isnull(row[column]) or words in ["none", "nan"]:
+        id = "Empty Name"
+        return id
+
     words = re.sub(r" amp ", "", words)
     words = re.sub(" +", " ", words)
 
@@ -1226,6 +1231,11 @@ def create_name_match(row: pd.Series) -> str:
     Outputs:
         value (str or None): string match if applicable, None otherwise
     """
+    if row["sv_buyer_id"] == row["sv_seller_id"] and row["sv_buyer_id"] != "Empty Name":
+        value = row["sv_seller_id"]
+    else:
+        value = "No match"
+
     if row["sv_buyer_id"] == row["sv_seller_id"] and row["sv_buyer_id"] != "Empty Name":
         value = row["sv_seller_id"]
     else:
