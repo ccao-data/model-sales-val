@@ -1236,11 +1236,6 @@ def create_name_match(row: pd.Series) -> str:
     else:
         value = "No match"
 
-    if row["sv_buyer_id"] == row["sv_seller_id"] and row["sv_buyer_id"] != "Empty Name":
-        value = row["sv_seller_id"]
-    else:
-        value = "No match"
-
     return value
 
 
