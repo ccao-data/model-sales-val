@@ -10,9 +10,9 @@ terraform {
 
   backend "s3" {
     bucket               = "ccao-terraform-state-us-east-1"
-    key                  = "workspaces/default/terraform.tfstate"
+    key                  = "terraform.tfstate"
     region               = "us-east-1"
-    workspace_key_prefix = "workspaces"
+    workspace_key_prefix = "model-sales-val/workspaces"
   }
 }
 
