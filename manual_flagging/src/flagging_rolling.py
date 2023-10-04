@@ -886,7 +886,13 @@ def get_id(row: pd.Series, col: str) -> str:
     words = str(row[column]).lower()
 
     # Check for missing values first
-    if pd.isnull(row[column]) or words in ["none", "nan"]:
+    if pd.isnull(row[column]) or words in [
+        "none",
+        "nan",
+        "unknown",
+        "missing seller name",
+        "missing buyer name",
+    ]:
         id = "Empty Name"
         return id
 
