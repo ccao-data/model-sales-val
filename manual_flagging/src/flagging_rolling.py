@@ -1083,7 +1083,7 @@ def split_logic(words: str):
 
     _and = re.search(
         r"\b and\b|\b an$\b|\b a$\b|f k a|\bfka\b| n k a|\bnka\b|"
-        r"\b aka\b|a k a|\b kna\b|k n a| f k$|n k$|a k$|\b not\b| married",
+        r"\b aka\b|a k a(?=\\s|$)|\b kna\b|k n a| f k$|n k$|a k$|\b not\b| married",
         words,
     )
 
