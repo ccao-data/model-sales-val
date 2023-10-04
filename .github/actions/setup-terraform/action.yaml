@@ -55,9 +55,9 @@ runs:
         # present, we must be in a PR context
         if [ -n "$GITHUB_HEAD_REF" ]; then
           echo "On pull request branch, setting terraform workspace to CI"
-          # Replace slashes with hyphens in the workspace name, since we need
-          # to use it to name S3 buckets
-          WORKSPACE="${GITHUB_HEAD_REF//\//-}"
+          # Replace slashes and underscores with hyphens in the workspace name,
+          # since we need to use it to name S3 buckets
+          WORKSPACE="$(echo $GITHUB_HEAD_REF | sed -e 's/\//-/g' -e 's/_/-/g')"
         elif [[ $GITHUB_REF_NAME == 'main' ]]; then
           echo "On master branch, setting terraform workspace to prod"
           WORKSPACE="prod"
