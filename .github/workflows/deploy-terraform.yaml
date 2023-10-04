@@ -26,6 +26,10 @@ jobs:
           terraform-iam-role-arn: ${{ secrets.TERRAFORM_IAM_ROLE_ARN }}
           aws-account-id: ${{ secrets.AWS_ACCOUNT_ID }}
 
+      - name: Generate sale.flag schema
+        run: cd ./glue/schema && python -m generate_sale_flag_schema
+        shell: bash
+
       - name: Validate Terraform config
         run: terraform validate
         shell: bash

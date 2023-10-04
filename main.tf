@@ -26,6 +26,7 @@ locals {
   s3_bucket_glue_assets    = terraform.workspace == "prod" ? "ccao-glue-assets-us-east-1" : aws_s3_bucket.glue_assets[0].id
   glue_job_name            = "sales_val_flagging${terraform.workspace == "prod" ? "" : "_${terraform.workspace}"}"
   glue_crawler_name        = "ccao-data-warehouse-sale-crawler${terraform.workspace == "prod" ? "" : "-${terraform.workspace}"}"
+  athena_database_name     = terraform.workspace == "prod" ? "sale" : "ci_model-sales-val-${terraform.workspace}_sale"
 }
 
 variable "iam_role_arn" {
@@ -109,6 +110,14 @@ resource "aws_s3_object" "flagging_script" {
   etag   = filemd5("${path.module}/glue/flagging_script_glue/flagging.py")
 }
 
+resource "aws_s3_object" "sale_flag_metadata" {
+  count  = terraform.workspace == "prod" ? 0 : 1
+  bucket = local.s3_bucket_data_warehouse
+  key    = "sale/flag/sale_flag_schema.parquet"
+  source = "${path.module}/glue/schema/sale_flag_schema.parquet"
+  etag   = filemd5("${path.module}/glue/schema/sale_flag_schema.parquet")
+}
+
 resource "aws_glue_job" "sales_val_flagging" {
   name            = local.glue_job_name
   role_arn        = var.iam_role_arn
@@ -144,9 +153,17 @@ resource "aws_glue_job" "sales_val_flagging" {
   }
 }
 
+resource "aws_athena_database" "sale_test" {
+  count         = terraform.workspace == "prod" ? 0 : 1
+  name          = local.athena_database_name
+  comment       = "Test sale database for the ${terraform.workspace} branch"
+  bucket        = "ccao-athena-results-us-east-1"
+  force_destroy = true
+}
+
 resource "aws_glue_crawler" "ccao_data_warehouse_sale_crawler" {
   name          = local.glue_crawler_name
-  database_name = "sale"
+  database_name = local.athena_database_name
   role          = "ccao-glue-service-role"
 
   configuration = jsonencode({
