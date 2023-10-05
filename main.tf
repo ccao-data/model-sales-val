@@ -26,7 +26,11 @@ locals {
   s3_bucket_glue_assets    = terraform.workspace == "prod" ? "ccao-glue-assets-us-east-1" : aws_s3_bucket.glue_assets[0].id
   glue_job_name            = "sales_val_flagging${terraform.workspace == "prod" ? "" : "_${terraform.workspace}"}"
   glue_crawler_name        = "ccao-data-warehouse-sale-crawler${terraform.workspace == "prod" ? "" : "-${terraform.workspace}"}"
-  athena_database_name     = terraform.workspace == "prod" ? "sale" : "ci_model-sales-val-${terraform.workspace}_sale"
+  # Athena databases cannot have hyphens, so replace them with underscores
+  # (Note that this is not always true -- notably, dbt-athena is able to
+  # create Athena tables with hyphens -- but it's a rule that Terraform
+  # enforces, so we follow it here)
+  athena_database_name = terraform.workspace == "prod" ? "sale" : "ci_model_sales_val_${replace(terraform.workspace, "-", "_")}_sale"
 }
 
 variable "iam_role_arn" {
