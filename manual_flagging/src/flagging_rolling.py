@@ -902,15 +902,7 @@ def get_id(row: pd.Series, col: str) -> str:
     if words.isspace() or re.search(r"^[.]*$", words):
         id = "Empty Name"
         return id
-    """
-    if pd.isnull(row[column]):
-        id = "Empty Name"
-        return id
-    
-    if words in ["none", "nan"]:
-        id = "Empty Name"
-        return id
-    """
+
     if any(x in words for x in ["vt investment corpor", "v t investment corp"]):
         return "vt investment corporation"
 
@@ -1073,7 +1065,6 @@ def split_logic(words: str):
         'Empty Name' if string is empty
         tokens (list): list of tokens in string from split
     """
-    print(f"(split_logic) words at start of function : {words}")
     words = re.sub(" +", " ", words)
 
     if words.isspace() or re.search(r"^[.]*$", words) or words == "Empty Name":
@@ -1092,7 +1083,6 @@ def split_logic(words: str):
         tokens = tokens[0].strip().split()
     else:
         tokens = words.split()
-    print(f"(split_logic) tokens at end of function : {tokens}")
 
     return tokens
 
@@ -1109,8 +1099,7 @@ def name_selector(tokens) -> str:
 
     if tokens == "Empty Name" or tokens == []:
         return "Empty Name"
-    # Ex: John Smith Jr
-    print(f"(name_selector)tokens before accessing last element: {tokens}")
+
     if tokens[-1] in ["jr", "sr", "ii", "iii", "iv", "v"]:
         tokens = tokens[:-1]
 
