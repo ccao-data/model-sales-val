@@ -1107,7 +1107,7 @@ def name_selector(tokens) -> str:
         id (str): identified last name
     """
 
-    if tokens == "Empty Name":
+    if tokens == "Empty Name" or tokens == []:
         return tokens
     # Ex: John Smith Jr
     print(f"(name_selector)tokens before accessing last element: {tokens}")
