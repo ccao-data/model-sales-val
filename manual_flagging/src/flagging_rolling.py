@@ -1108,20 +1108,13 @@ def name_selector(tokens) -> str:
     """
 
     if tokens == "Empty Name" or tokens == []:
-        return tokens
+        return "Empty Name"
     # Ex: John Smith Jr
     print(f"(name_selector)tokens before accessing last element: {tokens}")
     if tokens[-1] in ["jr", "sr", "ii", "iii", "iv", "v"]:
         tokens = tokens[:-1]
-    # Ex: John Smith
-    if len(tokens) == 2:
-        id = tokens[1]
-    # John George Smith
-    if len(tokens) == 3:
-        id = tokens[2]
-    # John George Theodore Smith
-    else:
-        id = tokens[-1]
+
+    id = tokens[-1]
 
     return id
 
