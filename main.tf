@@ -100,6 +100,31 @@ resource "aws_s3_bucket_versioning" "data_warehouse" {
   }
 }
 
+resource "aws_s3_bucket" "athena_results" {
+  count         = terraform.workspace == "prod" ? 0 : 1
+  bucket        = "ccao-athena-results-${terraform.workspace}-us-east-1"
+  force_destroy = true
+}
+
+resource "aws_s3_bucket_public_access_block" "athena_results" {
+  count  = terraform.workspace == "prod" ? 0 : 1
+  bucket = aws_s3_bucket.athena_results[0].id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_versioning" "athena_results" {
+  count  = terraform.workspace == "prod" ? 0 : 1
+  bucket = aws_s3_bucket.athena_results[0].id
+
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
 resource "aws_s3_object" "sales_val_flagging" {
   bucket = local.s3_bucket_glue_assets
   key    = "${local.s3_prefix}/sales_val_flagging.py"
@@ -161,7 +186,7 @@ resource "aws_athena_database" "sale_test" {
   count         = terraform.workspace == "prod" ? 0 : 1
   name          = local.athena_database_name
   comment       = "Test sale database for the ${terraform.workspace} branch"
-  bucket        = "ccao-athena-results-us-east-1"
+  bucket        = aws_s3_bucket.athena_results[0].id
   force_destroy = true
 }
 
