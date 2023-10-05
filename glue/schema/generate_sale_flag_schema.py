@@ -18,7 +18,9 @@ if __name__ == "__main__":
         "run_id": "string",
         "version": "int64",
     }
-    table_data = pa.table([[] for _ in schema.keys()], names=[col for col in schema.keys()])
+    table_data = pa.table(
+        [[] for _ in schema.keys()], names=[col for col in schema.keys()]
+    )
     schema = pa.schema([pa.field(col, dtype) for col, dtype in schema.items()])
     table = table_data.cast(schema)
     pq.write_table(table, "sale_flag_schema.parquet")
