@@ -1,6 +1,6 @@
 """
 This file contains all necessary functions to create a DataFrame ready to use for
-non-arms length transaction detection using statistical and heurstic methods.
+non-arms length transaction detection using statistical and heuristic methods.
 """
 
 import re
@@ -546,9 +546,10 @@ def get_sale_counts(dups: pd.DataFrame) -> pd.DataFrame:
         df (pd.DataFrame): pandsa dataframe4
     """
     v_counts = (
-        dups.pin.value_counts().reset_index()
-        # .rename(columns={"count": "sv_sale_dup_counts"})
-        .rename(columns={"index": "pin", "pin": "sv_sale_dup_counts"})
+        dups.pin.value_counts()
+        .reset_index()
+        .rename(columns={"count": "sv_sale_dup_counts"})
+        # .rename(columns={"index": "pin", "pin": "sv_sale_dup_counts"})
     )
 
     dups = pd.merge(dups, v_counts)
@@ -884,6 +885,17 @@ def get_id(row: pd.Series, col: str) -> str:
     column = col + "_name"
     words = str(row[column]).lower()
 
+    # Check for missing values first
+    if pd.isnull(row[column]) or words in [
+        "none",
+        "nan",
+        "unknown",
+        "missing seller name",
+        "missing buyer name",
+    ]:
+        id = "Empty Name"
+        return id
+
     words = re.sub(r" amp ", "", words)
     words = re.sub(" +", " ", words)
 
@@ -1051,9 +1063,8 @@ def split_logic(words: str):
         words (str): cleaned str from get_id
     Outputs:
         'Empty Name' if string is empty
-        tokens (list): lsit of tokens in string from split
+        tokens (list): list of tokens in string from split
     """
-
     words = re.sub(" +", " ", words)
 
     if words.isspace() or re.search(r"^[.]*$", words) or words == "Empty Name":
@@ -1063,7 +1074,7 @@ def split_logic(words: str):
 
     _and = re.search(
         r"\b and\b|\b an$\b|\b a$\b|f k a|\bfka\b| n k a|\bnka\b|"
-        r"\b aka\b|a k a|\b kna\b|k n a| f k$|n k$|a k$|\b not\b| married",
+        r"\b aka\b|a k a(?=\\s|$)|\b kna\b|k n a| f k$|n k$|a k$|\b not\b| married",
         words,
     )
 
@@ -1085,22 +1096,14 @@ def name_selector(tokens) -> str:
         'Empty Name' if name is empty.
         id (str): identified last name
     """
-    if not tokens:
+
+    if tokens == "Empty Name" or tokens == []:
         return "Empty Name"
-    if tokens == "Empty Name":
-        return tokens
-    # Ex: John Smith Jr
+
     if tokens[-1] in ["jr", "sr", "ii", "iii", "iv", "v"]:
         tokens = tokens[:-1]
-    # Ex: John Smith
-    elif len(tokens) == 2:
-        id = tokens[1]
-    # John George Smith
-    if len(tokens) == 3:
-        id = tokens[2]
-    # John George Theodore Smith
-    else:
-        id = tokens[-1]
+
+    id = tokens[-1]
 
     return id
 
@@ -1165,7 +1168,7 @@ def clean_id(row: pd.Series, col: str) -> str:
     """
     Cleans id field after get_role() by removing role.
     Inputs:
-        row: from padnas dataframe
+        row: from pandas dataframe
         col (str): column to process. 'seller' or 'buyer'
     Outputs:
         words (str): seller/buyer id without role.
@@ -1207,23 +1210,6 @@ def create_judicial_flag(df: pd.DataFrame) -> pd.DataFrame:
     )
 
     return df
-
-
-def create_match_flag(row: pd.Series) -> str:
-    """
-    Creates a column that says whether the buyer/seller id match.
-    Meant for apply().
-    Inputs:
-        row: from dataframe
-    Outputs:
-        value (str): whether the buyer and seller ID match
-    """
-    if row["buyer_id"] == row["seller_id"] and row["buyer_id"] != "Empty Name":
-        value = "Buyer ID and Seller ID match"
-    else:
-        value = "No match"
-
-    return value
 
 
 def create_name_match(row: pd.Series) -> str:
