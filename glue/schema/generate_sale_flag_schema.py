@@ -16,12 +16,9 @@ if __name__ == "__main__":
         "sv_is_heuristic_outlier": "int64",
         "sv_outlier_type": "string",
         "run_id": "string",
-        "version": "int64"
+        "version": "int64",
     }
-    table = pa.table(
-        [[] for _ in schema.keys()],
-        names=[col for col in schema.keys()]
-    )
+    table_data = pa.table([[] for _ in schema.keys()], names=[col for col in schema.keys()])
     schema = pa.schema([pa.field(col, dtype) for col, dtype in schema.items()])
-    table = table.cast(schema)
+    table = table_data.cast(schema)
     pq.write_table(table, "sale_flag_schema.parquet")
