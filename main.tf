@@ -179,6 +179,7 @@ resource "aws_glue_job" "sales_val_flagging" {
     "--commit_sha"                = var.commit_sha
     "--min_groups_threshold"      = "30"
     "--ptax_sd"                   = "1,1"
+    "--sale_flag_table"           = "${local.athena_database_name}.flag"
   }
 }
 

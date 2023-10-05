@@ -493,6 +493,7 @@ if __name__ == "__main__":
             "dev_bounds",
             "commit_sha",
             "ptax_sd",
+            "sale_flag_table",
         ],
     )
 
@@ -562,7 +563,7 @@ if __name__ == "__main__":
         INNER JOIN default.vw_pin_sale sale
             ON sale.pin = data.pin
             AND sale.year = data.year
-        LEFT JOIN sale.flag flag
+        LEFT JOIN {args["sale_flag_table"]} flag
             ON flag.meta_sale_document_num = sale.doc_no
         WHERE flag.sv_is_outlier IS NULL
         AND sale.sale_date >= DATE '{args["time_frame_start"]}'
@@ -591,7 +592,7 @@ if __name__ == "__main__":
     INNER JOIN default.vw_pin_sale sale
         ON sale.pin = data.pin
         AND sale.year = data.year
-    LEFT JOIN sale.flag flag
+    LEFT JOIN {args["sale_flag_table"]} flag
         ON flag.meta_sale_document_num = sale.doc_no
     INNER JOIN NA_Dates
         ON sale.sale_date BETWEEN NA_Dates.StartDate AND NA_Dates.EndDate
@@ -604,9 +605,9 @@ if __name__ == "__main__":
     )
     """
 
-    SQL_QUERY_SALES_VAL = """
+    SQL_QUERY_SALES_VAL = f"""
     SELECT *
-    FROM sale.flag
+    FROM {args["sale_flag_table"]}
     """
 
     # -------------------------------------------------------------------------
