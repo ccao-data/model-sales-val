@@ -553,7 +553,7 @@ if __name__ == "__main__":
         WHERE condo.class IN ('297', '299', '399')
         AND NOT condo.is_parking_space
         AND NOT condo.is_common_area
-        AND condo.is_question_garage_unit IS NULL
+        AND NOT condo.is_question_garage_unit
     ),
     NA_Dates AS (
         SELECT
