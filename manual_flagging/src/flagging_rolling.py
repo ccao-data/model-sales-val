@@ -715,83 +715,99 @@ def z_normalize_groupby(s: pd.Series):
 
 
 def outlier_type(df: pd.DataFrame, condos: bool) -> pd.DataFrame:
-    # Shared conditions and labels for both condos and non-condos
-    conditions = [
-        (df["sv_short_owner"] == "Short-term owner")
-        & df["sv_pricing"].str.contains("High"),
-        (df["sv_name_match"] != "No match") & df["sv_pricing"].str.contains("High"),
-        (df["sv_transaction_type"] == "legal_entity-legal_entity")
-        & df["sv_pricing"].str.contains("High"),
-        (df["sv_anomaly"] == "Outlier") & df["sv_pricing"].str.contains("High"),
-        df["sv_pricing"].str.contains("High price swing"),
-        df["sv_pricing"].str.contains("High"),
-        (df["sv_short_owner"] == "Short-term owner")
-        & df["sv_pricing"].str.contains("Low"),
-        (df["sv_name_match"] != "No match") & df["sv_pricing"].str.contains("Low"),
-        (df["sv_transaction_type"] == "legal_entity-legal_entity")
-        & df["sv_pricing"].str.contains("Low"),
-        (df["sv_anomaly"] == "Outlier") & df["sv_pricing"].str.contains("Low"),
-        df["sv_pricing"].str.contains("Low price swing"),
-        df["sv_pricing"].str.contains("Low"),
-    ]
-
-    labels = [
-        "Home flip sale (high)",
-        "Family sale (high)",
-        "Non-person sale (high)",
-        "Anomaly (high)",
-        "High price swing",
-        "High price (raw)",
-        "Home flip sale (low)",
-        "Family sale (low)",
-        "Non-person sale (low)",
-        "Anomaly (low)",
-        "Low price swing",
-        "Low price (raw)",
-    ]
-
-    # Additional conditions and labels for non-condos
-    if not condos:
-        additional_conditions = [
-            df["sv_pricing"].str.contains("High")
-            & (df["sv_which_price"] == "(raw & sqft)"),
-            df["sv_pricing"].str.contains("High") & (df["sv_which_price"] == "(raw)"),
-            df["sv_pricing"].str.contains("High") & (df["sv_which_price"] == "(sqft)"),
-            df["sv_pricing"].str.contains("Low")
-            & (df["sv_which_price"] == "(raw & sqft)"),
-            df["sv_pricing"].str.contains("Low") & (df["sv_which_price"] == "(raw)"),
-            df["sv_pricing"].str.contains("Low") & (df["sv_which_price"] == "(sqft)"),
+    """
+    Runs np.select that creates an outlier taxonomy.
+    Inputs:
+        df (pd.DataFrame): dataframe with necessary columns created from previous functions.
+    Outputs:
+        df (pd.DataFrame): dataframe with 'sv_outlier_type' column.
+    """
+    if condos == True:
+        conditions = [
+            (df["sv_short_owner"] == "Short-term owner")
+            & (df["sv_pricing"].str.contains("High")),
+            (df["sv_name_match"] != "No match")
+            & (df["sv_pricing"].str.contains("High")),
+            (df["sv_transaction_type"] == "legal_entity-legal_entity")
+            & (df["sv_pricing"].str.contains("High")),
+            (df["sv_anomaly"] == "Outlier") & (df["sv_pricing"].str.contains("High")),
+            (df["sv_pricing"].str.contains("High price swing")),
+            (df["sv_pricing"].str.contains("High")),
+            (df["sv_short_owner"] == "Short-term owner")
+            & (df["sv_pricing"].str.contains("Low")),
+            (df["sv_name_match"] != "No match")
+            & (df["sv_pricing"].str.contains("Low")),
+            (df["sv_transaction_type"] == "legal_entity-legal_entity")
+            & (df["sv_pricing"].str.contains("Low")),
+            (df["sv_anomaly"] == "Outlier") & (df["sv_pricing"].str.contains("Low")),
+            (df["sv_pricing"].str.contains("Low price swing")),
+            (df["sv_pricing"].str.contains("Low")),
         ]
 
-        additional_labels = [
+        labels = [
+            "Home flip sale (high)",
+            "Family sale (high)",
+            "Non-person sale (high)",
+            "Anomaly (high)",
+            "High price swing",
+            "High price (raw)",
+            "Home flip sale (low)",
+            "Family sale (low)",
+            "Non-person sale (low)",
+            "Anomaly (low)",
+            "Low price swing",
+            "Low price (raw)",
+        ]
+
+    else:
+        conditions = [
+            (df["sv_short_owner"] == "Short-term owner")
+            & (df["sv_pricing"].str.contains("High")),
+            (df["sv_name_match"] != "No match")
+            & (df["sv_pricing"].str.contains("High")),
+            (df["sv_transaction_type"] == "legal_entity-legal_entity")
+            & (df["sv_pricing"].str.contains("High")),
+            (df["sv_anomaly"] == "Outlier") & (df["sv_pricing"].str.contains("High")),
+            (df["sv_pricing"].str.contains("High price swing")),
+            (df["sv_pricing"].str.contains("High"))
+            & (df["sv_which_price"] == "(raw & sqft)"),
+            (df["sv_pricing"].str.contains("High")) & (df["sv_which_price"] == "(raw)"),
+            (df["sv_pricing"].str.contains("High"))
+            & (df["sv_which_price"] == "(sqft)"),
+            (df["sv_short_owner"] == "Short-term owner")
+            & (df["sv_pricing"].str.contains("Low")),
+            (df["sv_name_match"] != "No match")
+            & (df["sv_pricing"].str.contains("Low")),
+            (df["sv_transaction_type"] == "legal_entity-legal_entity")
+            & (df["sv_pricing"].str.contains("Low")),
+            (df["sv_anomaly"] == "Outlier") & (df["sv_pricing"].str.contains("Low")),
+            (df["sv_pricing"].str.contains("Low price swing")),
+            (df["sv_pricing"].str.contains("Low"))
+            & (df["sv_which_price"] == "(raw & sqft)"),
+            (df["sv_pricing"].str.contains("Low")) & (df["sv_which_price"] == "(raw)"),
+            (df["sv_pricing"].str.contains("Low")) & (df["sv_which_price"] == "(sqft)"),
+        ]
+
+        labels = [
+            "Home flip sale (high)",
+            "Family sale (high)",
+            "Non-person sale (high)",
+            "Anomaly (high)",
+            "High price swing",
             "High price (raw & sqft)",
             "High price (raw)",
             "High price (sqft)",
+            "Home flip sale (low)",
+            "Family sale (low)",
+            "Non-person sale (low)",
+            "Anomaly (low)",
+            "Low price swing",
             "Low price (raw & sqft)",
             "Low price (raw)",
             "Low price (sqft)",
         ]
 
-        conditions.extend(additional_conditions)
-        labels.extend(additional_labels)
-
     df["sv_outlier_type"] = np.select(conditions, labels, default="Not outlier")
-    return df
-
-
-def outlier_flag(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Creates a flag that shows whether the record is an
-    outlier (a special flag) according to our outlier taxonomy.
-    Inputs:
-        df (pd.DataFrame): dataframe to create outlier flag
-    Outputs:
-        df (pd.DataFrame): dataframe with 'is_outlier' column
-    """
-
-    df["sv_is_outlier"] = np.select(
-        [(df["sv_outlier_type"] == "Not outlier")], [0], default=1
-    )
 
     return df
 
