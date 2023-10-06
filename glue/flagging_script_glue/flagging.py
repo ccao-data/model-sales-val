@@ -546,9 +546,9 @@ def get_sale_counts(dups: pd.DataFrame) -> pd.DataFrame:
         df (pd.DataFrame): pandsa dataframe4
     """
     v_counts = (
-        dups.pin.value_counts().reset_index()
-        # .rename(columns={"count": "sv_sale_dup_counts"})
-        .rename(columns={"index": "pin", "pin": "sv_sale_dup_counts"})
+        dups.pin.value_counts()
+        .reset_index()
+        .rename(columns={"count": "sv_sale_dup_counts"})
     )
 
     dups = pd.merge(dups, v_counts)
