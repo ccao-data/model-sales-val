@@ -812,6 +812,23 @@ def outlier_type(df: pd.DataFrame, condos: bool) -> pd.DataFrame:
     return df
 
 
+def outlier_flag(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Creates a flag that shows whether the record is an
+    outlier (a special flag) according to our outlier taxonomy.
+    Inputs:
+        df (pd.DataFrame): dataframe to create outlier flag
+    Outputs:
+        df (pd.DataFrame): dataframe with 'is_outlier' column
+    """
+
+    df["sv_is_outlier"] = np.select(
+        [(df["sv_outlier_type"] == "Not outlier")], [0], default=1
+    )
+
+    return df
+
+
 # STRING CLEANUP
 
 """
