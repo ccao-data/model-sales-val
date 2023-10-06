@@ -1088,19 +1088,23 @@ def split_logic(words: str):
 
 def name_selector(tokens) -> str:
     """
-    Attempts to select the last name of a persons name based on number of tokens.
+    Attempts to select the last name of a person's name based on the number of tokens.
     Inputs:
-        tokens: name to be identified
+        tokens: list of strings where each string is a name token
     Outputs:
         'Empty Name' if name is empty.
         id (str): identified last name
     """
 
+    suffixes = ["jr", "sr", "ii", "iii", "iv", "v"]
+
     if tokens == "Empty Name" or tokens == []:
         return "Empty Name"
 
-    if tokens[-1] in ["jr", "sr", "ii", "iii", "iv", "v"]:
+    while tokens[-1] in suffixes:
         tokens = tokens[:-1]
+        if not tokens:  # Avoids IndexError if all tokens are removed.
+            return "Empty Name"
 
     id = tokens[-1]
 
