@@ -67,14 +67,3 @@ runs:
         fi
         terraform workspace select -or-create "$WORKSPACE"
       shell: bash
-
-    - name: Setup Python
-      uses: actions/setup-python@v4
-
-    - name: Install sale.flag schema generation requirements
-      run: pip install -r ./glue/schema/requirements.txt
-      shell: bash
-
-    - name: Generate sale.flag schema
-      run: cd ./glue/schema && python -m generate_sale_flag_schema
-      shell: bash

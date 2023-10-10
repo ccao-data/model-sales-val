@@ -26,6 +26,18 @@ locals {
   s3_bucket_glue_assets    = terraform.workspace == "prod" ? "ccao-glue-assets-us-east-1" : aws_s3_bucket.glue_assets[0].id
   glue_job_name            = terraform.workspace == "prod" ? "sales_val_flagging" : "ci_${terraform.workspace}_sales_val_flagging"
   glue_crawler_name        = terraform.workspace == "prod" ? "ccao-data-warehouse-sale-crawler" : "ci_${terraform.workspace}_ccao-data-warehouse-crawler"
+  glue_table_sale_flag_parameters = {
+    CrawlerSchemaDeserializerVersion = "1.0"
+    CrawlerSchemaSerializerVersion   = "1.0"
+    UPDATED_BY_CRAWLER               = aws_glue_crawler.ccao_data_warehouse_sale_crawler.id
+    averageRecordSize                = "17"
+    classification                   = "parquet"
+    compressionType                  = "none"
+    objectCount                      = "1"
+    recordCount                      = "69934"
+    sizeKey                          = "720294"
+    typeOfData                       = "file"
+  }
   # Athena databases cannot have hyphens, so replace them with underscores
   # (Note that this is not always true -- notably, dbt-athena is able to
   # create Athena tables with hyphens -- but it's a rule that Terraform
@@ -114,14 +126,6 @@ resource "aws_s3_object" "flagging_script" {
   etag   = filemd5("${path.module}/glue/flagging_script_glue/flagging.py")
 }
 
-resource "aws_s3_object" "sale_flag_metadata" {
-  count  = terraform.workspace == "prod" ? 0 : 1
-  bucket = local.s3_bucket_data_warehouse
-  key    = "sale/flag/sale_flag_schema.parquet"
-  source = "${path.module}/glue/schema/sale_flag_schema.parquet"
-  etag   = filemd5("${path.module}/glue/schema/sale_flag_schema.parquet")
-}
-
 resource "aws_glue_job" "sales_val_flagging" {
   name            = local.glue_job_name
   role_arn        = var.iam_role_arn
@@ -158,7 +162,7 @@ resource "aws_glue_job" "sales_val_flagging" {
   }
 }
 
-resource "aws_athena_database" "sale_test" {
+resource "aws_athena_database" "sale" {
   count         = terraform.workspace == "prod" ? 0 : 1
   name          = local.athena_database_name
   comment       = "Test sale database for the ${terraform.workspace} branch"
@@ -185,5 +189,75 @@ resource "aws_glue_crawler" "ccao_data_warehouse_sale_crawler" {
   schema_change_policy {
     delete_behavior = "DELETE_FROM_DATABASE"
     update_behavior = "UPDATE_IN_DATABASE"
+  }
+}
+
+resource "aws_glue_catalog_table" "sale_flag" {
+  count         = terraform.workspace == "prod" ? 0 : 1
+  name          = "flag"
+  database_name = local.athena_database_name
+  table_type    = "EXTERNAL_TABLE"
+  parameters    = local.glue_table_sale_flag_parameters
+
+  storage_descriptor {
+    compressed                = false
+    input_format              = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat"
+    location                  = "s3://${local.s3_bucket_data_warehouse}/sale/flag/"
+    number_of_buckets         = -1
+    output_format             = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"
+    stored_as_sub_directories = false
+    parameters                = local.glue_table_sale_flag_parameters
+
+    columns {
+      name = "meta_sale_document_num"
+      type = "string"
+    }
+
+    columns {
+      name = "rolling_window"
+      type = "date"
+    }
+
+    columns {
+      name = "sv_is_outlier"
+      type = "bigint"
+    }
+
+    columns {
+      name = "sv_is_ptax_outlier"
+      type = "bigint"
+    }
+
+    columns {
+      name = "ptax_flag_original"
+      type = "boolean"
+    }
+
+    columns {
+      name = "sv_is_heuristic_outlier"
+      type = "bigint"
+    }
+
+    columns {
+      name = "sv_outlier_type"
+      type = "string"
+    }
+
+    columns {
+      name = "run_id"
+      type = "string"
+    }
+
+    columns {
+      name = "version"
+      type = "bigint"
+    }
+
+    ser_de_info {
+      parameters = {
+        "serialization.format" = "1"
+      }
+      serialization_library = "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"
+    }
   }
 }
