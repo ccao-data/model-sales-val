@@ -25,7 +25,7 @@ locals {
   s3_bucket_data_warehouse = terraform.workspace == "prod" ? "ccao-data-warehouse-us-east-1" : aws_s3_bucket.data_warehouse[0].id
   s3_bucket_glue_assets    = terraform.workspace == "prod" ? "ccao-glue-assets-us-east-1" : aws_s3_bucket.glue_assets[0].id
   glue_job_name            = terraform.workspace == "prod" ? "sales_val_flagging" : "ci_${terraform.workspace}_sales_val_flagging"
-  glue_crawler_name        = terraform.workspace == "prod" ? "ccao-data-warehouse-sale-crawler" : "ci_${terraform.workspace}_ccao-data-warehouse-crawler"
+  glue_crawler_name        = terraform.workspace == "prod" ? "ccao-data-warehouse-sale-crawler" : "ci_${terraform.workspace}_ccao-data-warehouse-sale-crawler"
   glue_table_sale_flag_parameters = {
     CrawlerSchemaDeserializerVersion = "1.0"
     CrawlerSchemaSerializerVersion   = "1.0"
