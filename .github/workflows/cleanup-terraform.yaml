@@ -1,0 +1,30 @@
+---
+name: cleanup-terraform
+
+on:
+  pull_request:
+    branches: [main]
+    types: [closed]
+
+jobs:
+  cleanup-terraform:
+    runs-on: ubuntu-latest
+    # These permissions are needed to interact with GitHub's OIDC Token endpoint
+    # so that we can authenticate with AWS
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Terraform
+        uses: ./.github/actions/setup-terraform
+        with:
+          role-to-assume: ${{ secrets.AWS_IAM_ROLE_TO_ASSUME_ARN }}
+          terraform-iam-role-arn: ${{ secrets.TERRAFORM_IAM_ROLE_ARN }}
+          aws-account-id: ${{ secrets.AWS_ACCOUNT_ID }}
+
+      - name: Delete resources using Terraform
+        run: terraform destroy -auto-approve
+        shell: bash

@@ -424,7 +424,7 @@ def get_parameter_df(
     return df_parameters
 
 
-def get_metadata_df(run_id, timestamp, run_type, commit_sha, flagging_hash=""):
+def get_metadata_df(run_id, timestamp, run_type, commit_sha):
     """
     Function creates a table to be written to s3 with a unique set of
     metadata for the flagging run
@@ -444,7 +444,6 @@ def get_metadata_df(run_id, timestamp, run_type, commit_sha, flagging_hash=""):
         "short_commit_sha": commit_sha[0:8],
         "run_timestamp": timestamp,
         "run_type": run_type,
-        "flagging_hash": flagging_hash,
     }
 
     df_metadata = pd.DataFrame(metadata_dict_to_df)
@@ -485,37 +484,29 @@ if __name__ == "__main__":
             "s3_staging_dir",
             "aws_s3_warehouse_bucket",
             "s3_glue_bucket",
+            "s3_prefix",
             "stat_groups",
             "rolling_window_num",
             "time_frame_start",
             "iso_forest",
             "min_groups_threshold",
             "dev_bounds",
+            "commit_sha",
             "ptax_sd",
+            "sale_flag_table",
         ],
     )
 
-    # Define pattern to match flagging script in s3
-    pattern = "^flagging_([0-9a-z]{6})\.py$"
-
-    # List objects in the S3 bucket and prefix
-    objects = s3.list_objects(
-        Bucket=args["s3_glue_bucket"], Prefix="scripts/sales-val/"
+    # Load the python flagging script.
+    # We should refactor this to use a wheel that Glue can install. See:
+    # https://docs.aws.amazon.com/glue/latest/dg/aws-glue-programming-python-libraries.html#addl-python-modules-support
+    local_path = f"/tmp/flagging.py"
+    s3.download_file(
+        args["s3_glue_bucket"],
+        os.path.join(args["s3_prefix"], "flagging.py"),
+        local_path,
     )
-
-    # Read in flagging script
-    for obj in objects["Contents"]:
-        key = obj["Key"]
-        filename = os.path.basename(key)
-        local_path = f"/tmp/{key.split('/')[-1]}"
-        if re.match(pattern, filename):
-            # If a match is found, download the file
-            s3.download_file(args["s3_glue_bucket"], key, local_path)
-            hash_to_save = re.search(pattern, filename).group(1)
-
-            # Load the python flagging script
-            exec(open(local_path).read())
-            break
+    exec(open(local_path).read())
 
     # Connect to Athena
     conn = connect(
@@ -562,7 +553,7 @@ if __name__ == "__main__":
         WHERE condo.class IN ('297', '299', '399')
         AND NOT condo.is_parking_space
         AND NOT condo.is_common_area
-        AND condo.is_question_garage_unit IS NULL
+        AND NOT condo.is_question_garage_unit
     ),
     NA_Dates AS (
         SELECT
@@ -572,7 +563,7 @@ if __name__ == "__main__":
         INNER JOIN default.vw_pin_sale sale
             ON sale.pin = data.pin
             AND sale.year = data.year
-        LEFT JOIN sale.flag flag
+        LEFT JOIN {args["sale_flag_table"]} flag
             ON flag.meta_sale_document_num = sale.doc_no
         WHERE flag.sv_is_outlier IS NULL
         AND sale.sale_date >= DATE '{args["time_frame_start"]}'
@@ -601,7 +592,7 @@ if __name__ == "__main__":
     INNER JOIN default.vw_pin_sale sale
         ON sale.pin = data.pin
         AND sale.year = data.year
-    LEFT JOIN sale.flag flag
+    LEFT JOIN {args["sale_flag_table"]} flag
         ON flag.meta_sale_document_num = sale.doc_no
     INNER JOIN NA_Dates
         ON sale.sale_date BETWEEN NA_Dates.StartDate AND NA_Dates.EndDate
@@ -614,9 +605,9 @@ if __name__ == "__main__":
     )
     """
 
-    SQL_QUERY_SALES_VAL = """
+    SQL_QUERY_SALES_VAL = f"""
     SELECT *
-    FROM sale.flag
+    FROM {args["sale_flag_table"]}
     """
 
     # -------------------------------------------------------------------------
@@ -795,7 +786,7 @@ if __name__ == "__main__":
         # Write to sale.metadata table
         job_name = "sales_val_flagging"
         response = glue.get_job(JobName=job_name)
-        commit_sha = response["Job"]["SourceControlDetails"]["LastCommitId"]
+        commit_sha = args["commit_sha"]
 
         # Write to sale.metadata table
         df_metadata = get_metadata_df(
@@ -803,7 +794,6 @@ if __name__ == "__main__":
             timestamp=timestamp,
             run_type="recurring",
             commit_sha=commit_sha,
-            flagging_hash=hash_to_save,
         )
 
         write_to_table(

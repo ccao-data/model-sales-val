@@ -1,3 +1,9 @@
 venv/
 __pycache__/
 ipynb_checkpoints
+glue/schema/*.parquet
+
+# Terraform internals
+.terraform
+terraform.tfstate
+terraform.tfstate.*
