@@ -195,7 +195,7 @@ resource "aws_glue_crawler" "ccao_data_warehouse_sale_crawler" {
 resource "aws_glue_catalog_table" "sale_flag" {
   count         = terraform.workspace == "prod" ? 0 : 1
   name          = "flag"
-  database_name = local.athena_database_name
+  database_name = aws_athena_database.sale[0].id
   table_type    = "EXTERNAL_TABLE"
   parameters    = local.glue_table_sale_flag_parameters
 
