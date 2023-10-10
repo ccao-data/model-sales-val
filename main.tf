@@ -24,8 +24,8 @@ locals {
   s3_prefix                = "scripts/sales-val"
   s3_bucket_data_warehouse = terraform.workspace == "prod" ? "ccao-data-warehouse-us-east-1" : aws_s3_bucket.data_warehouse[0].id
   s3_bucket_glue_assets    = terraform.workspace == "prod" ? "ccao-glue-assets-us-east-1" : aws_s3_bucket.glue_assets[0].id
-  glue_job_name            = "sales_val_flagging${terraform.workspace == "prod" ? "" : "_${terraform.workspace}"}"
-  glue_crawler_name        = "ccao-data-warehouse-sale-crawler${terraform.workspace == "prod" ? "" : "-${terraform.workspace}"}"
+  glue_job_name            = terraform.workspace == "prod" ? "sales_val_flagging" : "ci_${terraform.workspace}_sales_val_flagging"
+  glue_crawler_name        = terraform.workspace == "prod" ? "ccao-data-warehouse-sale-crawler" : "ci_${terraform.workspace}_ccao-data-warehouse-crawler"
   # Athena databases cannot have hyphens, so replace them with underscores
   # (Note that this is not always true -- notably, dbt-athena is able to
   # create Athena tables with hyphens -- but it's a rule that Terraform
@@ -52,7 +52,7 @@ variable "commit_sha" {
 resource "aws_s3_bucket" "glue_assets" {
   # Prod buckets are managed outside this config
   count         = terraform.workspace == "prod" ? 0 : 1
-  bucket        = "ccao-glue-assets-${terraform.workspace}-us-east-1"
+  bucket        = "ccao-ci-${terraform.workspace}-glue-assets-us-east-1"
   force_destroy = true
 }
 
@@ -77,7 +77,7 @@ resource "aws_s3_bucket_versioning" "glue_assets" {
 
 resource "aws_s3_bucket" "data_warehouse" {
   count         = terraform.workspace == "prod" ? 0 : 1
-  bucket        = "ccao-data-warehouse-${terraform.workspace}-us-east-1"
+  bucket        = "ccao-ci-${terraform.workspace}-data-warehouse-us-east-1"
   force_destroy = true
 }
 
@@ -94,31 +94,6 @@ resource "aws_s3_bucket_public_access_block" "data_warehouse" {
 resource "aws_s3_bucket_versioning" "data_warehouse" {
   count  = terraform.workspace == "prod" ? 0 : 1
   bucket = local.s3_bucket_data_warehouse
-
-  versioning_configuration {
-    status = "Enabled"
-  }
-}
-
-resource "aws_s3_bucket" "athena_results" {
-  count         = terraform.workspace == "prod" ? 0 : 1
-  bucket        = "ccao-athena-results-${terraform.workspace}-us-east-1"
-  force_destroy = true
-}
-
-resource "aws_s3_bucket_public_access_block" "athena_results" {
-  count  = terraform.workspace == "prod" ? 0 : 1
-  bucket = aws_s3_bucket.athena_results[0].id
-
-  block_public_acls       = true
-  block_public_policy     = true
-  ignore_public_acls      = true
-  restrict_public_buckets = true
-}
-
-resource "aws_s3_bucket_versioning" "athena_results" {
-  count  = terraform.workspace == "prod" ? 0 : 1
-  bucket = aws_s3_bucket.athena_results[0].id
 
   versioning_configuration {
     status = "Enabled"
@@ -187,7 +162,7 @@ resource "aws_athena_database" "sale_test" {
   count         = terraform.workspace == "prod" ? 0 : 1
   name          = local.athena_database_name
   comment       = "Test sale database for the ${terraform.workspace} branch"
-  bucket        = aws_s3_bucket.athena_results[0].id
+  bucket        = "ccao-athena-results-us-east-1"
   force_destroy = true
 }
 
