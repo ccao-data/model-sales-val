@@ -1,6 +1,6 @@
 """
 This file contains all necessary functions to create a DataFrame ready to use for
-non-arms length transaction detection using statistical and heurstic methods.
+non-arms length transaction detection using statistical and heuristic methods.
 """
 
 import re
@@ -715,67 +715,100 @@ def z_normalize_groupby(s: pd.Series):
 
 
 def outlier_type(df: pd.DataFrame, condos: bool) -> pd.DataFrame:
-    # Shared conditions and labels for both condos and non-condos
-    conditions = [
-        (df["sv_short_owner"] == "Short-term owner")
-        & df["sv_pricing"].str.contains("High"),
-        (df["sv_name_match"] != "No match") & df["sv_pricing"].str.contains("High"),
-        (df["sv_transaction_type"] == "legal_entity-legal_entity")
-        & df["sv_pricing"].str.contains("High"),
-        (df["sv_anomaly"] == "Outlier") & df["sv_pricing"].str.contains("High"),
-        df["sv_pricing"].str.contains("High price swing"),
-        df["sv_pricing"].str.contains("High"),
-        (df["sv_short_owner"] == "Short-term owner")
-        & df["sv_pricing"].str.contains("Low"),
-        (df["sv_name_match"] != "No match") & df["sv_pricing"].str.contains("Low"),
-        (df["sv_transaction_type"] == "legal_entity-legal_entity")
-        & df["sv_pricing"].str.contains("Low"),
-        (df["sv_anomaly"] == "Outlier") & df["sv_pricing"].str.contains("Low"),
-        df["sv_pricing"].str.contains("Low price swing"),
-        df["sv_pricing"].str.contains("Low"),
-    ]
-
-    labels = [
-        "Home flip sale (high)",
-        "Family sale (high)",
-        "Non-person sale (high)",
-        "Anomaly (high)",
-        "High price swing",
-        "High price (raw)",
-        "Home flip sale (low)",
-        "Family sale (low)",
-        "Non-person sale (low)",
-        "Anomaly (low)",
-        "Low price swing",
-        "Low price (raw)",
-    ]
-
-    # Additional conditions and labels for non-condos
-    if not condos:
-        additional_conditions = [
-            df["sv_pricing"].str.contains("High")
-            & (df["sv_which_price"] == "(raw & sqft)"),
-            df["sv_pricing"].str.contains("High") & (df["sv_which_price"] == "(raw)"),
-            df["sv_pricing"].str.contains("High") & (df["sv_which_price"] == "(sqft)"),
-            df["sv_pricing"].str.contains("Low")
-            & (df["sv_which_price"] == "(raw & sqft)"),
-            df["sv_pricing"].str.contains("Low") & (df["sv_which_price"] == "(raw)"),
-            df["sv_pricing"].str.contains("Low") & (df["sv_which_price"] == "(sqft)"),
+    """
+    Runs np.select that creates an outlier taxonomy.
+    Inputs:
+        df (pd.DataFrame): dataframe with necessary columns created from previous functions.
+    Outputs:
+        df (pd.DataFrame): dataframe with 'sv_outlier_type' column.
+    """
+    if condos == True:
+        conditions = [
+            (df["sv_short_owner"] == "Short-term owner")
+            & (df["sv_pricing"].str.contains("High")),
+            (df["sv_name_match"] != "No match")
+            & (df["sv_pricing"].str.contains("High")),
+            (df["sv_transaction_type"] == "legal_entity-legal_entity")
+            & (df["sv_pricing"].str.contains("High")),
+            (df["sv_anomaly"] == "Outlier") & (df["sv_pricing"].str.contains("High")),
+            (df["sv_pricing"].str.contains("High price swing")),
+            (df["sv_pricing"].str.contains("High")),
+            (df["sv_short_owner"] == "Short-term owner")
+            & (df["sv_pricing"].str.contains("Low")),
+            (df["sv_name_match"] != "No match")
+            & (df["sv_pricing"].str.contains("Low")),
+            (df["sv_transaction_type"] == "legal_entity-legal_entity")
+            & (df["sv_pricing"].str.contains("Low")),
+            (df["sv_anomaly"] == "Outlier") & (df["sv_pricing"].str.contains("Low")),
+            (df["sv_pricing"].str.contains("Low price swing")),
+            (df["sv_pricing"].str.contains("Low")),
         ]
 
-        additional_labels = [
+        labels = [
+            "Home flip sale (high)",
+            "Family sale (high)",
+            "Non-person sale (high)",
+            "Anomaly (high)",
+            "High price swing",
+            "High price (raw)",
+            "Home flip sale (low)",
+            "Family sale (low)",
+            "Non-person sale (low)",
+            "Anomaly (low)",
+            "Low price swing",
+            "Low price (raw)",
+        ]
+
+    else:
+        conditions = [
+            (df["sv_short_owner"] == "Short-term owner")
+            & (df["sv_pricing"].str.contains("High")),
+            (df["sv_name_match"] != "No match")
+            & (df["sv_pricing"].str.contains("High")),
+            (df["sv_transaction_type"] == "legal_entity-legal_entity")
+            & (df["sv_pricing"].str.contains("High")),
+            (df["sv_anomaly"] == "Outlier") & (df["sv_pricing"].str.contains("High")),
+            (df["sv_pricing"].str.contains("High price swing")),
+            (df["sv_pricing"].str.contains("High"))
+            & (df["sv_which_price"] == "(raw & sqft)"),
+            (df["sv_pricing"].str.contains("High")) & (df["sv_which_price"] == "(raw)"),
+            (df["sv_pricing"].str.contains("High"))
+            & (df["sv_which_price"] == "(sqft)"),
+            (df["sv_short_owner"] == "Short-term owner")
+            & (df["sv_pricing"].str.contains("Low")),
+            (df["sv_name_match"] != "No match")
+            & (df["sv_pricing"].str.contains("Low")),
+            (df["sv_transaction_type"] == "legal_entity-legal_entity")
+            & (df["sv_pricing"].str.contains("Low")),
+            (df["sv_anomaly"] == "Outlier") & (df["sv_pricing"].str.contains("Low")),
+            (df["sv_pricing"].str.contains("Low price swing")),
+            (df["sv_pricing"].str.contains("Low"))
+            & (df["sv_which_price"] == "(raw & sqft)"),
+            (df["sv_pricing"].str.contains("Low")) & (df["sv_which_price"] == "(raw)"),
+            (df["sv_pricing"].str.contains("Low")) & (df["sv_which_price"] == "(sqft)"),
+        ]
+
+        labels = [
+            "Home flip sale (high)",
+            "Family sale (high)",
+            "Non-person sale (high)",
+            "Anomaly (high)",
+            "High price swing",
             "High price (raw & sqft)",
             "High price (raw)",
             "High price (sqft)",
+            "Home flip sale (low)",
+            "Family sale (low)",
+            "Non-person sale (low)",
+            "Anomaly (low)",
+            "Low price swing",
             "Low price (raw & sqft)",
             "Low price (raw)",
             "Low price (sqft)",
         ]
 
-        conditions.extend(additional_conditions)
-        labels.extend(additional_labels)
-
     df["sv_outlier_type"] = np.select(conditions, labels, default="Not outlier")
+
     return df
 
 
@@ -883,6 +916,17 @@ def get_id(row: pd.Series, col: str) -> str:
 
     column = col + "_name"
     words = str(row[column]).lower()
+
+    # Check for missing values first
+    if pd.isnull(row[column]) or words in [
+        "none",
+        "nan",
+        "unknown",
+        "missing seller name",
+        "missing buyer name",
+    ]:
+        id = "Empty Name"
+        return id
 
     words = re.sub(r" amp ", "", words)
     words = re.sub(" +", " ", words)
@@ -1051,9 +1095,8 @@ def split_logic(words: str):
         words (str): cleaned str from get_id
     Outputs:
         'Empty Name' if string is empty
-        tokens (list): lsit of tokens in string from split
+        tokens (list): list of tokens in string from split
     """
-
     words = re.sub(" +", " ", words)
 
     if words.isspace() or re.search(r"^[.]*$", words) or words == "Empty Name":
@@ -1063,7 +1106,7 @@ def split_logic(words: str):
 
     _and = re.search(
         r"\b and\b|\b an$\b|\b a$\b|f k a|\bfka\b| n k a|\bnka\b|"
-        r"\b aka\b|a k a|\b kna\b|k n a| f k$|n k$|a k$|\b not\b| married",
+        r"\b aka\b|a k a(?=\\s|$)|\b kna\b|k n a| f k$|n k$|a k$|\b not\b| married",
         words,
     )
 
@@ -1078,27 +1121,25 @@ def split_logic(words: str):
 
 def name_selector(tokens) -> str:
     """
-    Attempts to select the last name of a persons name based on number of tokens.
+    Attempts to select the last name of a person's name based on the number of tokens.
     Inputs:
-        tokens: name to be identified
+        tokens: list of strings where each string is a name token
     Outputs:
         'Empty Name' if name is empty.
         id (str): identified last name
     """
-    if tokens == "Empty Name":
-        return tokens
-    # Ex: John Smith Jr
-    if tokens[-1] in ["jr", "sr", "ii", "iii", "iv", "v"]:
+
+    suffixes = ["jr", "sr", "ii", "iii", "iv", "v"]
+
+    if tokens == "Empty Name" or tokens == []:
+        return "Empty Name"
+
+    while tokens[-1] in suffixes:
         tokens = tokens[:-1]
-    # Ex: John Smith
-    if len(tokens) == 2:
-        id = tokens[1]
-    # John George Smith
-    if len(tokens) == 3:
-        id = tokens[2]
-    # John George Theodore Smith
-    else:
-        id = tokens[-1]
+        if not tokens:  # Avoids IndexError if all tokens are removed.
+            return "Empty Name"
+
+    id = tokens[-1]
 
     return id
 
@@ -1163,7 +1204,7 @@ def clean_id(row: pd.Series, col: str) -> str:
     """
     Cleans id field after get_role() by removing role.
     Inputs:
-        row: from padnas dataframe
+        row: from pandas dataframe
         col (str): column to process. 'seller' or 'buyer'
     Outputs:
         words (str): seller/buyer id without role.
@@ -1205,23 +1246,6 @@ def create_judicial_flag(df: pd.DataFrame) -> pd.DataFrame:
     )
 
     return df
-
-
-def create_match_flag(row: pd.Series) -> str:
-    """
-    Creates a column that says whether the buyer/seller id match.
-    Meant for apply().
-    Inputs:
-        row: from dataframe
-    Outputs:
-        value (str): whether the buyer and seller ID match
-    """
-    if row["buyer_id"] == row["seller_id"] and row["buyer_id"] != "Empty Name":
-        value = "Buyer ID and Seller ID match"
-    else:
-        value = "No match"
-
-    return value
 
 
 def create_name_match(row: pd.Series) -> str:
