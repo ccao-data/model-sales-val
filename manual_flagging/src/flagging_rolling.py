@@ -938,6 +938,9 @@ def get_id(row: pd.Series, col: str) -> str:
     if any(x in words for x in ["vt investment corpor", "v t investment corp"]):
         return "vt investment corporation"
 
+    if any(x in words for x in ["national residential nomi"]):
+        return "national residential nominee services"
+
     if any(
         x in words for x in ["first integrity group inc", "first integrity group in"]
     ):
