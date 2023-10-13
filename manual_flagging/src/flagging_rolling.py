@@ -1257,7 +1257,11 @@ def create_name_match(row: pd.Series) -> str:
     Outputs:
         value (str or None): string match if applicable, None otherwise
     """
-    if row["sv_buyer_id"] == row["sv_seller_id"] and row["sv_buyer_id"] != "Empty Name":
+    if (
+        row["sv_buyer_id"] == row["sv_seller_id"]
+        and row["sv_buyer_id"] != "Empty Name"
+        and row["sv_transaction_type"] != "legal_entity-legal_entity"
+    ):
         value = row["sv_seller_id"]
     else:
         value = "No match"
