@@ -1282,7 +1282,10 @@ def create_name_match(row: pd.Series) -> str:
     if (
         row["sv_buyer_id"] == row["sv_seller_id"]
         and row["sv_buyer_id"] != "Empty Name"
+        # Prevents the same legal entity as counting as a family name match
         and row["sv_transaction_type"] != "legal_entity-legal_entity"
+        # Boots out matches on a single last initial
+        and len(row["sv_buyer_id"]) > 1
     ):
         value = row["sv_seller_id"]
     else:
