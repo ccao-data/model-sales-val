@@ -1002,6 +1002,7 @@ def get_id(row: pd.Series, col: str) -> str:
             "wells fargo bank n a",
             "wells fargo bank nationa",
             "wells fargo bank n a a",
+            "wells fargo bk",
         ]
     ):
         return "wells fargo bank national"
