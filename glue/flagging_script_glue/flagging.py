@@ -728,7 +728,11 @@ def outlier_type(df: pd.DataFrame, condos: bool) -> pd.DataFrame:
             & (df["sv_pricing"].str.contains("High")),
             (df["sv_name_match"] != "No match")
             & (df["sv_pricing"].str.contains("High")),
-            (df["sv_transaction_type"] == "legal_entity-legal_entity")
+            (
+                df[["sv_buyer_category", "sv_seller_category"]]
+                .eq("legal_entity")
+                .any(axis=1)
+            )
             & (df["sv_pricing"].str.contains("High")),
             # (df["sv_anomaly"] == "Outlier") & (df["sv_pricing"].str.contains("High")),
             (df["sv_pricing"].str.contains("High price swing")),
@@ -737,7 +741,11 @@ def outlier_type(df: pd.DataFrame, condos: bool) -> pd.DataFrame:
             & (df["sv_pricing"].str.contains("Low")),
             (df["sv_name_match"] != "No match")
             & (df["sv_pricing"].str.contains("Low")),
-            (df["sv_transaction_type"] == "legal_entity-legal_entity")
+            (
+                df[["sv_buyer_category", "sv_seller_category"]]
+                .eq("legal_entity")
+                .any(axis=1)
+            )
             & (df["sv_pricing"].str.contains("Low")),
             # (df["sv_anomaly"] == "Outlier") & (df["sv_pricing"].str.contains("Low")),
             (df["sv_pricing"].str.contains("Low price swing")),
@@ -765,7 +773,11 @@ def outlier_type(df: pd.DataFrame, condos: bool) -> pd.DataFrame:
             & (df["sv_pricing"].str.contains("High")),
             (df["sv_name_match"] != "No match")
             & (df["sv_pricing"].str.contains("High")),
-            (df["sv_transaction_type"] == "legal_entity-legal_entity")
+            (
+                df[["sv_buyer_category", "sv_seller_category"]]
+                .eq("legal_entity")
+                .any(axis=1)
+            )
             & (df["sv_pricing"].str.contains("High")),
             # (df["sv_anomaly"] == "Outlier") & (df["sv_pricing"].str.contains("High")),
             (df["sv_pricing"].str.contains("High price swing")),
@@ -778,7 +790,11 @@ def outlier_type(df: pd.DataFrame, condos: bool) -> pd.DataFrame:
             & (df["sv_pricing"].str.contains("Low")),
             (df["sv_name_match"] != "No match")
             & (df["sv_pricing"].str.contains("Low")),
-            (df["sv_transaction_type"] == "legal_entity-legal_entity")
+            (
+                df[["sv_buyer_category", "sv_seller_category"]]
+                .eq("legal_entity")
+                .any(axis=1)
+            )
             & (df["sv_pricing"].str.contains("Low")),
             # (df["sv_anomaly"] == "Outlier") & (df["sv_pricing"].str.contains("Low")),
             (df["sv_pricing"].str.contains("Low price swing")),
@@ -893,7 +909,7 @@ entity_keywords = (
     r"|associates|consultants|international|acquisitions|credit|design"
     r"|homeownership|solutions|home|diversified|assets|family|land|"
     r"revocable|services|rehabbing|living|county of cook|fannie mae|"
-    r"land|veteran|mortgage|savings|lp$"
+    r"land|veteran|mortgage|savings|lp$|federal natl"
 )
 
 
@@ -986,6 +1002,7 @@ def get_id(row: pd.Series, col: str) -> str:
             "wells fargo bank n a",
             "wells fargo bank nationa",
             "wells fargo bank n a a",
+            "wells fargo bk",
         ]
     ):
         return "wells fargo bank national"
@@ -1039,6 +1056,8 @@ def get_id(row: pd.Series, col: str) -> str:
             "u s bank n a",
             "us bank national associat",
             "u s bank trust national",
+            "us bk",
+            "u s bk",
         ]
     ):
         return "us bank national association"
