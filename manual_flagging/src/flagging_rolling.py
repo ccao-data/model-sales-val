@@ -909,7 +909,7 @@ entity_keywords = (
     r"|associates|consultants|international|acquisitions|credit|design"
     r"|homeownership|solutions|home|diversified|assets|family|land|"
     r"revocable|services|rehabbing|living|county of cook|fannie mae|"
-    r"land|veteran|mortgage|savings|lp$"
+    r"land|veteran|mortgage|savings|lp$|federal natl"
 )
 
 
