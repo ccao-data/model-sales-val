@@ -1055,6 +1055,8 @@ def get_id(row: pd.Series, col: str) -> str:
             "u s bank n a",
             "us bank national associat",
             "u s bank trust national",
+            "us bk",
+            "u s bk",
         ]
     ):
         return "us bank national association"
