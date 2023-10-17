@@ -64,7 +64,9 @@ variable "commit_sha" {
 resource "aws_s3_bucket" "glue_assets" {
   # Prod buckets are managed outside this config
   count         = terraform.workspace == "prod" ? 0 : 1
-  bucket        = "ccao-ci-${terraform.workspace}-glue-assets-us-east-1"
+  # Buckets can only be a max of 63 characters long:
+  # https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html
+  bucket        = "ccao-ci-${substr(terraform.workspace, 0, 33)}-glue-assets-us-east-1"
   force_destroy = true
 }
 
@@ -89,7 +91,7 @@ resource "aws_s3_bucket_versioning" "glue_assets" {
 
 resource "aws_s3_bucket" "data_warehouse" {
   count         = terraform.workspace == "prod" ? 0 : 1
-  bucket        = "ccao-ci-${terraform.workspace}-data-warehouse-us-east-1"
+  bucket        = "ccao-ci-${substr(terraform.workspace, 0, 30)}-data-warehouse-us-east-1"
   force_destroy = true
 }
 
