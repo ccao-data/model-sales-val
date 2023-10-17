@@ -695,6 +695,7 @@ if __name__ == "__main__":
             condos=True,
         )
 
+        # Discard any flags with a group size under the threshold
         df_condo_flagged_updated = group_size_adjustment(
             df=df_condo_flagged,
             stat_groups=condo_stat_groups,
