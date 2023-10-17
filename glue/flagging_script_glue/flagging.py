@@ -891,11 +891,15 @@ entity_keywords = (
     r"specialists|homes|business|venture|restoration|renovations"
     r"|maintenance|ltd|real estate|builders|buyers|property|financial"
     r"|associates|consultants|international|acquisitions|credit|design"
-    r"|homeownership|solutions|home|diversified|assets|family|land|"
-    r"revocable|services|rehabbing|living|county of cook|fannie mae|"
-    r"land|veteran|mortgage|savings|lp$"
+    r"|homeownership|solutions|home|diversified|assets|family|land"
+    r"|revocable|services|rehabbing|living|county of cook|fannie mae"
+    r"|land|veteran|mortgage|savings|lp$|hospital|properti|southport"
+    r"|propert|rehab|neighborhood|advantage|chicago|cook c|bk|hud"
+    r"|department|united states|usa|hsbc|midwest|residential|american"
+    r"|tcf|advantage|real e|advantage|fifth third|baptist church"
+    r"|apostolic church|lutheran church|fed|nationstar"
+    r"|advantage|commercial|health|condominium|nationa|association"
 )
-
 
 def get_id(row: pd.Series, col: str) -> str:
     """
