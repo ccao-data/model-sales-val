@@ -915,7 +915,7 @@ entity_keywords = (
     r"|tcf|advantage|real e|advantage|fifth third|baptist church"
     r"|apostolic church|lutheran church|catholic church|\bfed\b|nationstar"
     r"|advantage|commercial|health|condominium|nationa|association|homeowner"
-    r"|christ church|christian church|baptist church|community church|"
+    r"|christ church|christian church|baptist church|community church"
     r"|church of c"
 )
 
