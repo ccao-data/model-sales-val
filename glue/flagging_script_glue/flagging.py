@@ -915,7 +915,7 @@ entity_keywords = (
     r"|tcf|advantage|real e|advantage|fifth third|baptist church"
     r"|apostolic church|lutheran church|catholic church|\bfed\b|nationstar"
     r"|advantage|commercial|health|condominium|nationa|association|homeowner"
-
+)
 
 def get_id(row: pd.Series, col: str) -> str:
     """
