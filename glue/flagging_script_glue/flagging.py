@@ -917,6 +917,7 @@ entity_keywords = (
     r"|advantage|commercial|health|condominium|nationa|association|homeowner"
 )
 
+
 def get_id(row: pd.Series, col: str) -> str:
     """
     Creates an ID from the buyer/seller name.
