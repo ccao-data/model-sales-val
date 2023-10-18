@@ -888,7 +888,7 @@ entity_keywords = (
     r"|properties|limited|realty|development|capital|management"
     r"|developers|construction|rentals|group|investments|invest|"
     r"residences|enterprise|enterprises|ventures|remodeling|"
-    r"specialists|/bhomes/b|business|venture|restoration|renovations"
+    r"specialists|homes|business|venture|restoration|renovations"
     r"|maintenance|ltd|real estate|builders|buyers|property|financial"
     r"|associates|consultants|international|acquisitions|credit|design"
     r"|homeownership|solutions|/bhome/b|diversified|assets|family|\bland\b"
@@ -898,7 +898,7 @@ entity_keywords = (
     r"|department|united states|\busa\b|hsbc|midwest|residential|american"
     r"|tcf|advantage|real e|advantage|fifth third|baptist church"
     r"|apostolic church|lutheran church|catholic church|\bfed\b|nationstar"
-    r"|advantage|commercial|health|condominium|nationa|association"
+    r"|advantage|commercial|health|condominium|nationa|association|homeowner|"
 )
 
 def get_id(row: pd.Series, col: str) -> str:
