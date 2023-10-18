@@ -1,5 +1,4 @@
 from glue.flagging_script_glue import flagging as flg_model
-from manual_flagging.src.flagging_rolling import SHORT_TERM_OWNER_THRESHOLD
 from glue import sales_val_flagging as flg
 import awswrangler as wr
 import os
