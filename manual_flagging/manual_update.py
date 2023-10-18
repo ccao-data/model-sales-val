@@ -11,7 +11,6 @@ import subprocess as sp
 import yaml
 from pyathena import connect
 from pyathena.pandas.util import as_pandas
-from random_word import RandomWords
 
 # Set working dir to manual_update, standardize yaml and src locations
 root = sp.getoutput("git rev-parse --show-toplevel")
