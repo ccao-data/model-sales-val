@@ -10,7 +10,6 @@ import re
 import sys
 from pyathena import connect
 from pyathena.pandas.util import as_pandas
-from random_word import RandomWords
 from dateutil.relativedelta import relativedelta
 
 
