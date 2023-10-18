@@ -1,5 +1,4 @@
-from manual_flagging.src import flagging_rolling as flg_model
-from manual_flagging.src.flagging_rolling import SHORT_TERM_OWNER_THRESHOLD
+from glue.flagging_script_glue import flagging as flg_model
 from glue import sales_val_flagging as flg
 import awswrangler as wr
 import os
@@ -240,7 +239,7 @@ df_parameters = flg.get_parameter_df(
     ptax_sd=inputs["ptax_sd"],
     rolling_window=inputs["rolling_window_months"],
     date_floor=inputs["time_frame"]["start"],
-    short_term_thresh=SHORT_TERM_OWNER_THRESHOLD,
+    short_term_thresh=flg_model.SHORT_TERM_OWNER_THRESHOLD,
     min_group_thresh=inputs["min_groups_threshold"],
     run_id=run_id,
 )
