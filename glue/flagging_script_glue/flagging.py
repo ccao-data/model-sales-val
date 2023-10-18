@@ -909,7 +909,7 @@ entity_keywords = (
     r"|associates|consultants|international|acquisitions|credit|design"
     r"|homeownership|solutions|\bhome\b|diversified|assets|family|\bland\b"
     r"|revocable|services|rehabbing|\bliving\b|county of cook|fannie mae"
-    r"|veteran|mortgage|savings|lp$|hospital|southport|mtg"
+    r"|veteran|mortgage|savings|lp$|federal natl|hospital|southport|mtg"
     r"|propert|rehab|neighborhood|advantage|chicago|cook c|\bbk\b|\bhud\b"
     r"|department|united states|\busa\b|hsbc|midwest|residential|american"
     r"|tcf|advantage|real e|advantage|fifth third|baptist church"
