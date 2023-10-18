@@ -895,11 +895,11 @@ def outlier_flag(df: pd.DataFrame) -> pd.DataFrame:
 entity_keywords = (
     r"llc| ll$| l$|l l c|estate|training|construction|building|masonry|"
     r"apartments|plumbing|service|professional|roofing|advanced|office|"
-    r"\blaw\b|\bloan\b|legal|production|woodwork|concepts|corp|company|"
+    r"\blaw\b|loan|legal|production|woodwork|concepts|corp| company|"
     r" united|\binc\b|county|entertainment|community|heating|cooling"
     r"|partners|equity|indsutries|series|revitalization|collection|"
     r"agency|renovation|consulting|flippers|estates|\bthe \b|dept|"
-    r"funding|opportunity|improvements|servicing|equities|\bsale\b|"
+    r"funding|opportunity|improvements|servicing|equities|sale|"
     r"judicial| in$|bank|\btrust\b|holding|investment|housing"
     r"|properties|limited|realty|development|capital|management"
     r"|developers|construction|rentals|group|investments|invest|"
@@ -907,16 +907,9 @@ entity_keywords = (
     r"specialists|homes|business|venture|restoration|renovations"
     r"|maintenance|ltd|real estate|builders|buyers|property|financial"
     r"|associates|consultants|international|acquisitions|credit|design"
-    r"|homeownership|solutions|\bhome\b|diversified|assets|family|\bland\b"
-    r"|revocable|services|rehabbing|\bliving\b|county of cook|fannie mae"
-    r"|veteran|mortgage|savings|lp$|federal natl|hospital|southport|mtg"
-    r"|propert|rehab|neighborhood|advantage|chicago|cook c|\bbk\b|\bhud\b"
-    r"|department|united states|\busa\b|hsbc|midwest|residential|american"
-    r"|tcf|advantage|real e|advantage|fifth third|baptist church"
-    r"|apostolic church|lutheran church|catholic church|\bfed\b|nationstar"
-    r"|advantage|commercial|health|condominium|nationa|association|homeowner"
-    r"|christ church|christian church|baptist church|community church|"
-    r"|church of c"
+    r"|homeownership|solutions|home|diversified|assets|family|land|"
+    r"revocable|services|rehabbing|living|county of cook|fannie mae|"
+    r"land|veteran|mortgage|savings|lp$|federal natl"
 )
 
 
