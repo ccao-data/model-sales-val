@@ -721,7 +721,7 @@ if __name__ == "__main__":
         INNER JOIN default.vw_pin_sale sale
             ON sale.pin = data.pin
             AND sale.year = data.year
-        LEFT JOIN {args["sale_flag_table"]} flag
+        INNER JOIN {args["sale_flag_table"]} flag
             ON flag.meta_sale_document_num = sale.doc_no
         WHERE flag.sv_is_outlier IS NULL
         AND sale.sale_date >= DATE '{args["time_frame_start"]}'
