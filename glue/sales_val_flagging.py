@@ -759,11 +759,6 @@ if __name__ == "__main__":
     )
     """
 
-    SQL_QUERY_SALES_VAL = f"""
-    SELECT *
-    FROM {args["sale_flag_table"]}
-    """
-
     # -------------------------------------------------------------------------
     # Execute queries and return as pandas df
     # -------------------------------------------------------------------------
@@ -777,24 +772,16 @@ if __name__ == "__main__":
     df_ingest_full = as_pandas(cursor)
     df = df_ingest_full
 
-    print(df)
-
     # Filter the dataframe to look at sales we are interested in flagging,
     # not prior rolling window data
     filtered_df = df_ingest_full[
         df_ingest_full["meta_sale_date"] >= args["time_frame_start"]
     ]
-    print(filtered_df)
 
     # Skip rest of script if no new unflagged sales
     if filtered_df.sv_outlier_type.isna().sum() == 0:
         print("WARNING: No new sales to flag")
     else:
-        # Grab existing sales val table for later join
-        cursor.execute(SQL_QUERY_SALES_VAL)
-        df_ingest_sales_val = as_pandas(cursor)
-        df_sales_val = df_ingest_sales_val
-
         df = df.astype({col[0]: sql_type_to_pd_type(col[1]) for col in metadata})
         df["ptax_flag_original"].fillna(False, inplace=True)
 
@@ -875,14 +862,7 @@ if __name__ == "__main__":
             start_date=args["time_frame_start"],
             manual_update=False,
         )
-        """
-        # Filter to keep only flags not already present in the flag table
-        rows_to_append = df_flagged_final[
-            ~df_flagged_final["meta_sale_document_num"].isin(
-                df_sales_val["meta_sale_document_num"]
-            )
-        ].reset_index(drop=True)
-        """
+
         # Find rows in df_ingest_full with sv_is_outlier having a value
         existing_flags = df_ingest_full.dropna(subset=["sv_is_outlier"])[
             "meta_sale_document_num"
