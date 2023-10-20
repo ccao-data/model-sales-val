@@ -721,9 +721,7 @@ if __name__ == "__main__":
         INNER JOIN default.vw_pin_sale sale
             ON sale.pin = data.pin
             AND sale.year = data.year
-        LEFT JOIN {args["sale_flag_table"]} flag
-            ON flag.meta_sale_document_num = sale.doc_no
-        WHERE flag.sv_is_outlier IS NULL
+        WHERE sale.sv_is_outlier IS NULL
         AND sale.sale_date >= DATE '{args["time_frame_start"]}'
         AND NOT sale.is_multisale
         AND (NOT data.pin_is_multicard OR data.source_table = 'condo_char')
@@ -741,17 +739,15 @@ if __name__ == "__main__":
         data.pin,
         data.char_bldg_sf,
         data.indicator, -- Selecting the indicator column
-        flag.run_id,
-        flag.sv_is_outlier,
-        flag.sv_is_ptax_outlier,
-        flag.sv_is_heuristic_outlier,
-        flag.sv_outlier_type
+        sale.sv_run_id,
+        sale.sv_is_outlier,
+        sale.sv_is_ptax_outlier,
+        sale.sv_is_heuristic_outlier,
+        sale.sv_outlier_type
     FROM CombinedData data
     INNER JOIN default.vw_pin_sale sale
         ON sale.pin = data.pin
         AND sale.year = data.year
-    LEFT JOIN {args["sale_flag_table"]} flag
-        ON flag.meta_sale_document_num = sale.doc_no
     INNER JOIN NA_Dates
         ON sale.sale_date BETWEEN NA_Dates.StartDate AND NA_Dates.EndDate
     WHERE NOT sale.is_multisale
@@ -761,11 +757,6 @@ if __name__ == "__main__":
         '210', '211', '212', '218', '219', '234', '278', '295',
         '297', '299', '399'
     )
-    """
-
-    SQL_QUERY_SALES_VAL = f"""
-    SELECT *
-    FROM {args["sale_flag_table"]}
     """
 
     # -------------------------------------------------------------------------
@@ -791,11 +782,6 @@ if __name__ == "__main__":
     if filtered_df.sv_outlier_type.isna().sum() == 0:
         print("WARNING: No new sales to flag")
     else:
-        # Grab existing sales val table for later join
-        cursor.execute(SQL_QUERY_SALES_VAL)
-        df_ingest_sales_val = as_pandas(cursor)
-        df_sales_val = df_ingest_sales_val
-
         df = df.astype({col[0]: sql_type_to_pd_type(col[1]) for col in metadata})
         df["ptax_flag_original"].fillna(False, inplace=True)
 
@@ -877,11 +863,14 @@ if __name__ == "__main__":
             manual_update=False,
         )
 
-        # Filter to keep only flags not already present in the flag table
+        # Find rows in df_ingest_full with sv_is_outlier having a value
+        existing_flags = df_ingest_full.dropna(subset=["sv_is_outlier"])[
+            "meta_sale_document_num"
+        ]
+
+        # Filter out rows from df_flagged_final that are in the above subset
         rows_to_append = df_flagged_final[
-            ~df_flagged_final["meta_sale_document_num"].isin(
-                df_sales_val["meta_sale_document_num"]
-            )
+            ~df_flagged_final["meta_sale_document_num"].isin(existing_flags)
         ].reset_index(drop=True)
 
         # Write to sale.flag table
