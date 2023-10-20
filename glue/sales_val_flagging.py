@@ -718,7 +718,7 @@ if __name__ == "__main__":
             MIN(DATE_TRUNC('MONTH', sale.sale_date)) - INTERVAL '{rolling_window_num_sql}' MONTH AS StartDate,
             MAX(DATE_TRUNC('MONTH', sale.sale_date)) AS EndDate
         FROM CombinedData data
-        INNER JOIN default.vw_pin_sale sale
+        INNER JOIN "ci_model_sales_val_53_update_recurring_scripts_to_use_updated_view_1_sale.dev_sales_val_vw_pin_sale sale
             ON sale.pin = data.pin
             AND sale.year = data.year
         WHERE sale.sv_is_outlier IS NULL
@@ -745,7 +745,7 @@ if __name__ == "__main__":
         sale.sv_is_heuristic_outlier,
         sale.sv_outlier_type
     FROM CombinedData data
-    INNER JOIN default.vw_pin_sale sale
+    INNER JOIN "ci_model_sales_val_53_update_recurring_scripts_to_use_updated_view_1_sale.dev_sales_val_vw_pin_sale sale
         ON sale.pin = data.pin
         AND sale.year = data.year
     INNER JOIN NA_Dates
