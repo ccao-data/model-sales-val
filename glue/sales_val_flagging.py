@@ -739,7 +739,7 @@ if __name__ == "__main__":
         data.pin,
         data.char_bldg_sf,
         data.indicator, -- Selecting the indicator column
-        sale.run_id,
+        sale.sv_run_id,
         sale.sv_is_outlier,
         sale.sv_is_ptax_outlier,
         sale.sv_is_heuristic_outlier,
