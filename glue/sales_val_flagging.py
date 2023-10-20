@@ -721,9 +721,7 @@ if __name__ == "__main__":
         INNER JOIN default.vw_pin_sale sale
             ON sale.pin = data.pin
             AND sale.year = data.year
-        LEFT JOIN {args["sale_flag_table"]} flag
-            ON flag.meta_sale_document_num = sale.doc_no
-        WHERE flag.sv_is_outlier IS NULL
+        WHERE sale.sv_is_outlier IS NULL
         AND sale.sale_date >= DATE '{args["time_frame_start"]}'
         AND NOT sale.is_multisale
         AND (NOT data.pin_is_multicard OR data.source_table = 'condo_char')
@@ -741,17 +739,15 @@ if __name__ == "__main__":
         data.pin,
         data.char_bldg_sf,
         data.indicator, -- Selecting the indicator column
-        flag.run_id,
-        flag.sv_is_outlier,
-        flag.sv_is_ptax_outlier,
-        flag.sv_is_heuristic_outlier,
-        flag.sv_outlier_type
+        sale.run_id,
+        sale.sv_is_outlier,
+        sale.sv_is_ptax_outlier,
+        sale.sv_is_heuristic_outlier,
+        sale.sv_outlier_type
     FROM CombinedData data
     INNER JOIN default.vw_pin_sale sale
         ON sale.pin = data.pin
         AND sale.year = data.year
-    LEFT JOIN {args["sale_flag_table"]} flag
-        ON flag.meta_sale_document_num = sale.doc_no
     INNER JOIN NA_Dates
         ON sale.sale_date BETWEEN NA_Dates.StartDate AND NA_Dates.EndDate
     WHERE NOT sale.is_multisale
