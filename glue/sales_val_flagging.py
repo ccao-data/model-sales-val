@@ -875,12 +875,22 @@ if __name__ == "__main__":
             start_date=args["time_frame_start"],
             manual_update=False,
         )
-
+        """
         # Filter to keep only flags not already present in the flag table
         rows_to_append = df_flagged_final[
             ~df_flagged_final["meta_sale_document_num"].isin(
                 df_sales_val["meta_sale_document_num"]
             )
+        ].reset_index(drop=True)
+        """
+        # Find rows in df_ingest_full with sv_is_outlier having a value
+        existing_flags = df_ingest_full.dropna(subset=["sv_is_outlier"])[
+            "meta_sale_document_num"
+        ]
+
+        # Filter out rows from df_flagged_final that are in the above subset
+        rows_to_append = df_flagged_final[
+            ~df_flagged_final["meta_sale_document_num"].isin(existing_flags)
         ].reset_index(drop=True)
 
         # Write to sale.flag table
