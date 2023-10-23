@@ -52,6 +52,28 @@ graph TD
 
 ```
 
+And here we can see how the recrurrent glue job will process unflagged sales:
+
+```mermaid
+
+graph TD
+    subgraph AWS Glue Job [AWS Glue Recurrent Job]
+        Ingest --> Flags[Run Statistical Flags]
+        Flags --> sale_flag[sale.flag]
+        Flags --> sale_parameter[sale.parameter]
+        Flags --> sale_metadata[sale.metadata]
+        Flags --> sale_group_means[sale.group_means]
+    end
+    vw_sale[vw_pin_sale] --> Ingest[Ingest Sales Data]
+    vw_card[vw_card_res_char] --> Ingest
+    vw_condo[vw_pin_condo_char] --> Ingest
+    sale_flag --> Update[Update sales view]
+    Update --> vw_sale
+    style AWS Glue Job fill:#f9d6d2,stroke:#f08a81,stroke-width:2px
+
+
+```
+
 # Flags at a Glance
 
 Sales from 2014 - present have been processed using our sales validation program. We assign flags to the following classes of properties:
