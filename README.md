@@ -58,15 +58,17 @@ And here we can see how the recrurrent glue job will process unflagged sales:
 
 graph TD
 
-    A{{Ingest data needed to flag unflagged sales}}
-    B[Run glue job]
+    A[Schedule for glue job triggers a run]
+    B{{Ingest data needed to flag unflagged sales}}
+    C[Run glue job]
 
-    C[Write sales data to sale.flag]
-    D[Flags joined to<br>default.vw_pin_sale]
+    D[Write sales data to sale.flag]
+    E[Flags joined to<br>default.vw_pin_sale]
 
-    A -- Grab any data flag all unflagged sales from 2014 - present --> B
+    A -- Some sales are not flagged --> B
     B --> C
-    C -- Results saved to S3<br>with unique run ID --> D
+    C --> D
+    D -- Results saved to S3<br>with unique run ID --> E
 
 
 ```
