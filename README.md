@@ -54,7 +54,7 @@ graph TD
 
 # Flags at a Glance
 
-As of October 2023 sales from 2014 - present have been processed using our sales validation program. We assign flags to the following classes of preoperties:
+As of October 2023 sales from 2014 - present have been processed using our sales validation program. We assign flags to the following classes of properties:
 
 - **Residential** - 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 218, 219, 234, 278, 295
 - **Condos** - 297, 299, 399
