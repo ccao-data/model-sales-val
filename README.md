@@ -54,7 +54,7 @@ graph TD
 
 # Flags at a Glance
 
-As of October 2023 sales from 2014 - present have been processed using our sales validation program. We assign flags to the following classes of properties:
+Sales from 2014 - present have been processed using our sales validation program. We assign flags to the following classes of properties:
 
 - **Residential** - 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 218, 219, 234, 278, 295
 - **Condos** - 297, 299, 399
@@ -86,7 +86,7 @@ As of October 2023 sales from 2014 - present have been processed using our sales
 - **Low price (raw)**: Low price (or under $10k)
 - **Low price (per sqft)**: Low price per sq. ft.
 
-
+## Distribution of Outlier Types
 
 Around **4.5%** of these sales have some sort of `Outlier` classification. Within that 4.5% the makeup of the outlier distribution is approximately as follows:
 
