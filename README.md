@@ -109,7 +109,7 @@ Sales from 2014 - present have been processed using our sales validation program
 
 ## Distribution of Outlier Types
 
-Around **4.5%** of these sales have some sort of `Outlier` classification. Within that 4.5% the makeup of the outlier distribution is approximately as follows:
+Around **4.5%** of the total sales have some sort of `Outlier` classification. Within that 4.5% the makeup of the outlier distribution is approximately as follows:
 
 |Outlier Type           |Proportion            |
 |-----------------------|----------------------|
