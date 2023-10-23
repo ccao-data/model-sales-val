@@ -70,10 +70,10 @@ As of October 2023 sales from 2014 - present have been processed using our sales
 - **High price outlier**:
     - Anomaly algorithm (high)
     - Anomaly algorithm & [1 high price statistical outlier type]
-- **High price (raw & sqft )**: High price (+2 std) & high price per sq. ft. (+2 std)
-- **High price swing**: Large swing away from mean (+2 std) & high price outlier (+2 std)
-- **High price (raw)**: High price (+2 std)
-- **High price (per sqft)**: High price per sq. ft. (+2 std)
+- **High price (raw & sqft )**: High price & high price per sq. ft. 
+- **High price swing**: Large swing away from mean  & high price outlier 
+- **High price (raw)**: High price 
+- **High price (per sqft)**: High price per sq. ft. 
 
 ### Low Price
 
@@ -85,10 +85,10 @@ As of October 2023 sales from 2014 - present have been processed using our sales
 - **Low price outlier**:
     - Anomaly algorithm (low)
     - Anomaly algorithm & [1 low price statistical outlier type]
-- **Low price (raw & sqft )**: Large swing away from mean (-2 std) & low price outlier (-2 std)
-- **Low price swing**: Low price (-2 std) & low price per sq. ft. (-2 std)
-- **Low price (raw)**: Low price (-2 std or under $10k)
-- **Low price (per sqft)**: Low price per sq. ft. (-2 std)
+- **Low price (raw & sqft )**: Large swing away from mean & low price outlier 
+- **Low price swing**: Low price & low price per sq. ft. 
+- **Low price (raw)**: Low price (or under $10k)
+- **Low price (per sqft)**: Low price per sq. ft.
 
 
 
