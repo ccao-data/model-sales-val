@@ -59,6 +59,39 @@ As of October 2023 sales from 2014 - present have been processed using our sales
 - **Residential** - 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 218, 219, 234, 278, 295
 - **Condos** - 297, 299, 399
 
+## Outlier Types
+
+### High Price
+
+**Special flags + high price outlier**
+
+- **Family sale (high)**: Last name match & [1 high statistical outlier type]
+- **Non-person sale (high)**: Legal / corporate entity + [1 high statistical outlier type]
+- **High price outlier**:
+    - Anomaly algorithm (high)
+    - Anomaly algorithm & [1 high price statistical outlier type]
+- **High price (raw & sqft )**: High price (+2 std) & high price per sq. ft. (+2 std)
+- **High price swing**: Large swing away from mean (+2 std) & high price outlier (+2 std)
+- **High price (raw)**: High price (+2 std)
+- **High price (per sqft)**: High price per sq. ft. (+2 std)
+
+### Low Price
+
+**Special flags + low price outlier**
+
+- **Home flip sale (low)**: Short-term owner < 1 year & [1 low statistical outlier type]
+- **Family sale (low)**: Last name match & [1 low statistical outlier type]
+- **Non-person sale (low)**: Legal / corporate entity + [1 low statistical outlier type]
+- **Low price outlier**:
+    - Anomaly algorithm (low)
+    - Anomaly algorithm & [1 low price statistical outlier type]
+- **Low price (raw & sqft )**: Large swing away from mean (-2 std) & low price outlier (-2 std)
+- **Low price swing**: Low price (-2 std) & low price per sq. ft. (-2 std)
+- **Low price (raw)**: Low price (-2 std or under $10k)
+- **Low price (per sqft)**: Low price per sq. ft. (-2 std)
+
+
+
 Around **4.5%** of these sales have some sort of `Outlier` classification. Within that 4.5% the makeup of the outlier distribution is approximately as follows:
 
 |Outlier Type           |Proportion            |
