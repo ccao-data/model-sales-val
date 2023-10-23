@@ -57,20 +57,16 @@ And here we can see how the recrurrent glue job will process unflagged sales:
 ```mermaid
 
 graph TD
-    subgraph AWS Glue Job [AWS Glue Recurrent Job]
-        Ingest[Ingest Sales Data] --> Flags[Run Statistical Flags]
-        Flags --> sale_flag[sale.flag]
-        Flags --> sale_parameter[sale.parameter]
-        Flags --> sale_metadata[sale.metadata]
-        Flags --> sale_group_means[sale.group_means]
-    end
-    vw_sale[vw_pin_sale] --> Ingest
-    vw_card[vw_card_res_char] --> Ingest
-    vw_condo[vw_pin_condo_char] --> Ingest
-    sale_flag --> Update[Update sales view]
-    Update --> vw_sale
-    style AWS Glue Job fill:#f9d6d2,stroke:#f08a81,stroke-width:2px
 
+    A{{Ingest data needed to flag unflagged sales}}
+    B[Run glue job]
+
+    C[Write sales data to sale.flag]
+    D[Flags joined to<br>default.vw_pin_sale]
+
+    A -- Grab any data flag all unflagged sales from 2014 - present --> B
+    B --> C
+    C -- Results saved to S3<br>with unique run ID --> D
 
 
 ```
