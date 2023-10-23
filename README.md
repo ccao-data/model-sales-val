@@ -51,8 +51,8 @@ graph TD
     G -- Results saved to S3<br>with new run ID --> I
 
 ```
-
-And here we can see how the recrurrent glue job will process unflagged sales:
+#### Glue Job
+And here we can see how the recurrent glue job will process unflagged sales:
 
 ```mermaid
 
