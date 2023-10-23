@@ -8,6 +8,7 @@ Table of Contents
 ================
 
 - [Overview](#overview)
+- [Flags at a Glance](#flags-at-a-glance)
 - [Structure of data](#structure-of-data)
 - [Important flagging details](#important-flagging-details)
 - [AWS Glue job documentation](#aws-glue-job-documentation)
@@ -50,6 +51,37 @@ graph TD
     G -- Results saved to S3<br>with new run ID --> I
 
 ```
+
+# Flags at a Glance
+
+Currently (October 2023) sales from 2014 - present have been assigned sales. We assign flags to the following classes of preoperties:
+
+- **Residential** - 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 218, 219, 234, 278, 295
+- **Condos** - 297, 299, 399
+
+Around 4.5% of these sales have some sort of `Outlier` classification. Within that 4.5% the makeup of the outlier distribution is approximately as follows:
+
+|Outlier Type           |Proportion            |
+|-----------------------|----------------------|
+|PTAX-203 flag          |0.5789                |
+|Anomaly (high)         |0.0865                |
+|High price (raw)       |0.0865                |
+|Non-person sale (high) |0.0479                |
+|Non-person sale (low)  |0.032                 |
+|Low price (raw & sqft) |0.032                 |
+|High price (sqft)      |0.0283                |
+|High price (raw & sqft)|0.0256                |
+|Home flip sale (high)  |0.0249                |
+|Low price (sqft)       |0.0229                |
+|Low price (raw)        |0.0182                |
+|Anomaly (low)          |0.0082                |
+|Home flip sale (low)   |0.0042                |
+|Family sale (low)      |0.0033                |
+|Family sale (high)     |5.0E-4                |
+|Low price swing        |0.0                   |
+
+
+
 
 # Structure of data
 
