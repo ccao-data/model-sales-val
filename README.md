@@ -67,9 +67,7 @@ As of October 2023 sales from 2014 - present have been processed using our sales
 
 - **Family sale (high)**: Last name match & [1 high statistical outlier type]
 - **Non-person sale (high)**: Legal / corporate entity + [1 high statistical outlier type]
-- **High price outlier**:
-    - Anomaly algorithm (high)
-    - Anomaly algorithm & [1 high price statistical outlier type]
+- **Anomaly (High)**: Anomaly algorithm (high) & [1 high statistical outlier type]
 - **High price (raw & sqft )**: High price & high price per sq. ft. 
 - **High price swing**: Large swing away from mean  & high price outlier 
 - **High price (raw)**: High price 
@@ -82,9 +80,7 @@ As of October 2023 sales from 2014 - present have been processed using our sales
 - **Home flip sale (low)**: Short-term owner < 1 year & [1 low statistical outlier type]
 - **Family sale (low)**: Last name match & [1 low statistical outlier type]
 - **Non-person sale (low)**: Legal / corporate entity + [1 low statistical outlier type]
-- **Low price outlier**:
-    - Anomaly algorithm (low)
-    - Anomaly algorithm & [1 low price statistical outlier type]
+- **Anomaly**: - Anomaly algorithm (low) & [1 low statistical outlier type]
 - **Low price (raw & sqft )**: Large swing away from mean & low price outlier 
 - **Low price swing**: Low price & low price per sq. ft. 
 - **Low price (raw)**: Low price (or under $10k)
