@@ -64,10 +64,11 @@ erDiagram
     flag {
         string meta_sale_document_num PK
         date rolling_window
-        bigint sv_is_outlier
-        bigint sv_is_ptax_outlier
-        bigint sv_is_heuristic_outlier
-        string sv_outlier_type
+        boolean sv_is_outlier
+        boolean sv_is_ptax_outlier
+        boolean sv_is_heuristic_outlier
+        boolean ptax_flag_original
+        boolean sv_outlier_type
         string run_id FK
         bigint version PK
 
