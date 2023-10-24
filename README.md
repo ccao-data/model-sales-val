@@ -251,16 +251,16 @@ We plan to integrate this data into our iasWorld database, so that these flags a
 ```mermaid
 
 graph TD
-    A[Your Database] --> C1[Column 1]
-    A --> C2[Column 2]
-    A --> C3[Column 3]
-    A --> C4[Column 4]
+    A[Data Team Data Lake] --> C1[Is non-arms-length (boolean)]
+    A --> C2[Flag reason (text)]
+    A --> C3[Flag run ID (hidden)]
+    A --> C4[ Analyst override (boolean)]
     
-    C1 --> J[Join on Certain Column]
+    C1 --> J[Join on doc_no/instruno]
     C2 --> J
     C3 --> J
     C4 --> J
-    J --> D[Another Database]
+    J --> D[iasWorld Sales Data]
 
 ```
 
