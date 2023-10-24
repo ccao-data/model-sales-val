@@ -256,10 +256,11 @@ graph TD
     A --> C3[Column 3]
     A --> C4[Column 4]
     
-    C1 -->|Join on Certain Column| D[Another Database]
-    C2 -->|Join on Certain Column| D
-    C3 -->|Join on Certain Column| D
-    C4 -->|Join on Certain Column| D
+    C1 --> J[Join on Certain Column]
+    C2 --> J
+    C3 --> J
+    C4 --> J
+    J --> D[Another Database]
 
 ```
 
