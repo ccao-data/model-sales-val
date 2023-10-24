@@ -254,7 +254,7 @@ graph TD
     A[Data Team Data Lake] --> C1[Is non-arms-length (boolean)]
     A --> C2[Flag reason (text)]
     A --> C3[Flag run ID (hidden)]
-    A --> C4[ Analyst override (boolean)]
+    A --> C4[Analyst override (boolean)]
     
     C1 --> J[Join on doc_no/instruno]
     C2 --> J
