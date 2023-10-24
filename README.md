@@ -263,6 +263,12 @@ graph TD
     C4 --> J
     J --> D[iasWorld Sales Data]
 
+    class C1 red;
+    class C2 red;
+    class C3 red;
+    class C4 red;
+
+
 ```
 
 ## Analyst Review
