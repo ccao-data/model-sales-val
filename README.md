@@ -249,31 +249,20 @@ We plan to integrate this data into our iasWorld database, so that these flags a
 - (Tentatively) Date of review (date)
 
 ```mermaid
-sequenceDiagram
-    participant YourDatabase as A
-    participant AnotherDatabase as B
-
-    A->>B: Upload Column 1
-    A->>B: Upload Column 2
-    A->>B: Upload Column 3
-    A->>B: Upload Column 4
-
-    Note over A,B: Join on certain column
-```
-
-```mermaid
 graph TD
     A[Your Database] --> C1[Column 1]
     A --> C2[Column 2]
     A --> C3[Column 3]
     A --> C4[Column 4]
     
-    C1 -->|Join on Certain Column| D[Another Database]
-    C2 -->|Join on Certain Column| D
-    C3 -->|Join on Certain Column| D
-    C4 -->|Join on Certain Column| D
-```
+    C1 --> D[Another Database]
+    C2 --> D
+    C3 --> D
+    C4 --> D
 
+    style D fill:#f9d9d9,stroke:#333,stroke-width:4px
+    Note right of D: Join on<br/>Certain Column
+```
 
 ## Analyst Review
 
