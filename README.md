@@ -239,6 +239,24 @@ The Glue job and its flagging script are written in Python, while the job detail
   
 # Next steps
 
+## iasWorld Integration
+
+We plan to integrate this data into our iasWorld database, so that these flags are widely available in the CCAO. We plan to upload 4-5 columns:
+- Is non-arms-length (boolean)
+- Flag reason (text)
+- Flag run ID (hidden)
+- Analyst override (boolean)
+- (Tentatively) Date of review (date)
+
 ## Analyst Review
 
-## iasWorld Integration
+In the future, it is our goal that human sales validation analysts will be able to review these flags and manually override them. In the longer-term future we could train a supervised model using the analysts' judgement.
+
+
+
+
+
+
+
+
+
