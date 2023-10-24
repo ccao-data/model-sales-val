@@ -264,6 +264,7 @@ graph TD
     classDef style1 fill:#f9d9d9,stroke:#333,stroke-width:4px;
     class D style1;
 
+    Note right of D: Join on Certain Column
 
 ```
 
