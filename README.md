@@ -261,8 +261,9 @@ graph TD
     C3 --> D
     C4 --> D
 
-    style D fill:#f9d9d9,stroke:#333,stroke-width:4px
-    Note right of D: Join on<br/>Certain Column
+    classDef style1 fill:#f9d9d9,stroke:#333,stroke-width:4px;
+    class D style1;
+
 
 ```
 
