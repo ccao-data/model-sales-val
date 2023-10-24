@@ -249,6 +249,7 @@ We plan to integrate this data into our iasWorld database, so that these flags a
 - (Tentatively) Date of review (date)
 
 ```mermaid
+
 graph TD
     A[Your Database] --> C1[Column 1]
     A --> C2[Column 2]
@@ -262,6 +263,7 @@ graph TD
 
     style D fill:#f9d9d9,stroke:#333,stroke-width:4px
     Note right of D: Join on<br/>Certain Column
+
 ```
 
 ## Analyst Review
