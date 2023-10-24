@@ -191,16 +191,31 @@ def finish_flags(df, start_date, manual_update):
     df = df[df["meta_sale_date"] >= start_date]
 
     # Utilize PTAX-203, complete binary columns
-    df = df.rename(columns={"sv_is_outlier": "sv_is_autoval_outlier"}).assign(
-        sv_is_autoval_outlier=lambda df: df["sv_is_autoval_outlier"] == "Outlier",
-        sv_is_outlier=lambda df: df["sv_is_autoval_outlier"]
-        | df["ptax_flag_w_deviation"],
-        # Incorporate PTAX in sv_outlier_type
-        sv_outlier_type=lambda df: np.where(
-            df["ptax_flag_w_deviation"],
-            "PTAX-203 flag",
-            df["sv_outlier_type"],
-        ),
+    df = (
+        df.rename(columns={"sv_is_outlier": "sv_is_autoval_outlier"})
+        .assign(
+            sv_is_autoval_outlier=lambda df: df["sv_is_autoval_outlier"] == "Outlier",
+            sv_is_outlier=lambda df: df["sv_is_autoval_outlier"]
+            | df["ptax_flag_w_deviation"],
+            # Incorporate PTAX in sv_outlier_type
+            sv_outlier_type=lambda df: np.where(
+                df["ptax_flag_w_deviation"],
+                "PTAX-203 flag",
+                df["sv_outlier_type"],
+            ),
+        )
+        .assign(
+            # Change sv_is_outlier to binary
+            sv_is_outlier=lambda df: (df["sv_outlier_type"] != "Not outlier"),
+            # PTAX-203 binary
+            sv_is_ptax_outlier=lambda df: np.where(
+                df["sv_outlier_type"] == "PTAX-203 flag"
+            ),
+            # Heuristics flagging binary column
+            sv_is_heuristic_outlier=lambda df: np.where(
+                (df["sv_outlier_type"] != "PTAX-203 flag") & (df["sv_is_outlier"] == 1)
+            ),
+        )
     )
 
     cols_to_write = [
