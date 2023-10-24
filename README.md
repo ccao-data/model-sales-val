@@ -23,6 +23,7 @@ The workflow for sale flagging is as follows:
 * Next, `glue/sales_val_flagging.py` flags all new, unflagged sales. This script is automated such that it runs on a schedule (e.g. monthly).
 * If an error occurs or we want to update the methodology on previously-flagged sales, `manual_flagging/manual_update.py` is used to select a subset of sales to re-flag. All sales have a version number that is incremented on update. When utilizing our sales views, we pull the flag data with the highest version value to keep it up-to-date.
 
+### Local Flagging
 On the left, we see the normal workflow of the process. Represented on the right is the use of `manual_update.py` to update/re-flag sales.
 
 ```mermaid
@@ -82,9 +83,13 @@ Sales from 2014 - present have been processed using our sales validation program
 
 ## Outlier Types
 
-### High Price
+In order to be flagged as on outlier type, the property needs to be a statistical price outlier. However, there are also special flags that combine with the statistical outlier type, these sales *should* be more likely to be non-arms length sales than the regular price outlier sales. Examples of these special flags are:
+- **Family Sale**: The last name matches between the buyer and the seller
+- **Non-person sale**: We flag a keyword that suggests the sale involves a legal entity (industrial buyer, bank, real estate firm, construction, etc)
+- **Flip Sale**: The owner of the home owned the property for less than 1 year
+- **Anomaly**: Our isolation forest statistical outlier algorithm flagged the sale
 
-**Special flags + high price outlier**
+### High Price
 
 - **Family sale (high)**: Last name match & [1 high statistical outlier type]
 - **Non-person sale (high)**: Legal / corporate entity + [1 high statistical outlier type]
@@ -95,8 +100,6 @@ Sales from 2014 - present have been processed using our sales validation program
 - **High price (per sqft)**: High price per sq. ft. 
 
 ### Low Price
-
-**Special flags + low price outlier**
 
 - **Home flip sale (low)**: Short-term owner < 1 year & [1 low statistical outlier type]
 - **Family sale (low)**: Last name match & [1 low statistical outlier type]
