@@ -238,3 +238,7 @@ The Glue job and its flagging script are written in Python, while the job detail
     - Once your PR is approved, merge it into `main`. A GitHub Actions workflow called `cleanup-terraform` will delete the staging resources that were created for your branch, while a separate `deploy-terraform` run will deploy your changes to the production job and its associated resources.
   
 # Next steps
+
+## Analyst Review
+
+## iasWorld Integration
