@@ -256,13 +256,10 @@ graph TD
     A --> C3[Column 3]
     A --> C4[Column 4]
     
-    C1 -->|Join on| D[Another Database (Certain Column)]
-    C2 -->|Join on| D
-    C3 -->|Join on| D
-    C4 -->|Join on| D
-
-    classDef style1 fill:#f9d9d9,stroke:#333,stroke-width:4px;
-    class D style1;
+    C1 -->|Join on Certain Column| D[Another Database]
+    C2 -->|Join on Certain Column| D
+    C3 -->|Join on Certain Column| D
+    C4 -->|Join on Certain Column| D
 
 ```
 
