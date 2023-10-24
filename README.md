@@ -83,8 +83,8 @@ Sales from 2014 - present have been processed using our sales validation program
 
 ## Outlier Types
 
-In order to be flagged as on outlier type, the property needs to be a statistical price outlier. However, there are also special flags that combine with the statistical outlier type, these sales *should* be more likely to be non-arms length sales than the regular price outlier sales. Examples of these special flags are:
-- **Family Sale**: The last name matches between the buyer and the seller
+In order to be flagged as on outlier type, the property needs to be a statistical price outlier. A statistical outlier is a sale price that is some number of standard deviations outside a grouping of similar properties (eg. township, class, time frame).  However, there are also special flags that combine with the statistical outlier type, these sales *should* be more likely to be non-arms length sales than the regular price outlier sales. Examples of these special flags are:
+- **PTAX flag**: The PTAX-203 form is required to be filled out for an Illinois Real Estate Transfer Declaration for non-residential property over $1 million and/or as required by Illinois Department of Revenue. If there are certain fields filled out on this form, we mark the sale with a ptax flag. 
 - **Non-person sale**: We flag a keyword that suggests the sale involves a legal entity (industrial buyer, bank, real estate firm, construction, etc)
 - **Flip Sale**: The owner of the home owned the property for less than 1 year
 - **Anomaly**: Our isolation forest statistical outlier algorithm flagged the sale
@@ -93,6 +93,7 @@ The following is a list of all flag types.
 
 ### High Price
 
+- **PTAX outlier (high)**: PTAX flag & [1 high statistical outlier type]
 - **Home flip sale (high)**: Short-term owner < 1 year & [1 high statistical outlier type]
 - **Family sale (high)**: Last name match & [1 high statistical outlier type]
 - **Non-person sale (high)**: Legal / corporate entity + [1 high statistical outlier type]
@@ -104,6 +105,7 @@ The following is a list of all flag types.
 
 ### Low Price
 
+- **PTAX outlier (high)**: PTAX flag & [1 low statistical outlier type]
 - **Home flip sale (low)**: Short-term owner < 1 year & [1 low statistical outlier type]
 - **Family sale (low)**: Last name match & [1 low statistical outlier type]
 - **Non-person sale (low)**: Legal / corporate entity + [1 low statistical outlier type]
