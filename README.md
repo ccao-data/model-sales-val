@@ -12,6 +12,7 @@ Table of Contents
 - [Structure of data](#structure-of-data)
 - [Important flagging details](#important-flagging-details)
 - [AWS Glue job documentation](#aws-glue-job-documentation)
+- [Next Steps](#next-steps)
 
 # Overview
 
@@ -235,3 +236,5 @@ The Glue job and its flagging script are written in Python, while the job detail
     - If you need to make further changes, push commits to your branch and GitHub Actions will deploy the changes to the staging job and its associated resources.
     - Once you're happy with your changes, request review on your PR.
     - Once your PR is approved, merge it into `main`. A GitHub Actions workflow called `cleanup-terraform` will delete the staging resources that were created for your branch, while a separate `deploy-terraform` run will deploy your changes to the production job and its associated resources.
+  
+# Next steps
