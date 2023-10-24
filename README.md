@@ -26,6 +26,7 @@ The workflow for sale flagging is as follows:
 
 #### Local Flagging
 On the left, we see the normal workflow of the process. Represented on the right is the use of `manual_update.py` to update/re-flag sales.
+Picture below is a sketch of how this might work:
 
 ```mermaid
 graph TD
