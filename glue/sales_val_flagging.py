@@ -789,7 +789,13 @@ if __name__ == "__main__":
         print(df)
         print(df.dtypes)
         print(metadata)
-        df = df.astype({col[0]: sql_type_to_pd_type(col[1]) for col in metadata})
+        conversion_dict = {
+            col[0]: sql_type_to_pd_type(col[1])
+            for col in metadata
+            if sql_type_to_pd_type(col[1]) is not None
+        }
+        df = df.astype(conversion_dict)
+
         print(df.dtypes)
         df["ptax_flag_original"].fillna(False, inplace=True)
 
