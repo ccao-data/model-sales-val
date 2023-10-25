@@ -63,7 +63,7 @@ variable "commit_sha" {
 
 resource "aws_s3_bucket" "glue_assets" {
   # Prod buckets are managed outside this config
-  count         = terraform.workspace == "prod" ? 0 : 1
+  count = terraform.workspace == "prod" ? 0 : 1
   # Buckets can only be a max of 63 characters long:
   # https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html
   bucket        = "ccao-ci-${substr(terraform.workspace, 0, 33)}-glue-assets-us-east-1"
@@ -129,12 +129,13 @@ resource "aws_s3_object" "flagging_script" {
 }
 
 resource "aws_glue_job" "sales_val_flagging" {
-  name            = local.glue_job_name
-  role_arn        = var.iam_role_arn
-  max_retries     = 0
-  glue_version    = "3.0"
-  execution_class = "STANDARD"
-  worker_type     = "G.4X"
+  name              = local.glue_job_name
+  role_arn          = var.iam_role_arn
+  max_retries       = 0
+  glue_version      = "3.0"
+  execution_class   = "STANDARD"
+  worker_type       = "G.4X"
+  number_of_workers = 1
 
   command {
     name            = "glueetl"
