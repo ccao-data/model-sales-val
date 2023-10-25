@@ -42,7 +42,7 @@ locals {
   # (Note that this is not always true -- notably, dbt-athena is able to
   # create Athena tables with hyphens -- but it's a rule that Terraform
   # enforces, so we follow it here)
-  athena_database_name = terraform.workspace == "prod" ? "sale" : "ci_model_sales_val_${lower(replace(terraform.workspace, "-", "_"))}_sale"
+  athena_database_name = terraform.workspace == "prod" ? "sale" : "ci_model_sales_val_${replace(terraform.workspace, "-", "_")}_sale"
 }
 
 variable "iam_role_arn" {
