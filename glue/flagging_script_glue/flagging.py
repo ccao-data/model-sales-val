@@ -916,7 +916,7 @@ entity_keywords = (
     r"|apostolic church|lutheran church|catholic church|\bfed\b|nationstar"
     r"|advantage|commercial|health|condominium|nationa|association|homeowner"
     r"|christ church|christian church|baptist church|community church"
-    r"|church of c"
+    r"|church of c|\bdelaw\b|lawyer|delawar"
 )
 
 
