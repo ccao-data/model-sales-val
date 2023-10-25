@@ -132,12 +132,12 @@ resource "aws_glue_job" "sales_val_flagging" {
   name            = local.glue_job_name
   role_arn        = var.iam_role_arn
   max_retries     = 0
-  max_capacity    = "1.0"
   glue_version    = "3.0"
   execution_class = "STANDARD"
+  worker_type     = "G.4X"
 
   command {
-    name            = "pythonshell"
+    name            = "glueetl"
     script_location = "s3://${aws_s3_object.sales_val_flagging.bucket}/${aws_s3_object.sales_val_flagging.key}"
     python_version  = "3.9"
   }
