@@ -134,8 +134,8 @@ resource "aws_glue_job" "sales_val_flagging" {
   max_retries       = 0
   glue_version      = "3.0"
   execution_class   = "STANDARD"
-  worker_type       = "G.4X"
-  number_of_workers = 1
+  worker_type       = "G.2X"
+  number_of_workers = 2
 
   command {
     name            = "glueetl"
