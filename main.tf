@@ -139,7 +139,6 @@ resource "aws_glue_job" "sales_val_flagging" {
   command {
     name            = "glueetl"
     script_location = "s3://${aws_s3_object.sales_val_flagging.bucket}/${aws_s3_object.sales_val_flagging.key}"
-    python_version  = "3.9"
   }
 
   default_arguments = {
