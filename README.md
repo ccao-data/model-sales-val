@@ -247,7 +247,7 @@ We plan to integrate this data into our iasWorld database, so that these flags a
 - Flag reason (text)
 - Flag run ID (hidden)
 - Analyst override (boolean)
-- (Tentatively) Date of review (date)
+- Analyst Notes (text)
 
 ```mermaid
 
