@@ -66,8 +66,8 @@ erDiagram
         date rolling_window
         boolean sv_is_outlier
         boolean sv_is_ptax_outlier
-        boolean sv_is_heuristic_outlier
         boolean ptax_flag_original
+        boolean sv_is_heuristic_outlier
         boolean sv_outlier_type
         string run_id FK
         bigint version PK
