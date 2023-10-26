@@ -206,19 +206,14 @@ def finish_flags(df, start_date, manual_update):
         )
         .assign(
             # Change sv_is_outlier to binary
-            sv_is_outlier=lambda df: (df["sv_outlier_type"] != "Not outlier").astype(
-                int
-            ),
+            sv_is_outlier=lambda df: df["sv_outlier_type"] != "Not outlier",
             # PTAX-203 binary
-            sv_is_ptax_outlier=lambda df: np.where(
-                df["sv_outlier_type"] == "PTAX-203 flag", 1, 0
-            ),
+            sv_is_ptax_outlier=lambda df: df["sv_outlier_type"] == "PTAX-203 flag",
             # Heuristics flagging binary column
-            sv_is_heuristic_outlier=lambda df: np.where(
-                (df["sv_outlier_type"] != "PTAX-203 flag") & (df["sv_is_outlier"] == 1),
-                1,
-                0,
-            ),
+            sv_is_heuristic_outlier=lambda df: (
+                df["sv_outlier_type"] != "PTAX-203 flag"
+            )
+            & (df["sv_is_outlier"] == 1),
         )
     )
 
