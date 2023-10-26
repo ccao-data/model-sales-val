@@ -63,7 +63,7 @@ variable "commit_sha" {
 
 resource "aws_s3_bucket" "glue_assets" {
   # Prod buckets are managed outside this config
-  count         = terraform.workspace == "prod" ? 0 : 1
+  count = terraform.workspace == "prod" ? 0 : 1
   # Buckets can only be a max of 63 characters long:
   # https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html
   bucket        = "ccao-ci-${substr(terraform.workspace, 0, 33)}-glue-assets-us-east-1"
@@ -129,17 +129,17 @@ resource "aws_s3_object" "flagging_script" {
 }
 
 resource "aws_glue_job" "sales_val_flagging" {
-  name            = local.glue_job_name
-  role_arn        = var.iam_role_arn
-  max_retries     = 0
-  max_capacity    = "1.0"
-  glue_version    = "3.0"
-  execution_class = "STANDARD"
+  name              = local.glue_job_name
+  role_arn          = var.iam_role_arn
+  max_retries       = 0
+  glue_version      = "3.0"
+  execution_class   = "STANDARD"
+  worker_type       = "G.2X"
+  number_of_workers = 2
 
   command {
-    name            = "pythonshell"
+    name            = "glueetl"
     script_location = "s3://${aws_s3_object.sales_val_flagging.bucket}/${aws_s3_object.sales_val_flagging.key}"
-    python_version  = "3.9"
   }
 
   default_arguments = {
@@ -156,7 +156,7 @@ resource "aws_glue_job" "sales_val_flagging" {
     "--rolling_window_num"        = 12
     "--time_frame_start"          = "2014-01-01"
     "--dev_bounds"                = "2,3"
-    "--additional-python-modules" = "boto3==1.28.12,pandas==2.0.2"
+    "--additional-python-modules" = "boto3==1.28.12,pandas==1.3.5,awswrangler==2.20.1,pyathena==2.25.2"
     "--commit_sha"                = var.commit_sha
     "--min_groups_threshold"      = "30"
     "--ptax_sd"                   = "1,1"

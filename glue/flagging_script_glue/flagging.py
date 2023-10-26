@@ -543,15 +543,16 @@ def get_sale_counts(dups: pd.DataFrame) -> pd.DataFrame:
     Calculates how many times transactions occured for a gieven property.
     Helper for dup_stats()
     Inputs:
-        df (pd.DataFrame): pandsa dataframe4
+        df (pd.DataFrame): pandas dataframe
     """
     v_counts = (
         dups.pin.value_counts()
         .reset_index()
-        .rename(columns={"count": "sv_sale_dup_counts"})
+        .rename(columns={"index": "pin", "pin": "sv_sale_dup_counts"})
     )
 
-    dups = pd.merge(dups, v_counts)
+    # Explicitly specify the merging columns
+    dups = pd.merge(dups, v_counts, on="pin")
 
     return dups
 

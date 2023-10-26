@@ -781,7 +781,14 @@ if __name__ == "__main__":
     if filtered_df.sv_outlier_type.isna().sum() == 0:
         print("WARNING: No new sales to flag")
     else:
-        df = df.astype({col[0]: sql_type_to_pd_type(col[1]) for col in metadata})
+        # Make sure None types aren't utilized in type conversion
+        conversion_dict = {
+            col[0]: sql_type_to_pd_type(col[1])
+            for col in metadata
+            if sql_type_to_pd_type(col[1]) is not None
+        }
+        df = df.astype(conversion_dict)
+
         df["ptax_flag_original"].fillna(False, inplace=True)
 
         # Separate res and condo sales based on the indicator column
