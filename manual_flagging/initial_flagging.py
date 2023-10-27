@@ -94,6 +94,9 @@ INNER JOIN default.vw_pin_sale sale
     ON sale.pin = data.pin
     AND sale.year = data.year
 WHERE {sql_time_frame}
+AND NOT sale.sale_filter_same_sale_within_365
+AND NOT sale.sale_filter_less_than_10k
+AND NOT sale.sale_filter_deed_type
 AND NOT sale.is_multisale
 AND (
     NOT data.pin_is_multicard
