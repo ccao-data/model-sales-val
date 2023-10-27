@@ -23,7 +23,7 @@ dev_bounds: [2, 3]
 # since the start date
 time_frame:
   start: "2014-01-01"
-  end: "2020-06-30"
+  end:
 
 # How many total months to include in the grouping methodology
 rolling_window_months: 12
