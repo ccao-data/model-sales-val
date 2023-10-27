@@ -750,6 +750,9 @@ if __name__ == "__main__":
     INNER JOIN NA_Dates
         ON sale.sale_date BETWEEN NA_Dates.StartDate AND NA_Dates.EndDate
     WHERE NOT sale.is_multisale
+    AND NOT sale.sale_filter_same_sale_within_365
+    AND NOT sale.sale_filter_less_than_10k
+    AND NOT sale.sale_filter_deed_type
     AND (NOT data.pin_is_multicard OR data.source_table = 'condo_char')
     AND data.class IN (
         '202', '203', '204', '205', '206', '207', '208', '209',
