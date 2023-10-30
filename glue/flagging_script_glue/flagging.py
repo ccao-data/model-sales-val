@@ -690,7 +690,7 @@ def z_normalize(df: pd.DataFrame, columns: list) -> pd.DataFrame:
     we can compare them apples to apples.
     Inputs:
         df (pd.DataFrame):
-        columns (list): columsn to be normalized
+        columns (list): columns to be normalized
     Outputs:
         df (pd.DataFrame): dataframe with given columns normalized
                            as 'column_name_zscore'
@@ -704,14 +704,14 @@ def z_normalize(df: pd.DataFrame, columns: list) -> pd.DataFrame:
 
 def z_normalize_groupby(s: pd.Series):
     """
-    Function used to z_normailize groups of records.
-    Pandas stiches it back together into a complete column.
+    Function used to z_normalize groups of records.
+    Pandas stitches it back together into a complete column.
     Meant for groupby.apply().
     Inputs:
         s(pd.Series): grouped series from groupby.apply
-    Ouputs:
+    Outputs:
         z_normalized series grouped by class and township
-        that is then stiched into complete column by pandas
+        that is then stitched into complete column by pandas
     """
     log_values = np.log(s)  # Take the log of the series values before normalization
     return zscore(log_values, nan_policy="omit")
