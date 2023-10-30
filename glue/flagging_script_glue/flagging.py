@@ -696,7 +696,8 @@ def z_normalize(df: pd.DataFrame, columns: list) -> pd.DataFrame:
                            as 'column_name_zscore'
     """
     for col in columns:
-        df["sv_" + col + "_deviation_county"] = zscore(df[col], nan_policy="omit")
+        log_values = np.log(df[col])
+        df["sv_" + col + "_deviation_county"] = zscore(log_values, nan_policy="omit")
 
     return df
 
