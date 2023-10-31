@@ -711,8 +711,8 @@ def z_normalize_groupby(s: pd.Series):
         z_normalized series grouped by class and township
         that is then stitched into complete column by pandas
     """
-    log_values = np.log(s)  # Take the log of the series values before normalization
-    return zscore(log_values, nan_policy="omit")
+
+    return zscore(s, nan_policy="omit")
 
 
 def outlier_type(df: pd.DataFrame, condos: bool) -> pd.DataFrame:
