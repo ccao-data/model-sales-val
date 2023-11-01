@@ -16,7 +16,7 @@ iso_forest: [
   "sv_sale_dup_counts"
 ]
 
-dev_bounds: [2, 3]
+dev_bounds: [2, 2]
 
 # 'start' and 'end' determine which sales will be written to the
 # sale.flag table. Leave 'end' blank if we want to flag all sales
