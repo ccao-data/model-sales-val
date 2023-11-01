@@ -695,7 +695,7 @@ def log_transform(df: pd.DataFrame, columns: list) -> pd.DataFrame:
                            by their logged values
     """
     for col in columns:
-        df[col] = np.log(df[col])
+        df[col] = np.log10(df[col])
 
     return df
 
