@@ -155,7 +155,7 @@ resource "aws_glue_job" "sales_val_flagging" {
     "--iso_forest"                = "meta_sale_price,sv_price_per_sqft,sv_days_since_last_transaction,sv_cgdr,sv_sale_dup_counts"
     "--rolling_window_num"        = 12
     "--time_frame_start"          = "2014-01-01"
-    "--dev_bounds"                = "2,3"
+    "--dev_bounds"                = "2,2"
     "--additional-python-modules" = "boto3==1.28.12,pandas==1.3.5,awswrangler==2.20.1,pyathena==2.25.2"
     "--commit_sha"                = var.commit_sha
     "--min_groups_threshold"      = "30"
