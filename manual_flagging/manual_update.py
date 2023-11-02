@@ -97,6 +97,9 @@ INNER JOIN default.vw_pin_sale sale
     ON sale.pin = data.pin
     AND sale.year = data.year
 WHERE {sql_time_frame}
+AND NOT sale.sale_filter_same_sale_within_365
+AND NOT sale.sale_filter_less_than_10k
+AND NOT sale.sale_filter_deed_type
 AND NOT sale.is_multisale
 AND (
     NOT data.pin_is_multicard
@@ -121,7 +124,12 @@ cursor.execute(SQL_QUERY_SALES_VAL)
 df_ingest_flag = as_pandas(cursor)
 df_flag_table = df_ingest_flag
 
-df = df.astype({col[0]: flg.sql_type_to_pd_type(col[1]) for col in metadata})
+conversion_dict = {
+    col[0]: flg.sql_type_to_pd_type(col[1])
+    for col in metadata
+    if flg.sql_type_to_pd_type(col[1]) is not None
+}
+df = df.astype(conversion_dict)
 df["ptax_flag_original"].fillna(False, inplace=True)
 
 # Separate res and condo sales based on the indicator column

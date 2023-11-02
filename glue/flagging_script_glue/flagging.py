@@ -185,10 +185,10 @@ def pricing_info(
     """
     group_string = create_group_string(groups, "_")
 
-    columns_to_normalize = ["meta_sale_price"]
+    columns_to_log = ["meta_sale_price"]
     if not condos:
-        columns_to_normalize.append("sv_price_per_sqft")
-    df = z_normalize(df, columns_to_normalize)
+        columns_to_log.append("sv_price_per_sqft")
+    df = log_transform(df, columns_to_log)
 
     prices = [
         f"sv_price_deviation_{group_string}",
@@ -543,15 +543,16 @@ def get_sale_counts(dups: pd.DataFrame) -> pd.DataFrame:
     Calculates how many times transactions occured for a gieven property.
     Helper for dup_stats()
     Inputs:
-        df (pd.DataFrame): pandsa dataframe4
+        df (pd.DataFrame): pandas dataframe
     """
     v_counts = (
         dups.pin.value_counts()
         .reset_index()
-        .rename(columns={"count": "sv_sale_dup_counts"})
+        .rename(columns={"index": "pin", "pin": "sv_sale_dup_counts"})
     )
 
-    dups = pd.merge(dups, v_counts)
+    # Explicitly specify the merging columns
+    dups = pd.merge(dups, v_counts, on="pin")
 
     return dups
 
@@ -683,34 +684,34 @@ def get_thresh(df: pd.DataFrame, cols: list, permut: tuple, groups: tuple) -> di
     return stds
 
 
-def z_normalize(df: pd.DataFrame, columns: list) -> pd.DataFrame:
+def log_transform(df: pd.DataFrame, columns: list) -> pd.DataFrame:
     """
-    Do zscore normalization on given column set so that
-    we can compare them apples to apples.
+    Apply log transformation on given column set.
     Inputs:
         df (pd.DataFrame):
-        columns (list): columsn to be normalized
+        columns (list): columns to be transformed
     Outputs:
-        df (pd.DataFrame): dataframe with given columns normalized
-                           as 'column_name_zscore'
+        df (pd.DataFrame): dataframe with given columns replaced
+                           by their logged values
     """
     for col in columns:
-        df["sv_" + col + "_deviation_county"] = zscore(df[col], nan_policy="omit")
+        df[col] = np.log10(df[col])
 
     return df
 
 
 def z_normalize_groupby(s: pd.Series):
     """
-    Function used to z_normailize groups of records.
-    Pandas stiches it back together into a complete column.
+    Function used to z_normalize groups of records.
+    Pandas stitches it back together into a complete column.
     Meant for groupby.apply().
     Inputs:
         s(pd.Series): grouped series from groupby.apply
-    Ouputs:
+    Outputs:
         z_normalized series grouped by class and township
-        that is then stiched into complete column by pandas
+        that is then stitched into complete column by pandas
     """
+
     return zscore(s, nan_policy="omit")
 
 
@@ -916,7 +917,7 @@ entity_keywords = (
     r"|apostolic church|lutheran church|catholic church|\bfed\b|nationstar"
     r"|advantage|commercial|health|condominium|nationa|association|homeowner"
     r"|christ church|christian church|baptist church|community church"
-    r"|church of c"
+    r"|church of c|\bdelaw\b|lawyer|delawar"
 )
 
 

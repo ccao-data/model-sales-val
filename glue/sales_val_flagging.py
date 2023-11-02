@@ -206,19 +206,14 @@ def finish_flags(df, start_date, manual_update):
         )
         .assign(
             # Change sv_is_outlier to binary
-            sv_is_outlier=lambda df: (df["sv_outlier_type"] != "Not outlier").astype(
-                int
-            ),
+            sv_is_outlier=lambda df: df["sv_outlier_type"] != "Not outlier",
             # PTAX-203 binary
-            sv_is_ptax_outlier=lambda df: np.where(
-                df["sv_outlier_type"] == "PTAX-203 flag", 1, 0
-            ),
+            sv_is_ptax_outlier=lambda df: df["sv_outlier_type"] == "PTAX-203 flag",
             # Heuristics flagging binary column
-            sv_is_heuristic_outlier=lambda df: np.where(
-                (df["sv_outlier_type"] != "PTAX-203 flag") & (df["sv_is_outlier"] == 1),
-                1,
-                0,
-            ),
+            sv_is_heuristic_outlier=lambda df: (
+                df["sv_outlier_type"] != "PTAX-203 flag"
+            )
+            & (df["sv_is_outlier"] == 1),
         )
     )
 
@@ -504,10 +499,6 @@ def modify_dtypes(df):
         df: df of standardized dtypes
     """
 
-    # Convert object columns to string
-    for col in df.select_dtypes("object").columns:
-        df[col] = df[col].astype("string")
-
     # Convert Int64 columns to int64
     for col in df.select_dtypes("Int64").columns:
         df[col] = df[col].astype("int64")
@@ -721,7 +712,9 @@ if __name__ == "__main__":
         INNER JOIN default.vw_pin_sale sale
             ON sale.pin = data.pin
             AND sale.year = data.year
-        WHERE sale.sv_is_outlier IS NULL
+        LEFT JOIN {args["sale_flag_table"]} flag
+            ON flag.meta_sale_document_num = sale.doc_no
+        WHERE flag.sv_is_outlier IS NULL
         AND sale.sale_date >= DATE '{args["time_frame_start"]}'
         AND NOT sale.is_multisale
         AND (NOT data.pin_is_multicard OR data.source_table = 'condo_char')
@@ -739,18 +732,23 @@ if __name__ == "__main__":
         data.pin,
         data.char_bldg_sf,
         data.indicator, -- Selecting the indicator column
-        sale.sv_run_id,
-        sale.sv_is_outlier,
-        sale.sv_is_ptax_outlier,
-        sale.sv_is_heuristic_outlier,
-        sale.sv_outlier_type
+        flag.run_id,
+        flag.sv_is_outlier,
+        flag.sv_is_ptax_outlier,
+        flag.sv_is_heuristic_outlier,
+        flag.sv_outlier_type
     FROM CombinedData data
     INNER JOIN default.vw_pin_sale sale
         ON sale.pin = data.pin
         AND sale.year = data.year
+    LEFT JOIN {args["sale_flag_table"]} flag
+        ON flag.meta_sale_document_num = sale.doc_no
     INNER JOIN NA_Dates
         ON sale.sale_date BETWEEN NA_Dates.StartDate AND NA_Dates.EndDate
     WHERE NOT sale.is_multisale
+    AND NOT sale.sale_filter_same_sale_within_365
+    AND NOT sale.sale_filter_less_than_10k
+    AND NOT sale.sale_filter_deed_type
     AND (NOT data.pin_is_multicard OR data.source_table = 'condo_char')
     AND data.class IN (
         '202', '203', '204', '205', '206', '207', '208', '209',
@@ -782,7 +780,14 @@ if __name__ == "__main__":
     if filtered_df.sv_outlier_type.isna().sum() == 0:
         print("WARNING: No new sales to flag")
     else:
-        df = df.astype({col[0]: sql_type_to_pd_type(col[1]) for col in metadata})
+        # Make sure None types aren't utilized in type conversion
+        conversion_dict = {
+            col[0]: sql_type_to_pd_type(col[1])
+            for col in metadata
+            if sql_type_to_pd_type(col[1]) is not None
+        }
+        df = df.astype(conversion_dict)
+
         df["ptax_flag_original"].fillna(False, inplace=True)
 
         # Separate res and condo sales based on the indicator column
