@@ -499,10 +499,6 @@ def modify_dtypes(df):
         df: df of standardized dtypes
     """
 
-    # Convert object columns to string
-    for col in df.select_dtypes("object").columns:
-        df[col] = df[col].astype("string")
-
     # Convert Int64 columns to int64
     for col in df.select_dtypes("Int64").columns:
         df[col] = df[col].astype("int64")
