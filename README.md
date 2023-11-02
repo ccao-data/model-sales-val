@@ -121,24 +121,26 @@ The following is a list of all flag types:
 
 Around **______** of the total sales have some sort of `Outlier` classification.  Within that ______, the makeup of the outlier distribution is approximately as follows:
 
-|Outlier Type           |Proportion            |
-|-----------------------|----------------------|
-|PTAX-203 flag          |0.5789                |
-|Anomaly (high)         |0.0865                |
-|High price (raw)       |0.0865                |
-|Non-person sale (high) |0.0479                |
-|Non-person sale (low)  |0.032                 |
-|Low price (raw & sqft) |0.032                 |
-|High price (sqft)      |0.0283                |
-|High price (raw & sqft)|0.0256                |
-|Home flip sale (high)  |0.0249                |
-|Low price (sqft)       |0.0229                |
-|Low price (raw)        |0.0182                |
-|Anomaly (low)          |0.0082                |
-|Home flip sale (low)   |0.0042                |
-|Family sale (low)      |0.0033                |
-|Family sale (high)     |5.0E-4                |
-|Low price swing        |0.0                   |
+|Outlier Type     |Proportion|
+|-----------------------|----------|
+|PTAX-203 flag          |0.401     |
+|Non-person sale (low)  |0.176     |
+|Non-person sale (high) |0.081     |
+|Anomaly (high)         |0.063     |
+|High price (raw)       |0.058     |
+|Low price (raw)        |0.054     |
+|Low price (raw & sqft) |0.052     |
+|Low price (sqft)       |0.021     |
+|Anomaly (low)          |0.02      |
+|High price (sqft)      |0.019     |
+|Home flip sale (high)  |0.019     |
+|High price (raw & sqft)|0.016     |
+|Home flip sale (low)   |0.014     |
+|Family sale (low)      |0.006     |
+|Family sale (high)     |0.001     |
+|Low price swing        |~0.0       |
+|High price swing       |~0.0       |
+
 
 *These outliers are flagged if relevent price columns (log10 transformed and normalized) are 2 standard deviations below or above the mean within a given group*
 
