@@ -91,7 +91,7 @@ In order to be flagged as on outlier type, the property needs to be a statistica
 - **Flip Sale**: The owner of the home owned the property for less than 1 year
 - **Anomaly**: Our isolation forest statistical outlier algorithm flagged the sale
 
-The following is a list of all flag types.
+The following is a list of all flag types:
 
 ### High Price
 
