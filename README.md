@@ -63,7 +63,7 @@ graph TD
 
     A[Schedule for glue job triggers a run]
     B{{Ingest data needed to flag unflagged sales}}
-    C[Run glue job]
+    C[Run flagging model within glue job]
 
     D[Write sales data to sale.flag]
     E[Flags joined to<br>default.vw_pin_sale]
