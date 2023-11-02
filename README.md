@@ -119,7 +119,7 @@ The following is a list of all flag types:
 
 ## Distribution of Outlier Types
 
-Around **______** of the total sales have some sort of `Outlier` classification.  Within that ______, the makeup of the outlier distribution is approximately as follows:
+Around **7.2%** of the total sales have some sort of `Outlier` classification.  Within that 7.2%, the makeup of the outlier distribution is approximately as follows:
 
 |Outlier Type     |Proportion|
 |-----------------------|----------|
