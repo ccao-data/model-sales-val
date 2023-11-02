@@ -119,7 +119,7 @@ The following is a list of all flag types.
 
 ## Distribution of Outlier Types
 
-Around **4.5%** of the total sales have some sort of `Outlier` classification. Within that 4.5% the makeup of the outlier distribution is approximately as follows:
+Around **______** of the total sales have some sort of `Outlier` classification.  Within that ______, the makeup of the outlier distribution is approximately as follows:
 
 |Outlier Type           |Proportion            |
 |-----------------------|----------------------|
@@ -140,7 +140,7 @@ Around **4.5%** of the total sales have some sort of `Outlier` classification. W
 |Family sale (high)     |5.0E-4                |
 |Low price swing        |0.0                   |
 
-
+*These outliers are flagged if relevent price columns (log10 transformed and normalized) are 2 standard deviations below or above the mean within a given group*
 
 
 # Structure of data
