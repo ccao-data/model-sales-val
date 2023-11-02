@@ -176,13 +176,14 @@ erDiagram
         bigint sales_flagged
         timestamp earliest_data_ingest
         timestamp latest_data_ingest
-        bigint short_term_owner_threshold
         arraystring iso_forest_cols
         arraystring res_stat_groups
         arraystring condo_stat_groups
         arraybigint dev_bounds
+        arraybigint ptax_sd
         bigint rolling_window
         string date_floor
+        bigint short_term_owner_threshold
         bigint min_group_thresh
     }
 
