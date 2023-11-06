@@ -8,7 +8,7 @@ Table of Contents
 ================
 
 - [Overview](#overview)
-- [Flags at a Glance](#flags-at-a-glance)
+- [Flags at a glance](#flags-at-a-glance)
 - [Structure of data](#structure-of-data)
 - [Important flagging details](#important-flagging-details)
 - [AWS Glue job documentation](#aws-glue-job-documentation)
