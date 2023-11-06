@@ -12,7 +12,7 @@ Table of Contents
 - [Structure of data](#structure-of-data)
 - [Important flagging details](#important-flagging-details)
 - [AWS Glue job documentation](#aws-glue-job-documentation)
-- [Next Steps](#next-steps)
+- [Next steps](#next-steps)
 
 # Overview
 
