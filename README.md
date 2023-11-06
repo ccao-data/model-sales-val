@@ -114,7 +114,7 @@ Sales from 2014 - present have been processed using our sales validation program
 
 - Exclude any sales with a duplicate within 365 days
 - Exclude sales less than $10,000
-- Exclude multi-sales
+- Exclude multi-pin sales
 
 
 ## Outlier Types
