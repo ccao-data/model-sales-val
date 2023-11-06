@@ -321,18 +321,8 @@ graph TD
     class C3 red;
     class C4 red;
 
-
 ```
 
 ## Analyst Review
 
 In the future, it is our goal that human sales validation analysts will be able to review these flags and manually override them. In the longer-term future we could train a supervised model using the analysts' judgement.
-
-
-
-
-
-
-
-
-
