@@ -45,6 +45,10 @@ graph TD
     D -->|Persist results| E
 ```
 
+### Glue Job Mode
+
+This automated job runs on a schedule to process unflagged sales when there are already flagged sales present.
+
 ```mermaid
 graph TD
     A[Schedule triggers glue job]
@@ -63,6 +67,9 @@ graph TD
     F -->|Persist results| G
 ```
 
+### Manual Update Mode
+
+This mode allows for the manual re-flagging of sales due to errors or when an update in the methodology is required.
 
 ```mermaid
 graph TD
