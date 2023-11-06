@@ -94,8 +94,6 @@ In order to be flagged as on outlier type, the property needs to be a statistica
 
 The following is a list of all flag types:
 
-## Price Indicators
-
 ### High Price
 
 | Indicator               | Criteria                                                  |
