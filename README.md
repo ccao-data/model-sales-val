@@ -119,7 +119,48 @@ The following is a list of all flag types:
 
 ## Distribution of Outlier Types
 
+<!--
+WITH TotalRecords AS (
+    SELECT COUNT(*) as total_count
+    FROM sale.flag
+), NotOutlierCount AS (
+    SELECT COUNT(*) as not_outlier_count
+    FROM sale.flag
+    WHERE sv_outlier_type <> 'Not outlier'
+)
+
+SELECT
+    ROUND(
+        (not_outlier_count * 100.0) / total_count,
+        3
+    ) AS not_outlier_percentage
+FROM
+    TotalRecords, NotOutlierCount;
+-->
+
 Around **7.2%** of the total sales have some sort of `Outlier` classification.  Within that 7.2%, the makeup of the outlier distribution is approximately as follows:
+
+<!--
+WITH TotalRecords AS (
+    SELECT COUNT(*) as total_count
+    FROM sale.flag
+    WHERE sv_outlier_type <> 'Not outlier'
+)
+
+SELECT 
+    sv_outlier_type, 
+    ROUND(COUNT(*) * 1.0 / total_count, 3) as proportion
+FROM 
+    sale.flag 
+CROSS JOIN 
+    TotalRecords
+WHERE 
+    sv_outlier_type <> 'Not outlier'
+GROUP BY 
+    sv_outlier_type, total_count
+ORDER BY 
+    proportion DESC;
+-->
 
 |Outlier Type     |Proportion|
 |-----------------------|----------|
