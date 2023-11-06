@@ -24,7 +24,8 @@ The workflow for sale flagging is as follows:
 * Next, `glue/sales_val_flagging.py` flags all new, unflagged sales. This script is automated such that it runs on a schedule (e.g. monthly).
 * If an error occurs or we want to update the methodology on previously-flagged sales, `manual_flagging/manual_update.py` is used to select a subset of sales to re-flag. All sales have a version number that is incremented on update. When utilizing our sales views, we pull the flag data with the highest version value to keep it up-to-date.
 
-#### Local Flagging
+#### Local flagging
+
 On the left, we see the normal workflow of the process. Represented on the right is the use of `manual_update.py` to update/re-flag sales.
 Picture below is a sketch of how this might work:
 
