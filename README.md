@@ -18,64 +18,71 @@ Table of Contents
 
 This repository contains code to identify and flag sales that may be non-arms-length transactions. A non-arms-length sale occurs when the buyer and seller have a relationship that might influence the transaction price, leading to a sale that doesn't reflect the true market value of the property. These sales can distort our analyses and models, since they don't adhere to the principle of an open and competitive market.
 
-The workflow for sale flagging is as follows:
 
-* A manual initial run of `manual_flagging/initial_flagging.py` instantiates all tables and flags all specified sales as either outliers or non-outliers.
-* Next, `glue/sales_val_flagging.py` flags all new, unflagged sales. This script is automated such that it runs on a schedule (e.g. monthly).
-* If an error occurs or we want to update the methodology on previously-flagged sales, `manual_flagging/manual_update.py` is used to select a subset of sales to re-flag. All sales have a version number that is incremented on update. When utilizing our sales views, we pull the flag data with the highest version value to keep it up-to-date.
+## Sales Validation Pipeline Run Modes
 
-#### Local flagging
+The Sales Validation (Sales Val) Pipeline can be executed in three distinct run modes, depending on the state of the sales data and the specific requirements for flagging:
 
-On the left, we see the normal workflow of the process. Represented on the right is the use of `manual_update.py` to update/re-flag sales.
-Picture below is a sketch of how this might work:
+1. **Initial Run:** This mode is triggered when no sales have been flagged. It's the first step in the pipeline to instantiate tables and flag sales.
+2. **Glue Job:** This mode applies when there are already flagged sales in the system. It's an automated scheduled job that flags new, unflagged sales.
+3. **Manual Update:** This mode is used when sales need to be re-flagged, either due to errors or methodology updates. This allows for the selective re-flagging of sales.
+
+### Initial Run Mode
+
+This is the starting point for the Sales Val Pipeline when no sales are flagged.
 
 ```mermaid
 graph TD
+    A{{"No sales are flagged"}}
+    B[Run initial_flagging.py]
+    C[Flag sales as outliers or non-outliers<br>with Version = 1]
+    D[Join flags to<br>default.vw_pin_sale]
+    E[Save results to S3 with unique run ID]
 
-    A{{No sales are flagged}}
-    B[Run initial_flagging.py locally]
-
-    C[Flags added to sales<br>via flagging.py with<br>Version = 1]
-    D[Flags joined to<br>default.vw_pin_sale]
-
-    A --> B
-    B -- Sales pulled from within<br>specified time window --> C
-    C -- Results saved to S3<br>with unique run ID --> D
-
-    E{{Some sales need re-flagging}}
-    F[Subset sales in yaml, run<br>manual_update.py locally]
-    G[If sale already flagged<br>increment Version += 1]
-    H{If sale unflagged,<br>assign Version = 1}
-    I[Flags update existing<br>default.vw_pin_sale records]
-
-    E --> F
-    F --> G
-    F --> H
-    H --> G
-    G -- Results saved to S3<br>with new run ID --> I
-
+    A -->|Initial setup| B
+    B -->|Flag sales| C
+    C -->|Store flags| D
+    D -->|Persist results| E
 ```
-#### Glue Job
-And here we can see how the recurrent glue job will process unflagged sales:
 
 ```mermaid
-
 graph TD
+    A[Schedule triggers glue job]
+    B{{"Some sales are already flagged"}}
+    C[Ingest data for unflagged sales]
+    D[Run flagging model within glue job]
+    E[Write sales data to sale.flag]
+    F[Join flags to<br>default.vw_pin_sale]
+    G[Save results to S3 with unique run ID]
 
-    A[Schedule for glue job triggers a run]
-    B{{Ingest data needed to flag unflagged sales}}
-    C[Run flagging model within glue job]
-
-    D[Write sales data to sale.flag]
-    E[Flags joined to<br>default.vw_pin_sale]
-
-    A -- Some sales are not flagged --> B
-    B --> C
-    C --> D
-    D -- Results saved to S3<br>with unique run ID --> E
-
-
+    A -->|Trigger| B
+    B -->|Process new sales| C
+    C -->|Run model| D
+    D -->|Output flags| E
+    E -->|Join data| F
+    F -->|Persist results| G
 ```
+
+
+```mermaid
+graph TD
+    A{{"Sales must be re-flagged"}}
+    B[Specify subset in yaml]
+    C[Run manual_update.py]
+    D[Increment version if sale already flagged]
+    E[Assign Version = 1 if sale unflagged]
+    F[Update flags in default.vw_pin_sale]
+    G[Save results to S3 with new run ID]
+
+    A -->|Manual selection| B
+    B -->|Run update| C
+    C -->|Version check| D
+    D -->|Update process| F
+    C -->|New flag| E
+    E -->|Update process| F
+    F -->|Persist results| G
+```
+
 
 # Flags at a Glance
 
