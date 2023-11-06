@@ -21,7 +21,7 @@ This repository contains code to identify and flag sales that may be non-arms-le
 
 ## Sales validation pipeline run modes
 
-The Sales Validation (Sales Val) Pipeline can be executed in three distinct run modes, depending on the state of the sales data and the specific requirements for flagging:
+The Sales Validation Pipeline (hereafter referred to as “the pipeline”) can be executed in three distinct run modes, depending on the state of the sales data and the specific requirements for flagging:
 
 1. **Initial Run:** This mode is triggered when no sales have been flagged. It's the first step in the pipeline to instantiate tables and flag sales.
 2. **Glue Job:** This mode applies when there are already flagged sales in the system. It's an automated scheduled job that flags new, unflagged sales.
