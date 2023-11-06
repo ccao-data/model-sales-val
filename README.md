@@ -94,29 +94,36 @@ In order to be flagged as on outlier type, the property needs to be a statistica
 
 The following is a list of all flag types:
 
+## Price Indicators
+
 ### High Price
 
-- **PTAX outlier (high)**: PTAX flag & [1 high statistical outlier type]
-- **Home flip sale (high)**: Short-term owner < 1 year & [1 high statistical outlier type]
-- **Family sale (high)**: Last name match & [1 high statistical outlier type]
-- **Non-person sale (high)**: Legal / corporate entity + [1 high statistical outlier type]
-- **Anomaly (High)**: Anomaly algorithm (high) & [1 high statistical outlier type]
-- **High price (raw & sqft )**: High price & high price per sq. ft. 
-- **High price swing**: Large swing away from mean  & high price outlier 
-- **High price (raw)**: High price 
-- **High price (per sqft)**: High price per sq. ft. 
+| Indicator               | Criteria                                                  |
+|-------------------------|-----------------------------------------------------------|
+| PTAX outlier (high)     | PTAX flag & [1 high statistical outlier type]             |
+| Home flip sale (high)   | Short-term owner < 1 year & [1 high statistical outlier type] |
+| Family sale (high)      | Last name match & [1 high statistical outlier type]       |
+| Non-person sale (high)  | Legal / corporate entity + [1 high statistical outlier type] |
+| Anomaly (High)          | Anomaly algorithm (high) & [1 high statistical outlier type] |
+| High price (raw & sqft) | High price & high price per sq. ft.                       |
+| High price swing        | Large swing away from mean & high price outlier           |
+| High price (raw)        | High price                                                |
+| High price (per sqft)   | High price per sq. ft.                                     |
 
 ### Low Price
 
-- **PTAX outlier (high)**: PTAX flag & [1 low statistical outlier type]
-- **Home flip sale (low)**: Short-term owner < 1 year & [1 low statistical outlier type]
-- **Family sale (low)**: Last name match & [1 low statistical outlier type]
-- **Non-person sale (low)**: Legal / corporate entity + [1 low statistical outlier type]
-- **Anomaly**: - Anomaly algorithm (low) & [1 low statistical outlier type]
-- **Low price (raw & sqft )**: Large swing away from mean & low price outlier 
-- **Low price swing**: Low price & low price per sq. ft. 
-- **Low price (raw)**: Low price (or under $10k)
-- **Low price (per sqft)**: Low price per sq. ft.
+| Indicator               | Criteria                                                  |
+|-------------------------|-----------------------------------------------------------|
+| PTAX outlier (low)      | PTAX flag & [1 low statistical outlier type]              |
+| Home flip sale (low)    | Short-term owner < 1 year & [1 low statistical outlier type] |
+| Family sale (low)       | Last name match & [1 low statistical outlier type]        |
+| Non-person sale (low)   | Legal / corporate entity + [1 low statistical outlier type] |
+| Anomaly                 | Anomaly algorithm (low) & [1 low statistical outlier type] |
+| Low price (raw & sqft)  | Large swing away from mean & low price outlier            |
+| Low price swing         | Low price & low price per sq. ft.                         |
+| Low price (raw)         | Low price (or under $10k)                                 |
+| Low price (per sqft)    | Low price per sq. ft.                                     |
+
 
 ## Distribution of Outlier Types
 
