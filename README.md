@@ -120,6 +120,10 @@ The following is a list of all flag types:
 ## Distribution of Outlier Types
 
 <!--
+/*
+This query is used to generate the total sales that have some sort of outlier classification
+/*
+
 WITH TotalRecords AS (
     SELECT COUNT(*) as total_count
     FROM sale.flag
@@ -141,6 +145,10 @@ FROM
 Around **7.2%** of the total sales have some sort of `Outlier` classification.  Within that 7.2%, the makeup of the outlier distribution is approximately as follows:
 
 <!--
+/*
+This query is used to generate the proportion of different outlier types 
+/*
+
 WITH TotalRecords AS (
     SELECT COUNT(*) as total_count
     FROM sale.flag
