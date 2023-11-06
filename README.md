@@ -19,7 +19,7 @@ Table of Contents
 This repository contains code to identify and flag sales that may be non-arms-length transactions. A non-arms-length sale occurs when the buyer and seller have a relationship that might influence the transaction price, leading to a sale that doesn't reflect the true market value of the property. These sales can distort our analyses and models, since they don't adhere to the principle of an open and competitive market.
 
 
-## Sales Validation Pipeline Run Modes
+## Sales validation pipeline run modes
 
 The Sales Validation (Sales Val) Pipeline can be executed in three distinct run modes, depending on the state of the sales data and the specific requirements for flagging:
 
