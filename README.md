@@ -91,12 +91,31 @@ graph TD
 ```
 
 
-# Flags at a Glance
+## Flags at a Glance
 
-Sales from 2014 - present have been processed using our sales validation program. We assign flags to the following classes of properties:
+Sales from 2014 - present have been processed using our sales validation program. We flag properties from residential and condo data with the following specifications:
 
-- **Residential** - 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 218, 219, 234, 278, 295
-- **Condos** - 297, 299, 399
+### Residential
+
+- Include classes:
+  - 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 218, 219, 234, 278, 295
+- Exclude:
+  - Multi-card sales
+
+### Condos
+
+- Include classes:
+  - 297, 299, 399
+- Exclude:
+  - Parking spaces
+  - Building common areas
+
+### Common Exclusions for Both Residential and Condos
+
+- Exclude any sales with a duplicate within 365 days
+- Exclude sales less than $10,000
+- Exclude multi-sales
+
 
 ## Outlier Types
 
