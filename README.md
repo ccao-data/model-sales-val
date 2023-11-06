@@ -117,8 +117,8 @@ The following is a list of all flag types:
 | Family sale (low)       | Last name match & [1 low statistical outlier type]        |
 | Non-person sale (low)   | Legal / corporate entity + [1 low statistical outlier type] |
 | Anomaly                 | Anomaly algorithm (low) & [1 low statistical outlier type] |
-| Low price (raw & sqft)  | Large swing away from mean & low price outlier            |
-| Low price swing         | Low price & low price per sq. ft.                         |
+| Low price (raw & sqft)  | Low price & low price per sq. ft.                         |
+| Low price swing         | Large swing away from mean & low price outlier            |
 | Low price (raw)         | Low price (or under $10k)                                 |
 | Low price (per sqft)    | Low price per sq. ft.                                     |
 
