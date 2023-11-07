@@ -233,10 +233,10 @@ graph LR
         D1[Join flags to<br>default.vw_pin_sale]
         E1[Save results to S3 with unique run ID]
 
-        A1 -->|Initial setup| B1
-        B1 -->|Flag sales| C1
-        C1 -->|Store flags| D1
-        D1 -->|Persist results| E1
+        A1 --> B1
+        B1 --> C1
+        C1 --> D1
+        D1 --> E1
     end
 
     subgraph "Glue Job Mode"
@@ -248,12 +248,12 @@ graph LR
         F2[Join flags to<br>default.vw_pin_sale]
         G2[Save results to S3 with unique run ID]
 
-        A2 -->|Trigger| B2
-        B2 -->|Process new sales| C2
-        C2 -->|Run model| D2
-        D2 -->|Output flags| E2
-        E2 -->|Join data| F2
-        F2 -->|Persist results| G2
+        A2 --> B2
+        B2 --> C2
+        C2 --> D2
+        D2 --> E2
+        E2 --> F2
+        F2 --> G2
     end
 
     subgraph "Manual Update Mode"
@@ -265,18 +265,15 @@ graph LR
         F3[Update flags in default.vw_pin_sale]
         G3[Save results to S3 with new run ID]
 
-        A3 -->|Manual selection| B3
-        B3 -->|Run update| C3
-        C3 -->|Version check| D3
-        D3 -->|Update process| F3
-        C3 -->|New flag| E3
-        E3 -->|Update process| F3
-        F3 -->|Persist results| G3
+        A3 --> B3
+        B3 --> C3
+        C3 -->|Already flagged| D3
+        C3 -->|Unflagged| E3
+        D3 --> F3
+        E3 --> F3
+        F3 --> G3
     end
 
-    style A1 fill:#f9f,stroke:#333,stroke-width:2px
-    style B2 fill:#bbf,stroke:#333,stroke-width:2px
-    style A3 fill:#fbf,stroke:#333,stroke-width:2px
 ```
 
 ### Rolling window
