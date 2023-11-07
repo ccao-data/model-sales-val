@@ -1,7 +1,5 @@
-# Sales validation model (work in progress)
+# Sales validation model
 
-> :exclamation: IMPORTANT: This repo is under active development and is not yet in production.
->
 > If an edit needs to made to anything in the `glue` directory, there is a specific process to be found [here](#aws-glue-job-documentation).
 
 Table of Contents
