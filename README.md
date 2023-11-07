@@ -225,7 +225,7 @@ The Sales Validation Pipeline (hereafter referred to as “the pipeline”) can 
 
 ```mermaid
 
-graph TD
+graph LR
     subgraph "Initial Run Mode"
         A1{{"No sales are flagged"}}
         B1[Run initial_flagging.py]
