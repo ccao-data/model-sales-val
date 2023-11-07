@@ -225,18 +225,23 @@ The Sales Validation Pipeline (hereafter referred to as “the pipeline”) can 
 
 ```mermaid
 
-graph LR
-    subgraph "Initial Run Mode"
-        A1{{"No sales are flagged"}}
-        B1[Run initial_flagging.py]
-        C1[Flag sales as outliers or non-outliers<br>with Version = 1]
-        D1[Join flags to<br>default.vw_pin_sale]
-        E1[Save results to S3 with unique run ID]
+graph TD
+    subgraph "Manual Update Mode"
+        A3{{"Sales must be re-flagged"}}
+        B3[Specify subset in yaml]
+        C3[Run manual_update.py]
+        D3[Increment version if sale already flagged]
+        E3[Assign Version = 1 if sale unflagged]
+        F3[Update flags in default.vw_pin_sale]
+        G3[Save results to S3 with new run ID]
 
-        A1 --> B1
-        B1 --> C1
-        C1 --> D1
-        D1 --> E1
+        A3 -->|Manual selection| B3
+        B3 -->|Run update| C3
+        C3 -->|Version check| D3
+        D3 -->|Update process| F3
+        C3 -->|New flag| E3
+        E3 -->|Update process| F3
+        F3 -->|Persist results| G3
     end
 
     subgraph "Glue Job Mode"
@@ -248,31 +253,30 @@ graph LR
         F2[Join flags to<br>default.vw_pin_sale]
         G2[Save results to S3 with unique run ID]
 
-        A2 --> B2
-        B2 --> C2
-        C2 --> D2
-        D2 --> E2
-        E2 --> F2
-        F2 --> G2
+        A2 -->|Trigger| B2
+        B2 -->|Process new sales| C2
+        C2 -->|Run model| D2
+        D2 -->|Output flags| E2
+        E2 -->|Join data| F2
+        F2 -->|Persist results| G2
     end
 
-    subgraph "Manual Update Mode"
-        A3{{"Sales must be re-flagged"}}
-        B3[Specify subset in yaml]
-        C3[Run manual_update.py]
-        D3[Increment version if sale already flagged]
-        E3[Assign Version = 1 if sale unflagged]
-        F3[Update flags in default.vw_pin_sale]
-        G3[Save results to S3 with new run ID]
+    subgraph "Initial Run Mode"
+        A1{{"No sales are flagged"}}
+        B1[Run initial_flagging.py]
+        C1[Flag sales as outliers or non-outliers<br>with Version = 1]
+        D1[Join flags to<br>default.vw_pin_sale]
+        E1[Save results to S3 with unique run ID]
 
-        A3 --> B3
-        B3 --> C3
-        C3 -->|Already flagged| D3
-        C3 -->|Unflagged| E3
-        D3 --> F3
-        E3 --> F3
-        F3 --> G3
+        A1 -->|Initial setup| B1
+        B1 -->|Flag sales| C1
+        C1 -->|Store flags| D1
+        D1 -->|Persist results| E1
     end
+
+    style A1 fill:#f9f,stroke:#333,stroke-width:2px
+    style B2 fill:#bbf,stroke:#333,stroke-width:2px
+    style A3 fill:#fbf,stroke:#333,stroke-width:2px
 
 ```
 
