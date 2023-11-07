@@ -194,7 +194,7 @@ WITH TotalRecords AS (
 
 SELECT 
     sv_outlier_type, 
-    ROUND(COUNT(*) * 1.0 / total_count, 3) as proportion
+    ROUND((COUNT(*) * 1.0 / total_count) * 100, 2) as proportion
 FROM 
     sale.flag 
 CROSS JOIN 
@@ -207,25 +207,26 @@ ORDER BY
     proportion DESC;
 -->
 
-|Outlier Type     |Proportion|
+|Outlier Type           |Percentage|
 |-----------------------|----------|
-|PTAX-203 flag          |0.401     |
-|Non-person sale (low)  |0.176     |
-|Non-person sale (high) |0.081     |
-|Anomaly (high)         |0.063     |
-|High price (raw)       |0.058     |
-|Low price (raw)        |0.054     |
-|Low price (raw & sqft) |0.052     |
-|Low price (sqft)       |0.021     |
-|Anomaly (low)          |0.02      |
-|High price (sqft)      |0.019     |
-|Home flip sale (high)  |0.019     |
-|High price (raw & sqft)|0.016     |
-|Home flip sale (low)   |0.014     |
-|Family sale (low)      |0.006     |
-|Family sale (high)     |0.001     |
-|Low price swing        |~0.0       |
-|High price swing       |~0.0       |
+|PTAX-203 flag          |40.1      |
+|Non-person sale (low)  |17.56     |
+|Non-person sale (high) |8.14      |
+|Anomaly (high)         |6.35      |
+|High price (raw)       |5.77      |
+|Low price (raw)        |5.36      |
+|Low price (raw & sqft) |5.19      |
+|Low price (sqft)       |2.12      |
+|Anomaly (low)          |1.96      |
+|High price (sqft)      |1.92      |
+|Home flip sale (high)  |1.86      |
+|High price (raw & sqft)|1.65      |
+|Home flip sale (low)   |1.38      |
+|Family sale (low)      |0.56      |
+|Family sale (high)     |0.05      |
+|High price swing       |0.02      |
+|Low price swing        |0.01      |
+
 
 
 *These outliers are flagged if relevent price columns (log10 transformed and normalized) are 2 standard deviations below or above the mean within a given group*
