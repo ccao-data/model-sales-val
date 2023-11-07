@@ -18,7 +18,7 @@ This repository contains code to identify and flag sales that may be non-arms-le
 
 # Flags at a Glance
 
-Sales from 2014 - present have been processed using our sales validation program. We flag properties from residential and condo data with the following specifications:
+Sales from 2014 - present have been processed using our sales validation program. The data we exclude still exist in our data ecosystem, but we don't assign them flags and they aren't used in our groups to calculate group means. For example, we don't include multi-card as the price (multiple buildings per sale) would distort our statistical flagging process. We flag properties from residential and condo data with the following specifications:
 
 ### Residential
 
