@@ -274,9 +274,9 @@ graph TD
         D1 -->|Persist results| E1
     end
 
-    style A1 fill:#f9f,stroke:#333,stroke-width:2px
+    style A1 fill:#bbf,stroke:#333,stroke-width:2px
     style B2 fill:#bbf,stroke:#333,stroke-width:2px
-    style A3 fill:#fbf,stroke:#333,stroke-width:2px
+    style A3 fill:#bbf,stroke:#333,stroke-width:2px
 
 ```
 
