@@ -1,7 +1,5 @@
 # Sales validation model
 
-> If an edit needs to made to anything in the `glue` directory, there is a specific process to be found [here](#aws-glue-job-documentation).
-
 Table of Contents
 ================
 
