@@ -16,7 +16,7 @@ Table of Contents
 
 This repository contains code to identify and flag sales that may be non-arms-length transactions. A non-arms-length sale occurs when the buyer and seller have a relationship that might influence the transaction price, leading to a sale that doesn't reflect the true market value of the property. These sales can distort our analyses and models, since they don't adhere to the principle of an open and competitive market.
 
-# Flags at a Glance
+# Flags at a glance
 
 Sales from 2014 - present have been processed using our sales validation program. The data we exclude still exist in our data ecosystem, but we don't assign them flags and they aren't used in our groups to calculate group means. For example, we don't include multi-card as the price (multiple buildings per sale) would distort our statistical flagging process. We flag properties from residential and condo data with the following specifications:
 
