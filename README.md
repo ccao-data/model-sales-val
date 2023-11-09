@@ -220,7 +220,7 @@ The Sales Validation Pipeline (hereafter referred to as “the pipeline”) can 
 3. **Manual Update:** This mode is used when sales need to be re-flagged, either due to errors or methodology updates. This allows for the selective re-flagging of sales.
 
 ```mermaid
-
+%%{init: {'theme':'forest'}}%%
 graph TD
     subgraph "Manual Update Mode"
         A3{{"Sales must be re-flagged"}}
