@@ -221,15 +221,6 @@ The Sales Validation Pipeline (hereafter referred to as “the pipeline”) can 
 
 ```mermaid
 
-%%{
-  init: {
-    'theme': 'base',
-    'themeVariables': {
-      'primaryTextColor': '#000',
-    }
-  }
-}%%
-
 graph TD
     subgraph "Manual Update Mode"
         A3{{"Sales must be re-flagged"}}
