@@ -225,7 +225,7 @@ The Sales Validation Pipeline (hereafter referred to as “the pipeline”) can 
   init: {
     'theme': 'base',
     'themeVariables': {
-      'primaryColor': '#000',
+      'primaryTextColor': '#000',
     }
   }
 }%%
