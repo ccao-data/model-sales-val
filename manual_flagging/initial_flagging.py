@@ -147,6 +147,99 @@ df_res_flagged = flg_model.go(
     condos=False,
 )
 
+## test sd columns
+
+df_res_flagged["original_meta_sale_price"] = np.power(
+    10, df_res_flagged["meta_sale_price"]
+)
+
+df_res_flagged["group"] = (
+    df_res_flagged["rolling_window"].astype(str)
+    + "_"
+    + df_res_flagged["township_code"].astype(str)
+    + "_"
+    + df_res_flagged["class"].astype(str)
+)
+
+df_res_flagged["group_mean"] = df_res_flagged.groupby("group")[
+    "meta_sale_price"
+].transform("mean")
+
+df_res_flagged_original = df_res_flagged[df_res_flagged["original_observation"] == True]
+df_res_flagged_original.sv_deviation_rolling_window_township_code_class_mean_price_abs.nunique()
+
+df_res_flagged_original.group.nunique()
+
+df_res_flagged_original.group.value_counts()
+
+(
+    df_res_flagged_original[df_res_flagged_original.group == "202109_72_203"][
+        ["sv_deviation_rolling_window_township_code_class_mean_price", "group"]
+    ]
+)
+
+# Assuming df['transformed_column'] is your log10 transformed column
+df_res_flagged_original["original_meta_sale_price"] = np.power(
+    10, df_res_flagged_original["meta_sale_price"]
+)
+
+df_single_group_subset = df_res_flagged_original[
+    df_res_flagged_original.group == "202109_72_203"
+][
+    [
+        "original_meta_sale_price",
+        "meta_sale_price",
+        "sv_deviation_rolling_window_township_code_class_mean_price",
+        "sv_outlier_type",
+        "sv_price_deviation_rolling_window_township_code_class",
+        "group_mean",
+    ]
+]
+
+
+df_single_group_subset["addition"] = (
+    df_single_group_subset["original_meta_sale_price"]
+    - df_single_group_subset[
+        "sv_deviation_rolling_window_township_code_class_mean_price"
+    ]
+)
+df_single_group_subset
+df_single_group_subset["std"] = (
+    df_single_group_subset["meta_sale_price"] - df_single_group_subset["group_mean"]
+) / df_single_group_subset["sv_price_deviation_rolling_window_township_code_class"]
+
+
+# - - - - - - -
+# Try back calculating the standard deviations.
+# - - - - - - -
+
+df_back_calc = df_res_flagged[
+    ["original_meta_sale_price", "group", "original_observation"]
+]
+
+# Apply log10 transformation
+df_back_calc["log_price"] = np.log10(df_back_calc["original_meta_sale_price"])
+
+# Calculate the mean and standard deviation for each group
+grouped = df_back_calc.groupby("group")["log_price"]
+df_back_calc["group_mean"] = grouped.transform("mean")
+df_back_calc["group_std"] = grouped.transform("std")
+
+# Z-normalize the log-transformed data
+df_back_calc["z_normalized"] = (
+    df_back_calc["log_price"] - df_back_calc["group_mean"]
+) / df_back_calc["group_std"]
+
+# Calculate the number of standard deviations away from the mean each observation is
+df_back_calc["std_devs_from_mean"] = df_back_calc["z_normalized"]
+
+# Compare
+df_back_calc[
+    (df_back_calc["group"] == "202109_72_203")
+    & (df_back_calc["original_observation"] == True)
+]
+df_single_group_subset
+
 # Discard any flags with a group size under the threshold
 df_res_flagged_updated = flg.group_size_adjustment(
     df=df_res_flagged,
