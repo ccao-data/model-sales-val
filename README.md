@@ -291,6 +291,8 @@ erDiagram
         double mean_price_sqft
         string run_id PK
         string group PK
+        double std
+        double std_sqft
     }
 ```
 
