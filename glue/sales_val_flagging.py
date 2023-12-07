@@ -220,12 +220,14 @@ def finish_flags(df, start_date, manual_update):
 
     cols_to_write = [
         "meta_sale_document_num",
+        "meta_sale_price_original",
         "rolling_window",
         "sv_is_outlier",
         "sv_is_ptax_outlier",
         "ptax_flag_original",
         "sv_is_heuristic_outlier",
         "sv_outlier_type",
+        "group",
     ]
 
     # Create run_id
