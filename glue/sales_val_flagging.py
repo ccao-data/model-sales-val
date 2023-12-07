@@ -76,7 +76,8 @@ def add_rolling_window(df, num_months):
         .assign(
             rolling_window=lambda df: df["rolling_window"]
             .apply(lambda x: x.strftime("%Y%m"))
-            .astype(int)
+            .astype(int),
+            meta_sale_price_original=lambda df: df["meta_sale_price"],
         )
     )
 
