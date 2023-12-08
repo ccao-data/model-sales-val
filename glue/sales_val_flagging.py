@@ -166,6 +166,11 @@ def group_size_adjustment(df, stat_groups: list, min_threshold, condos: bool):
     # Drop the _merge column
     df_flagged_updated = merged_df.drop(columns=["_merge"])
 
+    # Add group column to eventually write to athena sale.flag table. Picked up in finish_flags()
+    df_flagged_updated["group"] = df_flagged_updated.apply(
+        lambda row: "_".join([str(row[col]) for col in stat_groups]), axis=1
+    )
+
     return df_flagged_updated
 
 
