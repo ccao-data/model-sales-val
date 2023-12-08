@@ -439,7 +439,9 @@ def sql_type_to_pd_type(sql_type):
 def get_group_mean_df(df, stat_groups, run_id, condos):
     """
     This function creates group_mean table to write to athena. This allows
-    us to trace back why some sales may have been flagged within our flagging model
+    us to trace back why some sales may have been flagged within our flagging model.
+
+    It calculates the relevant group means and standard deviations.
     Inputs:
         df: data frame
         stat_groups: list of stat_groups used in flagging model
