@@ -197,6 +197,46 @@ def pricing_info(
     if not condos:
         prices.insert(1, f"sv_price_per_sqft_deviation_{group_string}")
 
+    # Persist standard deviation per group
+    group_std = (
+        df.groupby(list(groups), group_keys=False)["meta_sale_price"]
+        .std(ddof=0)
+        .reset_index()
+    )
+    group_std = group_std.rename(columns={"meta_sale_price": "group_std"})
+    df = df.merge(group_std, on=groups)
+
+    # Add group mean columns
+    group_mean = (
+        df.groupby(list(groups), group_keys=False)["meta_sale_price"]
+        .mean()
+        .reset_index()
+    )
+    group_mean = group_mean.rename(columns={"meta_sale_price": "group_mean"})
+    df = df.merge(group_mean, on=groups)
+
+    if not condos:
+        # Persist group sqft standard deviation and group mean
+        group_sqft_std = (
+            df.groupby(list(groups), group_keys=False)["sv_price_per_sqft"]
+            .std(ddof=0)
+            .reset_index()
+        )
+        group_sqft_std = group_sqft_std.rename(
+            columns={"sv_price_per_sqft": "group_sqft_std"}
+        )
+        df = df.merge(group_sqft_std, on=groups)
+
+        group_sqft_mean = (
+            df.groupby(list(groups), group_keys=False)["sv_price_per_sqft"]
+            .mean()
+            .reset_index()
+        )
+        group_sqft_mean = group_sqft_mean.rename(
+            columns={"sv_price_per_sqft": "group_sqft_mean"}
+        )
+        df = df.merge(group_sqft_mean, on=groups)
+
     # Calculate standard deviations
     df[f"sv_price_deviation_{group_string}"] = df.groupby(
         list(groups), group_keys=False

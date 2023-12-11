@@ -251,12 +251,14 @@ erDiagram
 
     flag {
         string meta_sale_document_num PK
+        bigint meta_sale_price_original
         date rolling_window
         boolean sv_is_outlier
         boolean sv_is_ptax_outlier
         boolean ptax_flag_original
         boolean sv_is_heuristic_outlier
         string sv_outlier_type
+        string group
         string run_id FK
         bigint version PK
     }
@@ -286,13 +288,13 @@ erDiagram
     }
 
     group_mean {
+        string group
+        double group_mean
+        double group_std
+        double group_sqft_std
+        double group_sqft_mean
         bigint group_size
-        double mean_price
-        double mean_price_sqft
-        string run_id PK
-        string group PK
-        double std
-        double std_sqft
+        string run_id
     }
 ```
 

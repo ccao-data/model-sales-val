@@ -76,7 +76,8 @@ def add_rolling_window(df, num_months):
         .assign(
             rolling_window=lambda df: df["rolling_window"]
             .apply(lambda x: x.strftime("%Y%m"))
-            .astype(int)
+            .astype(int),
+            meta_sale_price_original=lambda df: df["meta_sale_price"],
         )
     )
 
@@ -165,6 +166,11 @@ def group_size_adjustment(df, stat_groups: list, min_threshold, condos: bool):
     # Drop the _merge column
     df_flagged_updated = merged_df.drop(columns=["_merge"])
 
+    # Add group column to eventually write to athena sale.flag table. Picked up in finish_flags()
+    df_flagged_updated["group"] = df_flagged_updated.apply(
+        lambda row: "_".join([str(row[col]) for col in stat_groups]), axis=1
+    )
+
     return df_flagged_updated
 
 
@@ -219,12 +225,14 @@ def finish_flags(df, start_date, manual_update):
 
     cols_to_write = [
         "meta_sale_document_num",
+        "meta_sale_price_original",
         "rolling_window",
         "sv_is_outlier",
         "sv_is_ptax_outlier",
         "ptax_flag_original",
         "sv_is_heuristic_outlier",
         "sv_outlier_type",
+        "group",
     ]
 
     # Create run_id
@@ -430,109 +438,43 @@ def sql_type_to_pd_type(sql_type):
 
 def get_group_mean_df(df, stat_groups, run_id, condos):
     """
-    Creates a DataFrame for group mean/std data. This function is primarily used
-    for tracing the flagging decisions. It calculates the standard deviation and
-    mean for specified groups within the data, and merges these calculations with group size information.
+    This function creates group_mean table to write to athena. This allows
+    us to trace back why some sales may have been flagged within our flagging model.
 
-    The output of this function 'std' and 'std_sqft' are subject to whatever transformations
-    we make on the data. As of 12/1/2023, they are log10 transformed. In order to back out
-    how many standard deviations away from the mean a sale was, we just need to log transform
-    the original sale_price.
-
-    The function performs the following operations:
-    1. Calculates the mean and standard deviation for each group defined by the 'stat_groups' parameters.
-    2. Conditions the calculation of square footage data based on the 'condos' flag.
-    3. Calculates the size of each group.
-    4. Merges the calculated mean, standard deviation, and group size into a single DataFrame.
-
+    It calculates the relevant group means and standard deviations.
     Inputs:
-        df (pd.DataFrame): The input DataFrame containing property sales data.
-        stat_groups (list of str): A list of column names used for statistical grouping in the flagging model.
-                                Typically includes 'rolling_window', 'township_code', and depending
-                                on whether we are flagging condos - 'class'.
-        run_id (str): A unique identifier for the script's run.
-        condos (bool): A boolean flag that determines whether square footage data (sqft) should be excluded
-                    from the standard deviation calculation. If True, sqft data is excluded.
-
-    Output:
-        pd.DataFrame: A DataFrame ready to be written to Athena, containing the group mean, standard deviation,
-                    and size data, along with a unique run identifier.
+        df: data frame
+        stat_groups: list of stat_groups used in flagging model
+        run_id: unique run_id of script
+    Outputs:
+        df: dataframe that is ready to be written to athena as a parquet
     """
 
-    # Dynamic column name for standard deviation based on stat_groups
-    std_dev_col_suffix = "_".join(stat_groups)
-    std_dev_col_name = f"sv_price_deviation_{std_dev_col_suffix}"
-    std_dev_sqft_col_name = f"sv_price_per_sqft_deviation_{std_dev_col_suffix}"
-
-    # Process standard deviation
-    df_std = (
-        df.assign(
-            rolling_window=lambda x: pd.to_datetime(
-                x["rolling_window"], format="%Y%m"
-            ).dt.date
-        )
-        .assign(group=lambda x: x[stat_groups].astype(str).apply("_".join, axis=1))
-        .assign(
-            group_mean=lambda x: x.groupby("group")["meta_sale_price"].transform("mean")
-        )
-        .assign(
-            std=lambda x: (x["meta_sale_price"] - x["group_mean"]) / x[std_dev_col_name]
-        )
-    )
-
-    df_std_cols = ["group", "std"]
-    if not condos:
-        df_std = df_std.assign(
-            group_mean_sqft=lambda x: x.groupby("group")["sv_price_per_sqft"].transform(
-                "mean"
-            ),
-            std_sqft=lambda x: (x["sv_price_per_sqft"] - x["group_mean_sqft"])
-            / x[std_dev_sqft_col_name],
-        )
-        df_std_cols.append("std_sqft")
-
-    df_std = df_std[df_std_cols].drop_duplicates(subset="group", keep="first")
-
-    # Process group sizes and means
+    # Calculate group sizes
     group_sizes = df.groupby(stat_groups).size().reset_index(name="group_size")
     df = df.merge(group_sizes, on=stat_groups, how="left")
 
-    unique_groups = df.drop_duplicates(subset=stat_groups, keep="first").reset_index(
-        drop=True
-    )
-    unique_groups["rolling_window"] = pd.to_datetime(
-        unique_groups["rolling_window"], format="%Y%m"
-    ).dt.date
-
-    groups_string_col = "_".join(map(str, stat_groups))
-    suffixes = ["mean_price"] if condos else ["mean_price", "mean_price_per_sqft"]
-    cols_to_write_means = (
-        stat_groups
-        + ["group_size"]
-        + [f"sv_{suffix}_{groups_string_col}" for suffix in suffixes]
+    df["group"] = df.apply(
+        lambda row: "_".join([str(row[col]) for col in stat_groups]), axis=1
     )
 
-    rename_dict = {
-        f"sv_{suffix}_{groups_string_col}": f"{suffix}" for suffix in suffixes
-    }
-    df_means = (
-        unique_groups[cols_to_write_means]
-        .rename(columns=rename_dict)
-        .assign(
-            run_id=run_id,
-            group=lambda x: x[stat_groups].astype(str).apply("_".join, axis=1),
-        )
-        .drop(columns=stat_groups)
-    )
+    if condos:
+        df = df.drop_duplicates(subset=["group"])[
+            ["group", "group_mean", "group_std", "group_size"]
+        ].assign(run_id=run_id)
+    else:
+        df = df.drop_duplicates(subset=["group"])[
+            [
+                "group",
+                "group_mean",
+                "group_std",
+                "group_sqft_std",
+                "group_sqft_mean",
+                "group_size",
+            ]
+        ].assign(run_id=run_id)
 
-    # Merge the std and group_mean/size data frames
-    std_cols = ["group", "std"]
-    if not condos:
-        std_cols.append("std_sqft")
-
-    merged_df = df_means.merge(df_std[std_cols], on="group", how="left")
-
-    return merged_df
+    return df
 
 
 def modify_dtypes(df):
