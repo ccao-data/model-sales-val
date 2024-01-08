@@ -82,6 +82,7 @@ SELECT
     sale.doc_no AS meta_sale_document_num,
     sale.seller_name AS meta_sale_seller_name,
     sale.buyer_name AS meta_sale_buyer_name,
+    sale.nbhd as nbhd,
     sale.sale_filter_ptax_flag AS ptax_flag_original,
     data.class,
     data.township_code,
@@ -119,6 +120,54 @@ conversion_dict = {
     if flg.sql_type_to_pd_type(col[1]) is not None
 }
 df = df.astype(conversion_dict)
+
+# - - -
+# Testing
+# - - -
+
+submarket1 = [
+    "77011",
+    "77013",
+    "77020",
+    "77040",
+    "77080",
+    "77085",
+    "77091",
+    "77092",
+    "77101",
+    "77102",
+    "77103",
+    "77104",
+    "77115",
+    "77141",
+]
+
+submarket2 = [
+    "77030",
+    "77051",
+    "77052",
+    "77060",
+    "77120",
+    "77131",
+    "77132",
+    "77150",
+    "77151",
+    "77152",
+    "77170",
+]
+
+# Update 'class' based on 'nbhd' values
+df.loc[df["nbhd"].isin(submarket1), "township_code"] = "7701"
+df.loc[df["nbhd"].isin(submarket2), "township_code"] = "7702"
+
+# Subset to only West Chicago data
+df = df[df["township_code"].isin(["7701", "7702"])]
+
+# - - -
+# End testing
+# - - -
+
+
 df["ptax_flag_original"].fillna(False, inplace=True)
 
 # Separate res and condo sales based on the indicator column
@@ -134,6 +183,38 @@ condo_stat_groups.remove("class")
 df_res_to_flag = flg.add_rolling_window(
     df_res, num_months=inputs["rolling_window_months"]
 )
+
+# - - -
+# Check for counts
+# - - -
+
+# Group by township_code, class, and rolling_window and count the total number of observations
+new_groups = (
+    df_res_to_flag.groupby(["township_code", "class", "rolling_window"])
+    .size()
+    .reset_index(name="count")
+)
+
+# Group by class and rolling_window and count the total number of observations
+old_groups = (
+    df_res_to_flag.groupby(["class", "rolling_window"]).size().reset_index(name="count")
+)
+
+
+def percentage_over_30(df):
+    count_over_30 = df[df["count"] > 30].shape[0]
+    total_count = df.shape[0]
+    percentage = (count_over_30 / total_count) * 100
+    return percentage
+
+
+percentage_over_30(new_groups)
+percentage_over_30(old_groups)
+
+# - - -
+# End Check for counts
+# - - -
+
 df_condo_to_flag = flg.add_rolling_window(
     df_condo, num_months=inputs["rolling_window_months"]
 )
@@ -178,6 +259,14 @@ df_condo_flagged_updated = flg.group_size_adjustment(
 df_flagged_merged = pd.concat(
     [df_res_flagged_updated, df_condo_flagged_updated]
 ).reset_index(drop=True)
+
+#
+#
+#
+df_flagged_merged = df_res_flagged_updated
+#
+#
+#
 
 # Update the PTAX flag column with an additional std dev conditional
 df_flagged_ptax = flg.ptax_adjustment(
