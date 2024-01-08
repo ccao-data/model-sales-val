@@ -105,7 +105,7 @@ AND (
 """
 
 
-# Execute query and return as pandas df
+# Execute query and return as pandas data frame
 cursor = conn.cursor()
 cursor.execute(SQL_QUERY)
 metadata = cursor.description
