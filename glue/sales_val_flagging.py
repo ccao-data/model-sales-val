@@ -109,6 +109,16 @@ def ptax_adjustment(df, groups, ptax_sd):
         | (df[f"sv_price_per_sqft_deviation_{group_string}"] <= -ptax_sd[0])
     )
 
+    # Determine the ptax direction
+    conditions = [
+        (df[f"sv_price_deviation_{group_string}"] >= ptax_sd[1])
+        | (df[f"sv_price_per_sqft_deviation_{group_string}"] >= ptax_sd[1]),
+        (df[f"sv_price_deviation_{group_string}"] <= -ptax_sd[0])
+        | (df[f"sv_price_per_sqft_deviation_{group_string}"] <= -ptax_sd[0]),
+    ]
+    directions = ["High", "Low"]
+    df["ptax_direction"] = np.select(conditions, directions, default=np.nan)
+
     return df
 
 
@@ -204,10 +214,13 @@ def finish_flags(df, start_date, manual_update):
             sv_is_outlier=lambda df: df["sv_is_autoval_outlier"]
             | df["ptax_flag_w_deviation"],
             # Incorporate PTAX in sv_outlier_type
-            sv_outlier_type=lambda df: np.where(
-                df["ptax_flag_w_deviation"],
-                "PTAX-203 flag",
-                df["sv_outlier_type"],
+            sv_outlier_type=lambda df: np.select(
+                [
+                    (df["ptax_flag_w_deviation"]) & (df["ptax_direction"] == "High"),
+                    (df["ptax_flag_w_deviation"]) & (df["ptax_direction"] == "Low"),
+                ],
+                ["PTAX-203 flag (High)", "PTAX-203 flag (Low)"],
+                default=df["sv_outlier_type"],
             ),
         )
         .assign(

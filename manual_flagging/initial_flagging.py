@@ -260,13 +260,13 @@ df_flagged_merged = pd.concat(
     [df_res_flagged_updated, df_condo_flagged_updated]
 ).reset_index(drop=True)
 
-#
-#
-#
+# - - -
+# Connect code because of condo exclusion
+# - - -
 df_flagged_merged = df_res_flagged_updated
-#
-#
-#
+# - - -
+# End - Connect code because of condo exclusion
+# - - -
 
 # Update the PTAX flag column with an additional std dev conditional
 df_flagged_ptax = flg.ptax_adjustment(
