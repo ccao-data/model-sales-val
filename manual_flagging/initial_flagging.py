@@ -48,6 +48,7 @@ WITH CombinedData AS (
         res.class AS class,
         res.township_code AS township_code,
         res.year AS year,
+        res.char_yrblt as yrblt,
         res.pin AS pin,
         res.char_bldg_sf AS char_bldg_sf,
         res.pin_is_multicard
@@ -66,6 +67,7 @@ WITH CombinedData AS (
         condo.class AS class,
         condo.township_code AS township_code,
         condo.year AS year,
+        NULL AS yrblt,
         condo.pin AS pin,
         NULL AS char_bldg_sf,
         FALSE AS pin_is_multicard
@@ -73,6 +75,12 @@ WITH CombinedData AS (
     WHERE condo.class IN ('297', '299', '399')
     AND NOT condo.is_parking_space
     AND NOT condo.is_common_area
+),
+
+vw_pin_sale_year_2023 as (
+    SELECT pin, year, chicago_community_area_name
+    FROM default.vw_pin_universe
+    where year = '2023'
 )
 
 -- Now, join with sale table and filters
@@ -86,14 +94,18 @@ SELECT
     sale.sale_filter_ptax_flag AS ptax_flag_original,
     data.class,
     data.township_code,
+    data.yrblt,
     data.year,
     data.pin,
     data.char_bldg_sf,
+    pu.chicago_community_area_name,
     data.indicator  -- Selecting the indicator column
 FROM CombinedData data
 INNER JOIN default.vw_pin_sale sale
     ON sale.pin = data.pin
     AND sale.year = data.year
+LEFT JOIN vw_pin_sale_year_2023 pu -- Joining the additional table
+    ON sale.pin = pu.pin
 WHERE {sql_time_frame}
 AND NOT sale.sale_filter_same_sale_within_365
 AND NOT sale.sale_filter_less_than_10k
@@ -125,8 +137,11 @@ df = df.astype(conversion_dict)
 # Testing
 # - - -
 
+df.chicago_community_area_name.value_counts(dropna=False)
+
 # Subset to only Hyde Park data
 df = df[df["township_code"].isin(["70", "77", "72"])]
+df.groupby("year").agg(lambda x: x.isna().sum())
 
 # - - -
 # End testing
