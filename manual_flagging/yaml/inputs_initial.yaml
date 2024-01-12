@@ -4,8 +4,7 @@
 ---
 stat_groups: [
   "rolling_window",
-  "township_code",
-  "class"
+  "nbhd"
 ]
 
 iso_forest: [

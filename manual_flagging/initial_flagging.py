@@ -125,44 +125,8 @@ df = df.astype(conversion_dict)
 # Testing
 # - - -
 
-submarket1 = [
-    "70030",
-    "70070",
-    "70100",
-    "70101",
-    "70120",
-    "70121",
-    "70130",
-    "70140",
-    "70170",
-    "70180",
-    "70210",
-    "70220",
-    "70230",
-    "70240",
-    "70250",
-    "70260",
-]
-
-submarket2 = [
-    "70010",
-    "70020",
-    "70080",
-    "70083",
-    "70091",
-    "70111",
-    "70150",
-    "70151",
-    "70241",
-    "70280",
-]
-
-# Update 'class' based on 'nbhd' values
-df.loc[df["nbhd"].isin(submarket1), "township_code"] = "7001"
-df.loc[df["nbhd"].isin(submarket2), "township_code"] = "7002"
-
 # Subset to only Hyde Park data
-df = df[df["township_code"].isin(["7001", "7002"])]
+df = df[df["township_code"].isin(["70", "77", "72"])]
 
 # - - -
 # End testing
@@ -198,7 +162,7 @@ new_groups = (
 
 # Group by class and rolling_window and count the total number of observations
 old_groups = (
-    df_res_to_flag.groupby(["class", "rolling_window"]).size().reset_index(name="count")
+    df_res_to_flag.groupby(["rolling_window", "nbhd"]).size().reset_index(name="count")
 )
 
 
