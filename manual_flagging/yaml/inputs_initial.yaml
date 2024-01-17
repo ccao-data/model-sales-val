@@ -2,10 +2,17 @@
 # which will (ideally) be run one time when we first populate the flagging
 # tables in Athena.
 ---
-stat_groups: [
-  "rolling_window",
-  "nbhd"
-]
+stat_groups:
+  single_family:
+    - "rolling_window"
+    - "geography_split"
+    - "bldg_age_bin"
+    - "char_bldg_sf_bin"
+  multi_family:
+    - "rolling_window"
+    - "geography_split"
+    - "bldg_age_bin"
+
 
 iso_forest: [
   "meta_sale_price",

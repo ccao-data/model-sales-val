@@ -92,7 +92,6 @@ SELECT
     data.year,
     data.pin,
     data.char_bldg_sf,
-    pu.chicago_community_area_name,
     data.indicator  -- Selecting the indicator column
 FROM CombinedData data
 INNER JOIN default.vw_pin_sale sale
@@ -125,16 +124,238 @@ conversion_dict = {
 }
 df = df.astype(conversion_dict)
 
+df["ptax_flag_original"].fillna(False, inplace=True)
 # - - -
-# Testing
+# Testing new ingest
 # - - -
 
-# Subset to only Hyde Park data
+# Subset to only City Tri data
 df = df[df["township_code"].isin(["70", "71", "72", "73", "74", "75", "76", "77"])]
 
-# - - - -
-# Count bins for single-family
-# - - - -
+# Pre-process res data
+df_res = df[df["indicator"] == "res"].reset_index(drop=True)
+# - - -
+# Create new geographies and building age features
+# - - -
+new_nbhd_splits = [
+    ["75031", "75032", "75033", "75060"],
+    ["75010", "75021", "75022", "75023", "75040"],
+    ["70260", "70260", "70260", "70260"],
+    ["70210", "70220", "70230", "70120", "70220", "70230", "70210", "70250"],
+    [
+        "70111",
+        "70111",
+        "70030",
+        "70111",
+        "70120",
+        "70111",
+        "70120",
+        "70121",
+        "70111",
+        "70120",
+        "70080",
+        "70080",
+        "70091",
+        "70170",
+    ],
+    ["70101", "70240", "70241", "70130", "70180", "70280", "70180"],
+    ["70080", "70130", "70151", "70100", "70140", "70130", "70151"],
+    ["70080", "70083", "70100", "70150"],
+    ["70070", "70080", "70120"],
+    ["70030", "70030", "70070"],
+    ["70030", "70030"],
+    ["70020", "70020", "70020"],
+    ["70010", "70020"],
+    ["70010"],
+    [
+        "76041",
+        "76030",
+        "76030",
+        "76042",
+        "76041",
+        "76041",
+        "76040",
+        "76042",
+        "76040",
+        "76041",
+        "76042",
+    ],
+    ["76011", "76012", "76011", "76011"],
+    ["76030", "76050"],
+    ["76060", "76060", "76060"],
+    [
+        "71021",
+        "71021",
+        "71463",
+        "71461",
+        "71410",
+        "71440",
+        "71022",
+        "71461",
+        "71560",
+        "71010",
+        "71060",
+        "71090",
+        "71101",
+        "71150",
+        "71402",
+        "71430",
+        "71010",
+        "71071",
+        "71580",
+        "71090",
+        "71101",
+        "71150",
+        "71171",
+        "71022",
+        "71030",
+        "71050",
+    ],
+    [
+        "71171",
+        "71200",
+        "71210",
+        "71250",
+        "71260",
+        "71280",
+        "71150",
+        "71200",
+        "71210",
+        "71250",
+        "71270",
+        "71280",
+        "71180",
+        "71520",
+        "71200",
+        "71270",
+        "71210",
+        "71200",
+        "71120",
+        "71120",
+        "71371",
+        "71371",
+        "71070",
+        "71120",
+        "71600",
+        "71150",
+        "71600",
+        "71371",
+        "71140",
+    ],
+    [
+        "71420",
+        "71440",
+        "71430",
+        "71390",
+        "71390",
+        "71430",
+        "71390",
+        "71361",
+        "71362",
+        "71560",
+    ],
+    ["71070", "71180", "71070", "71074"],
+    ["71110", "71110", "71082"],
+    ["71081", "71082", "71082", "71070", "71082", "71101", "71120", "71074"],
+    ["71041", "71050", "71042", "71050", "71050", "71042", "71030", "71041"],
+    ["74022", "74030", "74022", "74030", "74022", "74030", "74030", "74030"],
+    ["74011", "74022"],
+    ["74012", "74012", "74014", "74012", "74014", "74012"],
+    ["74013", "74013"],
+    ["73022", "73011", "73031", "73011"],
+    ["73093", "73093", "73063", "73093"],
+    ["73050", "73060", "73011", "73031", "73031", "73044", "73060", "73032", "73050"],
+    ["73031", "73012", "73050"],
+    [
+        "73081",
+        "73200",
+        "73012",
+        "73041",
+        "73041",
+        "73070",
+        "73081",
+        "73012",
+        "73032",
+        "73041",
+        "73042",
+        "73070",
+        "73081",
+    ],
+    [
+        "73084",
+        "73060",
+        "73062",
+        "73092",
+        "73159",
+        "73081",
+        "73084",
+        "73110",
+        "73120",
+        "73150",
+        "73200",
+    ],
+    ["77141", "77141", "77141", "77141", "77132", "77141"],
+    ["77011", "77013", "77013", "77080", "77011", "77020"],
+    ["77102", "77104", "77085", "77080", "77091", "77092", "77102", "77103"],
+    ["77060", "77152", "77170"],
+    ["77132", "77131", "77132", "77132", "77141", "77132"],
+    ["77115", "77091"],
+    ["77030", "77150", "77151"],
+    ["77052", "77101", "77103", "77120", "77131", "77120", "77051"],
+    ["77120", "77120", "77131", "77131", "77120"],
+    ["77020", "77030", "77040"],
+    ["77101", "77102", "77103", "77101", "77102"],
+    ["72052", "72092", "72293", "72092", "72293"],
+    ["72051", "72052", "72080", "72090", "72092", "72120"],
+    ["72030", "72061", "72350", "72361", "72040", "72070", "72361"],
+    ["72070", "72071", "72080", "72110", "72071", "72110", "72071", "72110", "72150"],
+    ["72151", "72191", "72200", "72200", "72200", "72151", "72200", "72230"],
+    ["72192", "72194", "72191", "72192", "72193", "72194", "72030", "72030", "72350"],
+    [
+        "72212",
+        "72282",
+        "72212",
+        "72221",
+        "72222",
+        "72223",
+        "72251",
+        "72282",
+        "72281",
+        "72282",
+        "72285",
+        "72282",
+        "72282",
+        "72321",
+        "72282",
+        "72260",
+        "72282",
+    ],
+    ["72091", "72092", "72130", "72170", "72171", "72121", "72171"],
+    ["72423", "72423", "72422", "72423", "72422", "72324", "72431", "72432", "72423"],
+    ["72274", "72300", "72312", "72323"],
+    ["72380", "72350", "72380", "72361", "72350"],
+    ["72271", "72274", "72274"],
+    ["72310", "72330", "72345", "72321", "72330", "72321", "72330"],
+    ["72170", "72260"],
+]
+
+# Create a new column with default value
+df_res["geography_split"] = None
+
+# Iterate over each list in the list of lists
+for i, lst in enumerate(new_nbhd_splits):
+    # Create a string by concatenating the elements of the list
+    group_name = ",".join(lst)
+    # Assign this string to rows where 'nbhd' value is in the current list
+    df_res.loc[df_res["nbhd"].isin(lst), "geography_split"] = group_name
+
+# Calculate the building's age
+current_year = datetime.datetime.now().year
+df_res["bldg_age"] = current_year - df_res["yrblt"]
+
+# - - -
+# Single Family
+# - - -
 single_family_classes = [
     "202",
     "203",
@@ -151,58 +372,51 @@ single_family_classes = [
     "278",
     "295",
 ]
-multi_family_classes = ["211", "212"]
 
-# FOR SINGLE
-df_res = df[df["indicator"] == "res"].reset_index(drop=True)
-df_res = df[df["class"].isin(single_family_classes)]
-df = df_res
-
-# FOR MULTI
-# FOR SINGLE
-df_res = df[df["indicator"] == "res"].reset_index(drop=True)
-df_res = df[df["class"].isin(multi_family_classes)]
-df = df_res
+df_res_single_fam = df_res[df_res["class"].isin(single_family_classes)]
 
 # Define bins for char_bldg_sf
 char_bldg_sf_bins = [0, 1200, 2400, float("inf")]
 char_bldg_sf_labels = ["below_1200", "1200_to_2400", "above_2400"]
 
 # Bin the char_bldg_sf data
-df["char_bldg_sf_bin"] = pd.cut(
-    df["char_bldg_sf"], bins=char_bldg_sf_bins, labels=char_bldg_sf_labels
+df_res_single_fam["char_bldg_sf_bin"] = pd.cut(
+    df_res_single_fam["char_bldg_sf"],
+    bins=char_bldg_sf_bins,
+    labels=char_bldg_sf_labels,
 )
 
-# Calculate the building's age
-current_year = datetime.datetime.now().year
-df["bldg_age"] = current_year - df["yrblt"]
+# Define bins for building age
+bldg_age_bins = [0, 40, float("inf")]
+bldg_age_labels = ["below_40_years", "above_40_years"]
+
+# Bin the building age data
+df_res_single_fam["bldg_age_bin"] = pd.cut(
+    df_res_single_fam["bldg_age"], bins=bldg_age_bins, labels=bldg_age_labels
+)
+
+# - - - -
+# Multi Family
+# - - - -
+
+multi_family_classes = ["211", "212"]
+df_res_multi_fam = df_res[df_res["class"].isin(multi_family_classes)]
 
 # Define bins for building age
 bldg_age_bins = [0, 20, float("inf")]
 bldg_age_labels = ["below_20_years", "above_20_years"]
 
 # Bin the building age data
-df["bldg_age_bin"] = pd.cut(df["bldg_age"], bins=bldg_age_bins, labels=bldg_age_labels)
-
-# Group and count the observations
-grouped_data = (
-    df.groupby(["year", "char_bldg_sf_bin", "bldg_age_bin"])
-    .size()
-    .reset_index(name="count")
+df_res_multi_fam["bldg_age_bin"] = pd.cut(
+    df_res_multi_fam["bldg_age"], bins=bldg_age_bins, labels=bldg_age_labels
 )
 
-grouped_data[grouped_data["year"] == "2023"]
-
-
 # - - -
-# End testing
+# End testing new ingest
 # - - -
-
-
-df["ptax_flag_original"].fillna(False, inplace=True)
 
 # Separate res and condo sales based on the indicator column
-df_res = df[df["indicator"] == "res"].reset_index(drop=True)
+# df_res = df[df["indicator"] == "res"].reset_index(drop=True)
 df_condo = df[df["indicator"] == "condo"].reset_index(drop=True)
 
 # Create condo stat groups. Condos are all collapsed into a single class,
@@ -210,37 +424,80 @@ df_condo = df[df["indicator"] == "condo"].reset_index(drop=True)
 condo_stat_groups = inputs["stat_groups"].copy()
 condo_stat_groups.remove("class")
 
+# - - -
 # Create rolling windows
-df_res_to_flag = flg.add_rolling_window(
-    df_res, num_months=inputs["rolling_window_months"]
+# - - -
+
+# Rolling window for single family
+df_res_single_fam_to_flag = flg.add_rolling_window(
+    df_res_single_fam, num_months=inputs["rolling_window_months"]
+)
+
+# Rolling window for multi_family
+df_res_multi_fam_to_flag = flg.add_rolling_window(
+    df_res_multi_fam, num_months=inputs["rolling_window_months"]
 )
 
 # - - -
 # Check for counts
 # - - -
-
-# Group by township_code, class, and rolling_window and count the total number of observations
-new_groups = (
-    df_res_to_flag.groupby(["township_code", "class", "rolling_window"])
-    .size()
-    .reset_index(name="count")
+new_groups_single_fam = (
+    df_res_single_fam_to_flag.groupby(
+        ["geography_split", "char_bldg_sf_bin", "bldg_age_bin", "rolling_window"]
+    )
+    .agg(
+        count=("geography_split", "size"),
+        median_sale_price=("meta_sale_price", "median"),
+    )
+    .reset_index()
 )
 
-# Group by class and rolling_window and count the total number of observations
-old_groups = (
-    df_res_to_flag.groupby(["rolling_window", "nbhd"]).size().reset_index(name="count")
+new_groups_multi_fam = (
+    df_res_multi_fam_to_flag.groupby(
+        ["geography_split", "bldg_age_bin", "rolling_window"]
+    )
+    .agg(
+        count=("geography_split", "size"),
+        median_sale_price=("meta_sale_price", "median"),
+    )
+    .reset_index()
 )
 
 
 def percentage_over_30(df):
-    count_over_30 = df[df["count"] > 30].shape[0]
+    count_over_30 = df[df["count"] >= 30].shape[0]
     total_count = df.shape[0]
     percentage = (count_over_30 / total_count) * 100
     return percentage
 
 
-percentage_over_30(new_groups)
-percentage_over_30(old_groups)
+# Check percentage of groups over 30
+percentage_over_30(new_groups_single_fam)
+percentage_over_30(new_groups_multi_fam)
+
+# Check total number of sales within groups above and below 30
+new_groups_single_fam[new_groups_single_fam["count"] < 30]["count"].sum()
+new_groups_single_fam[new_groups_single_fam["count"] >= 30]["count"].sum()
+
+# Filtering out non-important rolling window stats
+percentage_over_30(
+    new_groups_single_fam[
+        ~new_groups_single_fam["rolling_window"].astype(str).str.startswith("2013")
+    ]
+)
+percentage_over_30(
+    new_groups_multi_fam[
+        ~new_groups_multi_fam["rolling_window"].astype(str).str.startswith("2013")
+    ]
+)
+
+# Saving the DataFrame to an Excel file
+new_groups_single_fam[
+    ~new_groups_single_fam["rolling_window"].astype(str).str.startswith("2013")
+].to_excel("single_fam_v0.xlsx", index=False)
+new_groups_multi_fam[
+    ~new_groups_multi_fam["rolling_window"].astype(str).str.startswith("2013")
+].to_excel("multi_fam_v0.xlsx", index=False)
 
 # - - -
 # End Check for counts
@@ -249,20 +506,40 @@ percentage_over_30(old_groups)
 df_condo_to_flag = flg.add_rolling_window(
     df_condo, num_months=inputs["rolling_window_months"]
 )
-
+# - - -
+# Separate flagging for both
+# - - -
 # Flag outliers using the main flagging model
-df_res_flagged = flg_model.go(
-    df=df_res_to_flag,
-    groups=tuple(inputs["stat_groups"]),
+df_res_single_fam_flagged = flg_model.go(
+    df=df_res_single_fam_to_flag,
+    groups=tuple(inputs["stat_groups"]["single_family"]),
     iso_forest_cols=inputs["iso_forest"],
     dev_bounds=tuple(inputs["dev_bounds"]),
     condos=False,
 )
 
+# Flag outliers using the main flagging model
+df_res_multi_fam_flagged = flg_model.go(
+    df=df_res_multi_fam_to_flag,
+    groups=tuple(inputs["stat_groups"]["multi_family"]),
+    iso_forest_cols=inputs["iso_forest"],
+    dev_bounds=tuple(inputs["dev_bounds"]),
+    condos=False,
+)
+# - - -
+# Separate group size for both
+# - - -
 # Discard any flags with a group size under the threshold
-df_res_flagged_updated = flg.group_size_adjustment(
-    df=df_res_flagged,
-    stat_groups=inputs["stat_groups"],
+df_res_single_fam_flagged_updated = flg.group_size_adjustment(
+    df=df_res_single_fam_flagged,
+    stat_groups=inputs["stat_groups"]["single_family"],
+    min_threshold=inputs["min_groups_threshold"],
+    condos=False,
+)
+
+df_res_multi_fam_flagged_updated = flg.group_size_adjustment(
+    df=df_res_multi_fam_flagged,
+    stat_groups=inputs["stat_groups"]["multi_family"],
     min_threshold=inputs["min_groups_threshold"],
     condos=False,
 )
@@ -287,26 +564,32 @@ df_condo_flagged_updated = flg.group_size_adjustment(
     condos=True,
 )
 
-df_flagged_merged = pd.concat(
-    [df_res_flagged_updated, df_condo_flagged_updated]
-).reset_index(drop=True)
+# Disregard condos for now
+# df_flagged_merged = pd.concat(
+#    [df_res_flagged_updated, df_condo_flagged_updated]
+# ).reset_index(drop=True)
 
-# - - -
-# Connect code because of condo exclusion
-# - - -
-df_flagged_merged = df_res_flagged_updated
-# - - -
-# End - Connect code because of condo exclusion
-# - - -
-
+# Iterate through both ptac grousp
 # Update the PTAX flag column with an additional std dev conditional
-df_flagged_ptax = flg.ptax_adjustment(
-    df=df_flagged_merged, groups=inputs["stat_groups"], ptax_sd=inputs["ptax_sd"]
+df_res_single_fam_flagged_ptax = flg.ptax_adjustment(
+    df=df_res_single_fam_flagged_updated,
+    groups=inputs["stat_groups"]["single_family"],
+    ptax_sd=inputs["ptax_sd"],
 )
+
+df_res_multi_fam_flagged_ptax = flg.ptax_adjustment(
+    df=df_res_multi_fam_flagged_updated,
+    groups=inputs["stat_groups"]["multi_family"],
+    ptax_sd=inputs["ptax_sd"],
+)
+
+df_flagged_merged = pd.concat(
+    [df_res_single_fam_flagged_ptax, df_res_multi_fam_flagged_ptax]
+).reset_index(drop=True)
 
 # Finish flagging and subset to write to flag table
 df_to_write, run_id, timestamp = flg.finish_flags(
-    df=df_flagged_ptax,
+    df=df_flagged_merged,
     start_date=inputs["time_frame"]["start"],
     manual_update=False,
 )
