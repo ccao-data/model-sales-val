@@ -727,7 +727,7 @@ if __name__ == "__main__":
     NA_Dates AS (
         SELECT
             MIN(DATE_TRUNC('MONTH', sale.sale_date)) - INTERVAL '{rolling_window_num_sql}' MONTH AS StartDate,
-            MAX(DATE_TRUNC('MONTH', sale.sale_date) + INTERVAL '1 MONTH' - INTERVAL '1 DAY') AS EndDate
+            MAX(date_add('day', -1, date_add('month', 1, DATE_TRUNC('MONTH', sale.sale_date)))) AS EndDate
         FROM CombinedData data
         INNER JOIN default.vw_pin_sale sale
             ON sale.pin = data.pin
