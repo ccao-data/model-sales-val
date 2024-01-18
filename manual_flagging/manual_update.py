@@ -210,7 +210,7 @@ df_flagged_ptax_merged = pd.concat(
 df_flagged_final, run_id, timestamp = flg.finish_flags(
     df=df_flagged_ptax_merged,
     start_date=inputs["time_frame"]["start"],
-    manual_update=False,
+    manual_update=True,
 )
 
 # -----------------------------------------------------------------------------
