@@ -227,10 +227,13 @@ def finish_flags(df, start_date, manual_update):
             sv_is_outlier=lambda df: df["sv_is_autoval_outlier"]
             | df["ptax_flag_w_deviation"],
             # Incorporate PTAX in sv_outlier_type
-            sv_outlier_type=lambda df: np.where(
-                df["ptax_flag_w_deviation"],
-                "PTAX-203 flag",
-                df["sv_outlier_type"],
+            sv_outlier_type=lambda df: np.select(
+                [
+                    (df["ptax_flag_w_deviation"]) & (df["ptax_direction"] == "High"),
+                    (df["ptax_flag_w_deviation"]) & (df["ptax_direction"] == "Low"),
+                ],
+                ["PTAX-203 flag (High)", "PTAX-203 flag (Low)"],
+                default=df["sv_outlier_type"],
             ),
         )
         .assign(
