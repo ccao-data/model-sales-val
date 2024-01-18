@@ -2,11 +2,17 @@
 # which will (ideally) be run one time when we first populate the flagging
 # tables in Athena.
 ---
-stat_groups: [
-  "rolling_window",
-  "township_code",
-  "class"
-]
+stat_groups:
+  single_family:
+    - "rolling_window"
+    - "geography_split"
+    - "bldg_age_bin"
+    - "char_bldg_sf_bin"
+  multi_family:
+    - "rolling_window"
+    - "geography_split"
+    - "bldg_age_bin"
+
 
 iso_forest: [
   "meta_sale_price",
@@ -30,7 +36,7 @@ rolling_window_months: 12
 
 # PTAX flags are only kept if the raw or sqft price is at least this
 # many standard deviations away from the mean
-ptax_sd: [1.5, 1.5]
+ptax_sd: [1, 1]
 
 # Flags are only applied if there are at least this many sales in the group
 min_groups_threshold: 30
