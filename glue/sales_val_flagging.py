@@ -84,7 +84,7 @@ def add_rolling_window(df, num_months):
     return df
 
 
-def ptax_adjustment(df, groups, ptax_sd):
+def ptax_adjustment(df, groups, ptax_sd, condos: bool):
     """
     This function manually applies a ptax adjustment, keeping only
     ptax flags that are outside of a certain standard deviation
@@ -102,12 +102,35 @@ def ptax_adjustment(df, groups, ptax_sd):
 
     group_string = "_".join(groups)
 
-    df["ptax_flag_w_deviation"] = df["ptax_flag_original"] & (
-        (df[f"sv_price_deviation_{group_string}"] >= ptax_sd[1])
-        | (df[f"sv_price_deviation_{group_string}"] <= -ptax_sd[0])
-        | (df[f"sv_price_per_sqft_deviation_{group_string}"] >= ptax_sd[1])
-        | (df[f"sv_price_per_sqft_deviation_{group_string}"] <= -ptax_sd[0])
-    )
+    if condos == False:
+        df["ptax_flag_w_deviation"] = df["ptax_flag_original"] & (
+            (df[f"sv_price_deviation_{group_string}"] >= ptax_sd[1])
+            | (df[f"sv_price_deviation_{group_string}"] <= -ptax_sd[0])
+            | (df[f"sv_price_per_sqft_deviation_{group_string}"] >= ptax_sd[1])
+            | (df[f"sv_price_per_sqft_deviation_{group_string}"] <= -ptax_sd[0])
+        )
+
+        # Determine the ptax direction
+        conditions = [
+            (df[f"sv_price_deviation_{group_string}"] >= ptax_sd[1])
+            | (df[f"sv_price_per_sqft_deviation_{group_string}"] >= ptax_sd[1]),
+            (df[f"sv_price_deviation_{group_string}"] <= -ptax_sd[0])
+            | (df[f"sv_price_per_sqft_deviation_{group_string}"] <= -ptax_sd[0]),
+        ]
+    else:
+        df["ptax_flag_w_deviation"] = df["ptax_flag_original"] & (
+            (df[f"sv_price_deviation_{group_string}"] >= ptax_sd[1])
+            | (df[f"sv_price_deviation_{group_string}"] <= -ptax_sd[0])
+        )
+
+        # Determine the ptax direction
+        conditions = [
+            (df[f"sv_price_deviation_{group_string}"] >= ptax_sd[1]),
+            (df[f"sv_price_deviation_{group_string}"] <= -ptax_sd[0]),
+        ]
+
+    directions = ["High", "Low"]
+    df["ptax_direction"] = np.select(conditions, directions, default=np.nan)
 
     return df
 
@@ -846,18 +869,29 @@ if __name__ == "__main__":
             condos=True,
         )
 
-        df_flagged_merged = pd.concat(
-            [df_res_flagged_updated, df_condo_flagged_updated]
-        ).reset_index(drop=True)
-
         # Update the PTAX flag column with an additional std dev conditional
-        df_flagged_ptax = ptax_adjustment(
-            df=df_flagged_merged, groups=stat_groups_list, ptax_sd=ptax_sd_list
+        df_res_flagged_updated_ptax = ptax_adjustment(
+            df=df_res_flagged_updated,
+            groups=stat_groups_list,
+            ptax_sd=ptax_sd_list,
+            condos=False,
         )
 
-        # Finish flagging
+        # Update the PTAX flag column with an additional std dev conditional
+        df_condo_flagged_updated_ptax = ptax_adjustment(
+            df=df_condo_flagged_updated,
+            groups=condo_stat_groups,
+            ptax_sd=ptax_sd_list,
+            condos=True,
+        )
+
+        df_flagged_ptax_merged = pd.concat(
+            [df_res_flagged_updated_ptax, df_condo_flagged_updated_ptax]
+        ).reset_index(drop=True)
+
+        # Finish flagging and subset to write to flag table
         df_flagged_final, run_id, timestamp = finish_flags(
-            df=df_flagged_ptax,
+            df=df_flagged_ptax_merged,
             start_date=args["time_frame_start"],
             manual_update=False,
         )
