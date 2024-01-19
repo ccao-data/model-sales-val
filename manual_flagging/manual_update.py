@@ -186,22 +186,32 @@ df_condo_flagged_updated = flg.group_size_adjustment(
     condos=True,
 )
 
-df_flagged_merged = pd.concat(
-    [df_res_flagged_updated, df_condo_flagged_updated]
-).reset_index(drop=True)
-
-# Update the PTAX flag column with an additional std dev conditional
-df_flagged_ptax = flg.ptax_adjustment(
-    df=df_flagged_merged, groups=inputs["stat_groups"], ptax_sd=inputs["ptax_sd"]
+# Update the PTAX flag column with an additional std dev conditional w/ res groups
+df_res_flagged_updated_ptax = flg.ptax_adjustment(
+    df=df_res_flagged_updated,
+    groups=inputs["stat_groups"],
+    ptax_sd=inputs["ptax_sd"],
+    condos=False,
 )
+
+# Update the PTAX flag column with an additional std dev conditional w/ condo groups
+df_condo_flagged_updated_ptax = flg.ptax_adjustment(
+    df=df_condo_flagged_updated,
+    groups=condo_stat_groups,
+    ptax_sd=inputs["ptax_sd"],
+    condos=True,
+)
+
+df_flagged_ptax_merged = pd.concat(
+    [df_res_flagged_updated_ptax, df_condo_flagged_updated_ptax]
+).reset_index(drop=True)
 
 # Finish flagging and subset to write to flag table
 df_flagged_final, run_id, timestamp = flg.finish_flags(
-    df=df_flagged_ptax,
+    df=df_flagged_ptax_merged,
     start_date=inputs["time_frame"]["start"],
     manual_update=True,
 )
-
 
 # -----------------------------------------------------------------------------
 # Update version of re-flagged sales
