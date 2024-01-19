@@ -129,225 +129,38 @@ df["ptax_flag_original"].fillna(False, inplace=True)
 # Testing new ingest
 # - - -
 
+# Ingest groups
+df_new_groups = pd.read_excel(
+    "/home/miwagne/repos/ccao_sales_val/QC_salesval_nbhds_round2.xlsx",
+    usecols=["Town Nbhd", "Town Grp 1"],
+).rename(columns={"Town Nbhd": "nbhd", "Town Grp 1": "geography_split"})
+
+
 # Subset to only City Tri data
 df = df[df["township_code"].isin(["70", "71", "72", "73", "74", "75", "76", "77"])]
 
 # Pre-process res data
 df_res = df[df["indicator"] == "res"].reset_index(drop=True)
+
+df_res["nbhd"] = df_res["nbhd"].astype(int)
+df_res.nbhd
+df_new_groups.nbhd
+
+pd.merge(df_res, df_new_groups, on="nbhd", how="left")
+
+pd.merge(df_res, df_new_groups, on="nbhd", how="left").geography_split.value_counts(
+    dropna=False
+)
 # - - -
 # Create new geographies and building age features
 # - - -
-new_nbhd_splits = [
-    ["75031", "75032", "75033", "75060"],
-    ["75010", "75021", "75022", "75023", "75040"],
-    ["70260", "70260", "70260", "70260"],
-    ["70210", "70220", "70230", "70120", "70220", "70230", "70210", "70250"],
-    [
-        "70111",
-        "70111",
-        "70030",
-        "70111",
-        "70120",
-        "70111",
-        "70120",
-        "70121",
-        "70111",
-        "70120",
-        "70080",
-        "70080",
-        "70091",
-        "70170",
-    ],
-    ["70101", "70240", "70241", "70130", "70180", "70280", "70180"],
-    ["70080", "70130", "70151", "70100", "70140", "70130", "70151"],
-    ["70080", "70083", "70100", "70150"],
-    ["70070", "70080", "70120"],
-    ["70030", "70030", "70070"],
-    ["70030", "70030"],
-    ["70020", "70020", "70020"],
-    ["70010", "70020"],
-    ["70010"],
-    [
-        "76041",
-        "76030",
-        "76030",
-        "76042",
-        "76041",
-        "76041",
-        "76040",
-        "76042",
-        "76040",
-        "76041",
-        "76042",
-    ],
-    ["76011", "76012", "76011", "76011"],
-    ["76030", "76050"],
-    ["76060", "76060", "76060"],
-    [
-        "71021",
-        "71021",
-        "71463",
-        "71461",
-        "71410",
-        "71440",
-        "71022",
-        "71461",
-        "71560",
-        "71010",
-        "71060",
-        "71090",
-        "71101",
-        "71150",
-        "71402",
-        "71430",
-        "71010",
-        "71071",
-        "71580",
-        "71090",
-        "71101",
-        "71150",
-        "71171",
-        "71022",
-        "71030",
-        "71050",
-    ],
-    [
-        "71171",
-        "71200",
-        "71210",
-        "71250",
-        "71260",
-        "71280",
-        "71150",
-        "71200",
-        "71210",
-        "71250",
-        "71270",
-        "71280",
-        "71180",
-        "71520",
-        "71200",
-        "71270",
-        "71210",
-        "71200",
-        "71120",
-        "71120",
-        "71371",
-        "71371",
-        "71070",
-        "71120",
-        "71600",
-        "71150",
-        "71600",
-        "71371",
-        "71140",
-    ],
-    [
-        "71420",
-        "71440",
-        "71430",
-        "71390",
-        "71390",
-        "71430",
-        "71390",
-        "71361",
-        "71362",
-        "71560",
-    ],
-    ["71070", "71180", "71070", "71074"],
-    ["71110", "71110", "71082"],
-    ["71081", "71082", "71082", "71070", "71082", "71101", "71120", "71074"],
-    ["71041", "71050", "71042", "71050", "71050", "71042", "71030", "71041"],
-    ["74022", "74030", "74022", "74030", "74022", "74030", "74030", "74030"],
-    ["74011", "74022"],
-    ["74012", "74012", "74014", "74012", "74014", "74012"],
-    ["74013", "74013"],
-    ["73022", "73011", "73031", "73011"],
-    ["73093", "73093", "73063", "73093"],
-    ["73050", "73060", "73011", "73031", "73031", "73044", "73060", "73032", "73050"],
-    ["73031", "73012", "73050"],
-    [
-        "73081",
-        "73200",
-        "73012",
-        "73041",
-        "73041",
-        "73070",
-        "73081",
-        "73012",
-        "73032",
-        "73041",
-        "73042",
-        "73070",
-        "73081",
-    ],
-    [
-        "73084",
-        "73060",
-        "73062",
-        "73092",
-        "73159",
-        "73081",
-        "73084",
-        "73110",
-        "73120",
-        "73150",
-        "73200",
-    ],
-    ["77141", "77141", "77141", "77141", "77132", "77141"],
-    ["77011", "77013", "77013", "77080", "77011", "77020"],
-    ["77102", "77104", "77085", "77080", "77091", "77092", "77102", "77103"],
-    ["77060", "77152", "77170"],
-    ["77132", "77131", "77132", "77132", "77141", "77132"],
-    ["77115", "77091"],
-    ["77030", "77150", "77151"],
-    ["77052", "77101", "77103", "77120", "77131", "77120", "77051"],
-    ["77120", "77120", "77131", "77131", "77120"],
-    ["77020", "77030", "77040"],
-    ["77101", "77102", "77103", "77101", "77102"],
-    ["72052", "72092", "72293", "72092", "72293"],
-    ["72051", "72052", "72080", "72090", "72092", "72120"],
-    ["72030", "72061", "72350", "72361", "72040", "72070", "72361"],
-    ["72070", "72071", "72080", "72110", "72071", "72110", "72071", "72110", "72150"],
-    ["72151", "72191", "72200", "72200", "72200", "72151", "72200", "72230"],
-    ["72192", "72194", "72191", "72192", "72193", "72194", "72030", "72030", "72350"],
-    [
-        "72212",
-        "72282",
-        "72212",
-        "72221",
-        "72222",
-        "72223",
-        "72251",
-        "72282",
-        "72281",
-        "72282",
-        "72285",
-        "72282",
-        "72282",
-        "72321",
-        "72282",
-        "72260",
-        "72282",
-    ],
-    ["72091", "72092", "72130", "72170", "72171", "72121", "72171"],
-    ["72423", "72423", "72422", "72423", "72422", "72324", "72431", "72432", "72423"],
-    ["72274", "72300", "72312", "72323"],
-    ["72380", "72350", "72380", "72361", "72350"],
-    ["72271", "72274", "72274"],
-    ["72310", "72330", "72345", "72321", "72330", "72321", "72330"],
-    ["72170", "72260"],
-]
 
-# Create a new column with default value
-df_res["geography_split"] = None
+# Testing
 
-# Iterate over each list in the list of lists
-for i, lst in enumerate(new_nbhd_splits):
-    # Create a string by concatenating the elements of the list
-    group_name = ",".join(lst)
-    # Assign this string to rows where 'nbhd' value is in the current list
-    df_res.loc[df_res["nbhd"].isin(lst), "geography_split"] = group_name
+# df_old = pd.read_excel("/home/miwagne/repos/ccao_sales_val/manual_flagging/nbhd_groups.xlsx")
+# df_new = pd.read_excel("/home/miwagne/repos/ccao_sales_val/manual_flagging/nbhd_groupsv2.xlsx")
+
+df_res = pd.merge(df_res, df_new_groups, on="nbhd", how="left")
 
 # Calculate the building's age
 current_year = datetime.datetime.now().year
@@ -417,12 +230,12 @@ df_res_multi_fam["bldg_age_bin"] = pd.cut(
 
 # Separate res and condo sales based on the indicator column
 # df_res = df[df["indicator"] == "res"].reset_index(drop=True)
-df_condo = df[df["indicator"] == "condo"].reset_index(drop=True)
+# df_condo = df[df["indicator"] == "condo"].reset_index(drop=True)
 
 # Create condo stat groups. Condos are all collapsed into a single class,
 # since there are very few 297s or 399s
-condo_stat_groups = inputs["stat_groups"].copy()
-condo_stat_groups.remove("class")
+# condo_stat_groups = inputs["stat_groups"].copy()
+# condo_stat_groups.remove("class")
 
 # - - -
 # Create rolling windows
@@ -479,17 +292,52 @@ percentage_over_30(new_groups_multi_fam)
 new_groups_single_fam[new_groups_single_fam["count"] < 30]["count"].sum()
 new_groups_single_fam[new_groups_single_fam["count"] >= 30]["count"].sum()
 
+new_groups_single_fam_remove_2013 = new_groups_single_fam[
+    ~new_groups_single_fam["rolling_window"].astype(str).str.startswith("2013")
+]
+
+new_groups_multi_fam_remove_2013 = new_groups_multi_fam[
+    ~new_groups_multi_fam["rolling_window"].astype(str).str.startswith("2013")
+]
+
 # Filtering out non-important rolling window stats
-percentage_over_30(
-    new_groups_single_fam[
-        ~new_groups_single_fam["rolling_window"].astype(str).str.startswith("2013")
-    ]
-)
-percentage_over_30(
-    new_groups_multi_fam[
-        ~new_groups_multi_fam["rolling_window"].astype(str).str.startswith("2013")
-    ]
-)
+percentage_over_30(new_groups_single_fam_remove_2013)
+percentage_over_30(new_groups_multi_fam_remove_2013)
+
+# Check total number of sales within groups above and below 30
+new_groups_single_fam_remove_2013[new_groups_single_fam_remove_2013["count"] < 30][
+    "count"
+].sum()
+new_groups_single_fam_remove_2013[new_groups_single_fam_remove_2013["count"] >= 30][
+    "count"
+].sum()
+
+
+df_res_single_fam.char_bldg_sf_bin.value_counts()  # Check "above_2400"
+df_res_single_fam.bldg_age_bin.value_counts()  # Check "below_40_years"
+
+check_single_fam_above_2400_sf = new_groups_single_fam_remove_2013[
+    new_groups_single_fam_remove_2013.char_bldg_sf_bin == "above_2400"
+]
+check_single_fam_below_40_years = new_groups_single_fam_remove_2013[
+    new_groups_single_fam_remove_2013.bldg_age_bin == "below_40_years"
+]
+
+# Check total number of sales within groups above and below 30
+check_single_fam_above_2400_sf[check_single_fam_above_2400_sf["count"] < 30][
+    "count"
+].sum()
+check_single_fam_above_2400_sf[check_single_fam_above_2400_sf["count"] >= 30][
+    "count"
+].sum()
+
+check_single_fam_below_40_years[check_single_fam_below_40_years["count"] < 30][
+    "count"
+].sum()
+check_single_fam_below_40_years[check_single_fam_below_40_years["count"] >= 30][
+    "count"
+].sum()
+
 
 # Saving the DataFrame to an Excel file
 new_groups_single_fam[
