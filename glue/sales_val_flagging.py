@@ -102,7 +102,7 @@ def ptax_adjustment(df, groups, ptax_sd, condos: bool):
 
     group_string = "_".join(groups)
 
-    if condos == False:
+    if not condos:
         df["ptax_flag_w_deviation"] = df["ptax_flag_original"] & (
             (df[f"sv_price_deviation_{group_string}"] >= ptax_sd[1])
             | (df[f"sv_price_deviation_{group_string}"] <= -ptax_sd[0])
