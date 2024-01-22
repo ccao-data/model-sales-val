@@ -230,7 +230,11 @@ df_res_multi_fam["bldg_age_bin"] = pd.cut(
 
 # Separate res and condo sales based on the indicator column
 # df_res = df[df["indicator"] == "res"].reset_index(drop=True)
-# df_condo = df[df["indicator"] == "condo"].reset_index(drop=True)
+df_condo = df[df["indicator"] == "condo"].reset_index(drop=True)
+df_condo["nbhd"] = df_condo["nbhd"].replace("77-13", "770130")
+
+df_condo["nbhd"] = df_condo["nbhd"].astype(int)
+df_condo = pd.merge(df_condo, df_new_groups, on="nbhd", how="left")
 
 # Create condo stat groups. Condos are all collapsed into a single class,
 # since there are very few 297s or 399s
@@ -348,12 +352,55 @@ new_groups_multi_fam[
 ].to_excel("multi_fam_v0.xlsx", index=False)
 
 # - - -
-# End Check for counts
+# End Check for res counts
 # - - -
 
 df_condo_to_flag = flg.add_rolling_window(
     df_condo, num_months=inputs["rolling_window_months"]
 )
+# - - - - - - -
+# Check counts for condos
+# - - - - - - -
+new_groups_condos = (
+    df_condo_to_flag.groupby(["geography_split", "rolling_window"])
+    .agg(
+        count=("geography_split", "size"),
+        median_sale_price=("meta_sale_price", "median"),
+    )
+    .reset_index()
+)
+new_groups_condos = new_groups_condos[
+    ~new_groups_condos["rolling_window"].astype(str).str.startswith("2013")
+]
+
+new_groups_condos.sort_values(by="count", ascending=True)
+
+# Check percentage of groups over 30
+percentage_over_30(new_groups_condos)
+
+# Check total number of sales within groups above and below 30
+new_groups_condos[new_groups_condos["count"] < 30]["count"].sum()
+new_groups_condos[new_groups_condos["count"] >= 30]["count"].sum()
+
+new_groups_condos[
+    (new_groups_condos["count"] < 30) & (new_groups_condos["rolling_window"] == 201811)
+]["count"].sum()
+
+new_groups_condos[
+    (new_groups_condos["count"] >= 30) & (new_groups_condos["rolling_window"] == 201811)
+]["count"].sum()
+
+(
+    new_groups_condos[new_groups_condos["rolling_window"] == 201811]
+    .reset_index(drop=True)
+    .sort_values(by="count", ascending=True)
+)
+
+# - - - - - -
+# End condo groups checking
+# - - - - - -
+
+
 # - - -
 # Separate flagging for both
 # - - -
@@ -397,6 +444,8 @@ df_res_multi_fam_flagged_updated = flg.group_size_adjustment(
 condo_iso_forest = inputs["iso_forest"].copy()
 condo_iso_forest.remove("sv_price_per_sqft")
 
+condo_stat_groups = ["rolling_window", "geography_split"]
+
 df_condo_flagged = flg_model.go(
     df=df_condo_to_flag,
     groups=tuple(condo_stat_groups),
@@ -411,6 +460,14 @@ df_condo_flagged_updated = flg.group_size_adjustment(
     min_threshold=inputs["min_groups_threshold"],
     condos=True,
 )
+
+df_condo_flagged_ptax = flg.ptax_adjustment(
+    df=df_condo_flagged_updated,
+    groups=condo_stat_groups,
+    ptax_sd=inputs["ptax_sd"],
+    condo=True,
+)
+
 
 # Disregard condos for now
 # df_flagged_merged = pd.concat(
@@ -437,7 +494,7 @@ df_flagged_merged = pd.concat(
 
 # Finish flagging and subset to write to flag table
 df_to_write, run_id, timestamp = flg.finish_flags(
-    df=df_flagged_merged,
+    df=df_condo_flagged_ptax,
     start_date=inputs["time_frame"]["start"],
     manual_update=False,
 )

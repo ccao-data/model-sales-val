@@ -84,7 +84,7 @@ def add_rolling_window(df, num_months):
     return df
 
 
-def ptax_adjustment(df, groups, ptax_sd):
+def ptax_adjustment(df, groups, ptax_sd, condos: bool):
     """
     This function manually applies a ptax adjustment, keeping only
     ptax flags that are outside of a certain standard deviation
@@ -102,20 +102,33 @@ def ptax_adjustment(df, groups, ptax_sd):
 
     group_string = "_".join(groups)
 
-    df["ptax_flag_w_deviation"] = df["ptax_flag_original"] & (
-        (df[f"sv_price_deviation_{group_string}"] >= ptax_sd[1])
-        | (df[f"sv_price_deviation_{group_string}"] <= -ptax_sd[0])
-        | (df[f"sv_price_per_sqft_deviation_{group_string}"] >= ptax_sd[1])
-        | (df[f"sv_price_per_sqft_deviation_{group_string}"] <= -ptax_sd[0])
-    )
+    if not condos:
+        df["ptax_flag_w_deviation"] = df["ptax_flag_original"] & (
+            (df[f"sv_price_deviation_{group_string}"] >= ptax_sd[1])
+            | (df[f"sv_price_deviation_{group_string}"] <= -ptax_sd[0])
+            | (df[f"sv_price_per_sqft_deviation_{group_string}"] >= ptax_sd[1])
+            | (df[f"sv_price_per_sqft_deviation_{group_string}"] <= -ptax_sd[0])
+        )
 
-    # Determine the ptax direction
-    conditions = [
-        (df[f"sv_price_deviation_{group_string}"] >= ptax_sd[1])
-        | (df[f"sv_price_per_sqft_deviation_{group_string}"] >= ptax_sd[1]),
-        (df[f"sv_price_deviation_{group_string}"] <= -ptax_sd[0])
-        | (df[f"sv_price_per_sqft_deviation_{group_string}"] <= -ptax_sd[0]),
-    ]
+        # Determine the ptax direction
+        conditions = [
+            (df[f"sv_price_deviation_{group_string}"] >= ptax_sd[1])
+            | (df[f"sv_price_per_sqft_deviation_{group_string}"] >= ptax_sd[1]),
+            (df[f"sv_price_deviation_{group_string}"] <= -ptax_sd[0])
+            | (df[f"sv_price_per_sqft_deviation_{group_string}"] <= -ptax_sd[0]),
+        ]
+    else:
+        df["ptax_flag_w_deviation"] = df["ptax_flag_original"] & (
+            (df[f"sv_price_deviation_{group_string}"] >= ptax_sd[1])
+            | (df[f"sv_price_deviation_{group_string}"] <= -ptax_sd[0])
+        )
+
+        # Determine the ptax direction
+        conditions = [
+            (df[f"sv_price_deviation_{group_string}"] >= ptax_sd[1]),
+            (df[f"sv_price_deviation_{group_string}"] <= -ptax_sd[0]),
+        ]
+
     directions = ["High", "Low"]
     df["ptax_direction"] = np.select(conditions, directions, default=np.nan)
 
