@@ -48,6 +48,7 @@ WITH CombinedData AS (
         res.class AS class,
         res.township_code AS township_code,
         res.year AS year,
+        res.char_yrblt as yrblt,
         res.pin AS pin,
         res.char_bldg_sf AS char_bldg_sf,
         res.pin_is_multicard
@@ -66,6 +67,7 @@ WITH CombinedData AS (
         condo.class AS class,
         condo.township_code AS township_code,
         condo.year AS year,
+        NULL AS yrblt,
         condo.pin AS pin,
         NULL AS char_bldg_sf,
         FALSE AS pin_is_multicard
@@ -85,6 +87,7 @@ SELECT
     sale.sale_filter_ptax_flag AS ptax_flag_original,
     data.class,
     data.township_code,
+    data.yrblt,
     data.year,
     data.pin,
     data.char_bldg_sf,
@@ -142,17 +145,20 @@ tri_stat_groups = {
     if tri in inputs["run_tri"]
 }
 
+# Create age column if we will need it later on
+if "current" in tri_stat_groups.values():
+    # Calculate the building's age
+    current_year = datetime.datetime.now().year
+    df["bldg_age"] = current_year - df["yrblt"]
+
+
 dfs_to_feature_creation = {}  # Dictionary to store DataFrames
 
 for tri, method in tri_stat_groups.items():
     print(tri, method)
 
     # Iterate over markets
-    for market in [
-        market
-        for market in inputs["stat_groups"]["current"]
-        if market in inputs["housing_run_type"]
-    ]:
+    for market in inputs["housing_run_type"]:
         if method == "current":
             key = f"df_tri{tri}_{market}_current"
             # Filter by triad code and market type
@@ -176,8 +182,106 @@ for tri, method in tri_stat_groups.items():
 
             df_res_og_mansueto = df[(df["indicator"] == "res") & triad_code_filter]
             df_condo_og_mansueto = df[(df["indicator"] == "condo") & triad_code_filter]
+
+            # Append these DataFrames to the dictionary
+            key_res = f"df_res_og_mansueto"
+            key_condo = f"df_condo_og_mansueto"
+            dfs_to_feature_creation[key_res] = df_res_og_mansueto
+            dfs_to_feature_creation[key_condo] = df_condo_og_mansueto
             break
 
+# check names
+for key in dfs_to_feature_creation:
+    print(key)
+
+# - - - - - - -
+# make features
+# - - - - - - -
+
+
+def create_bins_and_labels(input_list):
+    # Initialize bins with 0 and float("inf")
+    bins = [0] + input_list + [float("inf")]
+
+    # Generate labels based on bins
+    labels = []
+    for i in range(len(bins) - 1):
+        if i == 0:
+            labels.append(f"below_{bins[i+1]}")
+        elif i == len(bins) - 2:
+            labels.append(f"above_{bins[i]}")
+        else:
+            labels.append(f"{bins[i]}_to_{bins[i+1]}")
+
+    return bins, labels
+
+
+# Iterate through loop and correctly create columns that are used for statistical grouping
+dfs_to_rolling_window = {}
+for df_name, df in dfs_to_feature_creation.items():
+    # Make a copy of the data frame to edit
+    df_copy = df.copy()
+
+    if "current" in df_name:
+        print("current")
+
+        if "res_single_family" in df_name:
+            # Bin sf
+            char_bldg_sf_bins, char_bldg_sf_labels = create_bins_and_labels(
+                inputs["stat_groups"]["current"]["res_single_family"][
+                    "sf_bin_specification"
+                ]
+            )
+            df_copy["char_bldg_sf_bin"] = pd.cut(
+                df_copy["char_bldg_sf"],
+                bins=char_bldg_sf_bins,
+                labels=char_bldg_sf_labels,
+            )
+            # Define bins for building age
+            bldg_age_bins, bldg_age_labels = create_bins_and_labels(
+                inputs["stat_groups"]["current"]["res_single_family"][
+                    "age_bin_specification"
+                ]
+            )
+            df_copy["bldg_age_bin"] = pd.cut(
+                df_copy["bldg_age"],
+                bins=char_bldg_sf_bins,
+                labels=char_bldg_sf_labels,
+            )
+
+        if "res_multi_family" in df_name:
+            # Define bins for building age
+            bldg_age_bins, bldg_age_labels = create_bins_and_labels(
+                inputs["stat_groups"]["current"]["res_multi_family"][
+                    "age_bin_specification"
+                ]
+            )
+            df_copy["bldg_age_bin"] = pd.cut(
+                df_copy["bldg_age"],
+                bins=char_bldg_sf_bins,
+                labels=char_bldg_sf_labels,
+            )
+            pass
+
+        if "condos" in df_name:
+            pass
+
+    elif "og_mansueto" in df_name:
+        print("og_mansueto")
+        if "res" in df_name:
+            # Process residential data here on df_copy
+            pass
+
+        if "condos" in df_name:
+            pass
+
+    # Add the edited or unedited dataframe to the new dictionary
+    dfs_to_rolling_window[df_name] = df_copy
+
+
+# Make rolling window
+#
+#
 
 # Create rolling windows
 df_res_to_flag = flg.add_rolling_window(
@@ -186,6 +290,7 @@ df_res_to_flag = flg.add_rolling_window(
 df_condo_to_flag = flg.add_rolling_window(
     df_condo, num_months=inputs["rolling_window_months"]
 )
+
 
 # Flag outliers using the main flagging model
 df_res_flagged = flg_model.go(

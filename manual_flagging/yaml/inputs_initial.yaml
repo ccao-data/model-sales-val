@@ -4,7 +4,7 @@
 ---
 
 # This value can either be 'res_single_family', 'res_multi_family',
-# 'condos', or 'og_mansueto'
+# 'condos'
 housing_run_type: ["res_single_family", "res_multi_family", "condos"]
 
 stat_groups:
@@ -83,11 +83,11 @@ run_tri: [1, 2, 3]
 
 tri_stat_groups:
   # city
-  1: current
+  1: "current"
   # north
-  2: og_mansueto
+  2: "og_mansueto"
   # south
-  3: og_mansueto
+  3: "og_mansueto"
 
 iso_forest: [
   "meta_sale_price",
