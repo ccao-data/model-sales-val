@@ -84,6 +84,7 @@ SELECT
     sale.doc_no AS meta_sale_document_num,
     sale.seller_name AS meta_sale_seller_name,
     sale.buyer_name AS meta_sale_buyer_name,
+    sale.nbhd as nbhd,
     sale.sale_filter_ptax_flag AS ptax_flag_original,
     data.class,
     data.township_code,
@@ -145,11 +146,19 @@ tri_stat_groups = {
     if tri in inputs["run_tri"]
 }
 
-# Create age column if we will need it later on
+# Handle current methodology data manipulation if needed
 if "current" in tri_stat_groups.values():
     # Calculate the building's age
     current_year = datetime.datetime.now().year
     df["bldg_age"] = current_year - df["yrblt"]
+
+    # Ingest new geographic groups
+    df_new_groups = pd.read_excel(
+        os.path.join(root, "QC_salesval_nbhds_round2.xlsx"),
+        usecols=["Town Nbhd", "Town Grp 1"],
+    ).rename(columns={"Town Nbhd": "nbhd", "Town Grp 1": "geography_split"})
+
+    df = pd.merge(df, df_new_groups, on="nbhd", how="left")
 
 
 dfs_to_feature_creation = {}  # Dictionary to store DataFrames
