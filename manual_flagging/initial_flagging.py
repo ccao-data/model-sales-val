@@ -88,11 +88,15 @@ SELECT
     data.year,
     data.pin,
     data.char_bldg_sf,
-    data.indicator  -- Selecting the indicator column
+    data.indicator,
+    universe.triad_code 
 FROM CombinedData data
 INNER JOIN default.vw_pin_sale sale
     ON sale.pin = data.pin
     AND sale.year = data.year
+INNER JOIN "default"."vw_pin_universe" universe 
+    ON universe.pin = data.pin
+    AND universe.year = data.year
 WHERE {sql_time_frame}
 AND NOT sale.sale_filter_same_sale_within_365
 AND NOT sale.sale_filter_less_than_10k
@@ -102,6 +106,7 @@ AND (
     NOT data.pin_is_multicard
     OR data.source_table = 'condo_char'
 )
+
 """
 
 
@@ -143,30 +148,36 @@ for tri, method in tri_stat_groups.items():
     print(tri, method)
 
     # Iterate over markets
-    # TODO: here make filter on housing markets
-    for market in inputs["stat_groups"]["current"]:
+    for market in [
+        market
+        for market in inputs["stat_groups"]["current"]
+        if market in inputs["housing_run_type"]
+    ]:
         if method == "current":
-            key = f"df_tri{tri}_{market}"
-            dfs_to_feature_creation[key] = df[
-                df["class"].isin(
-                    inputs["stat_groups"]["current"][market]["class_filter"]
-                )
+            key = f"df_tri{tri}_{market}_current"
+            # Filter by triad code and market type
+            triad_code_filter = df["triad_code"] == str(tri)
+            market_filter = df["class"].isin(
+                inputs["stat_groups"]["current"][market]["class_filter"]
+            )
+
+            # Combine filters
+            dfs_to_feature_creation[key] = df[triad_code_filter & market_filter]
+
+        elif method == "og_mansueto":
+            # Collect all mansueto tris
+            mansueto_tris_to_flag = [
+                str(key)
+                for key, value in tri_stat_groups.items()
+                if value == "og_mansueto"
             ]
+            # Filter by triad code and market type
+            triad_code_filter = ~df["triad_code"].isin(mansueto_tris_to_flag)
 
+            df_res_og_mansueto = df[(df["indicator"] == "res") & triad_code_filter]
+            df_condo_og_mansueto = df[(df["indicator"] == "condo") & triad_code_filter]
+            break
 
-#
-# feature creation
-#
-
-
-# Separate res and condo sales based on the indicator column
-df_res = df[df["indicator"] == "res"].reset_index(drop=True)
-df_condo = df[df["indicator"] == "condo"].reset_index(drop=True)
-
-# Create condo stat groups. Condos are all collapsed into a single class,
-# since there are very few 297s or 399s
-condo_stat_groups = inputs["stat_groups"].copy()
-condo_stat_groups.remove("class")
 
 # Create rolling windows
 df_res_to_flag = flg.add_rolling_window(

@@ -5,7 +5,7 @@
 
 # This value can either be 'res_single_family', 'res_multi_family',
 # 'condos', or 'og_mansueto'
-housing_run_type: ["res_single_family"]
+housing_run_type: ["res_single_family", "res_multi_family", "condos"]
 
 stat_groups:
   current:
@@ -51,15 +51,33 @@ stat_groups:
         - "rolling_window"
         - "township_code"
         - "class"
+      class_filter: [
+        "202",
+        "203",
+        "204",
+        "205",
+        "206",
+        "207",
+        "208",
+        "209",
+        "210",
+        "218",
+        "219",
+        "234",
+        "278",
+        "295"
+      ]
     res_multi_family:
       columns:
         - "rolling_window"
         - "township_code"
         - "class"
+      class_filter: ["211", "212"]
     condos:
       columns:
         - "rolling_window"
         - "township_code"
+      class_filter: ["297", "299", "399"]
 
 run_tri: [1, 2, 3]
 
