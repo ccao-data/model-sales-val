@@ -2,11 +2,74 @@
 # which will (ideally) be run one time when we first populate the flagging
 # tables in Athena.
 ---
-stat_groups: [
-  "rolling_window",
-  "township_code",
-  "class"
-]
+
+# This value can either be 'res_single_family', 'res_multi_family',
+# 'condos', or 'og_mansueto'
+housing_run_type: ["res_single_family"]
+
+stat_groups:
+  current:
+    res_single_family:
+      columns:
+        - "rolling_window"
+        - "geography_split"
+        - "bldg_age_bin"
+        - "char_bldg_sf_bin"
+      sf_bin_specification: [1200, 2400]
+      age_bin_specification: [40]
+      class_filter: [
+        "202",
+        "203",
+        "204",
+        "205",
+        "206",
+        "207",
+        "208",
+        "209",
+        "210",
+        "218",
+        "219",
+        "234",
+        "278",
+        "295"
+      ]
+    res_multi_family:
+      columns:
+        - "rolling_window"
+        - "geography_split"
+        - "bldg_age_bin"
+      age_bin_specification: [20]
+      class_filter: ["211", "212"]
+    condos:
+      columns:
+        - "rolling_window"
+        - "geography_split"
+      class_filter: ["297", "299", "399"]
+  og_mansueto:
+    res_single_family:
+      columns:
+        - "rolling_window"
+        - "township_code"
+        - "class"
+    res_multi_family:
+      columns:
+        - "rolling_window"
+        - "township_code"
+        - "class"
+    condos:
+      columns:
+        - "rolling_window"
+        - "township_code"
+
+run_tri: [1, 2, 3]
+
+tri_stat_groups:
+  # city
+  1: current
+  # north
+  2: og_mansueto
+  # south
+  3: og_mansueto
 
 iso_forest: [
   "meta_sale_price",

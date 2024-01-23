@@ -121,6 +121,44 @@ conversion_dict = {
 df = df.astype(conversion_dict)
 df["ptax_flag_original"].fillna(False, inplace=True)
 
+
+# - - - - - - - - -
+# Development
+# - - - - - - - - -
+
+#
+# Make correct filters
+#
+
+# Filter to correct tris
+tri_stat_groups = {
+    tri: method
+    for tri, method in inputs["tri_stat_groups"].items()
+    if tri in inputs["run_tri"]
+}
+
+dfs_to_feature_creation = {}  # Dictionary to store DataFrames
+
+for tri, method in tri_stat_groups.items():
+    print(tri, method)
+
+    # Iterate over markets
+    # TODO: here make filter on housing markets
+    for market in inputs["stat_groups"]["current"]:
+        if method == "current":
+            key = f"df_tri{tri}_{market}"
+            dfs_to_feature_creation[key] = df[
+                df["class"].isin(
+                    inputs["stat_groups"]["current"][market]["class_filter"]
+                )
+            ]
+
+
+#
+# feature creation
+#
+
+
 # Separate res and condo sales based on the indicator column
 df_res = df[df["indicator"] == "res"].reset_index(drop=True)
 df_condo = df[df["indicator"] == "condo"].reset_index(drop=True)
