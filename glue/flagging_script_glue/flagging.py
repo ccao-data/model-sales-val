@@ -95,7 +95,8 @@ def outlier_taxonomy(df: pd.DataFrame, permut: tuple, groups: tuple, condos: boo
 
 def iso_forest(df, groups, columns, n_estimators=1000, max_samples=0.2):
     """
-    Modified iso_forest function with label encoding for the 'geography_split' group.
+    Modified iso_forest function with label encoding for the 'geography_split' group
+    and restoration of original values before returning the dataframe.
     """
     # Set index
     df.set_index("meta_sale_document_num", inplace=True)
@@ -129,6 +130,10 @@ def iso_forest(df, groups, columns, n_estimators=1000, max_samples=0.2):
         ["Outlier", "Not Outlier"],
         default="Not Outlier",
     )
+
+    # Restore original values for encoded columns
+    for group, le in label_encoders.items():
+        df[group] = le.inverse_transform(df[group])
 
     # Reset index
     df.reset_index(inplace=True)

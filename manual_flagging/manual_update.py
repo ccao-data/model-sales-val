@@ -226,23 +226,6 @@ df_res_multi_fam["bldg_age_bin"] = pd.cut(
 # Create rolling windows
 # - - -
 
-#
-# test something
-#
-"""
-from sklearn.preprocessing import LabelEncoder
-
-# Initialize LabelEncoder
-le = LabelEncoder()
-
-# Fit and transform the data
-df_res_multi_fam['Encoded_Category'] = le.fit_transform(df_res_multi_fam['geography_split'])
-df_res_multi_fam[["Encoded_Category", "geography_split"]]
-#
-#
-#
-"""
-
 # Rolling window for single family
 df_res_single_fam_to_flag = flg.add_rolling_window(
     df_res_single_fam, num_months=inputs["rolling_window_months"]
@@ -252,7 +235,6 @@ df_res_single_fam_to_flag = flg.add_rolling_window(
 df_res_multi_fam_to_flag = flg.add_rolling_window(
     df_res_multi_fam, num_months=inputs["rolling_window_months"]
 )
-
 # - - -
 # Separate flagging for both
 # - - -
@@ -297,12 +279,14 @@ df_res_single_fam_flagged_ptax = flg.ptax_adjustment(
     df=df_res_single_fam_flagged_updated,
     groups=inputs["stat_groups"]["single_family"],
     ptax_sd=inputs["ptax_sd"],
+    condos=False,
 )
 
 df_res_multi_fam_flagged_ptax = flg.ptax_adjustment(
     df=df_res_multi_fam_flagged_updated,
     groups=inputs["stat_groups"]["multi_family"],
     ptax_sd=inputs["ptax_sd"],
+    condos=False,
 )
 
 df_flagged_merged = pd.concat(
@@ -355,7 +339,7 @@ df_parameters = flg.get_parameter_df(
     df_ingest=df_ingest,
     iso_forest_cols=inputs["iso_forest"],
     res_stat_groups=inputs["stat_groups"],
-    condo_stat_groups=condo_stat_groups,
+    condo_stat_groups=pd.NA,
     dev_bounds=inputs["dev_bounds"],
     ptax_sd=inputs["ptax_sd"],
     rolling_window=inputs["rolling_window_months"],
@@ -364,7 +348,7 @@ df_parameters = flg.get_parameter_df(
     min_group_thresh=inputs["min_groups_threshold"],
     run_id=run_id,
 )
-
+"""
 # Standardize dtypes to prevent Athena errors
 df_parameters = flg.modify_dtypes(df_parameters)
 
@@ -374,36 +358,43 @@ flg.write_to_table(
     s3_warehouse_bucket_path=os.getenv("AWS_S3_WAREHOUSE_BUCKET"),
     run_id=run_id,
 )
-
+"""
 # Write to sale.group_mean table
-df_res_group_mean = flg.get_group_mean_df(
-    df=df_res_flagged, stat_groups=inputs["stat_groups"], run_id=run_id, condos=False
+df_res_single_fam_group_mean = flg.get_group_mean_df(
+    df=df_res_single_fam_flagged,
+    stat_groups=inputs["stat_groups"]["single_family"],
+    run_id=run_id,
+    condos=False,
 )
 
-df_condo_group_mean = flg.get_group_mean_df(
-    df=df_condo_flagged, stat_groups=condo_stat_groups, run_id=run_id, condos=True
+df_res_multi_group_mean = flg.get_group_mean_df(
+    df=df_res_multi_fam_flagged,
+    stat_groups=inputs["stat_groups"]["multi_family"],
+    run_id=run_id,
+    condos=True,
 )
 
-df_group_mean_merged = pd.concat([df_res_group_mean, df_condo_group_mean]).reset_index(
-    drop=True
-)
-
+df_group_mean_merged = pd.concat(
+    [df_res_single_fam_group_mean, df_res_multi_group_mean]
+).reset_index(drop=True)
+"""
 flg.write_to_table(
     df=df_group_mean_merged,
     table_name="group_mean",
     s3_warehouse_bucket_path=os.getenv("AWS_S3_WAREHOUSE_BUCKET"),
     run_id=run_id,
 )
-
+"""
 # Write to sale.metadata table
 commit_sha = sp.getoutput("git rev-parse HEAD")
 df_metadata = flg.get_metadata_df(
     run_id=run_id, timestamp=timestamp, run_type="manual_update", commit_sha=commit_sha
 )
-
+"""
 flg.write_to_table(
     df=df_metadata,
     table_name="metadata",
     s3_warehouse_bucket_path=os.getenv("AWS_S3_WAREHOUSE_BUCKET"),
     run_id=run_id,
 )
+"""
