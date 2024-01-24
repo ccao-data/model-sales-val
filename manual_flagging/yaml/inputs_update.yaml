@@ -1,11 +1,16 @@
 # This file contains relevant inputs for the manual_update.py script.
 # We use these inputs when we want to re-flag already flagged sales.
 ---
-stat_groups: [
-  "rolling_window",
-  "township_code",
-  "class"
-]
+stat_groups:
+  single_family:
+    - "rolling_window"
+    - "geography_split"
+    - "bldg_age_bin"
+    - "char_bldg_sf_bin"
+  multi_family:
+    - "rolling_window"
+    - "geography_split"
+    - "bldg_age_bin"
 
 iso_forest: [
   "meta_sale_price",
@@ -21,15 +26,15 @@ dev_bounds: [2, 2]
 # sale.flag table. Leave 'end' blank if we want to flag all sales
 # since the start date
 time_frame:
-  start: "2019-01-01"
-  end: "2021-12-31"
+  start: "2014-01-01"
+  end:
 
 # How many total months to include in the grouping methodology
 rolling_window_months: 12
 
 # PTAX flags are only kept if the raw or sqft price is at least this
 # many standard deviations away from the mean
-ptax_sd: [1, 1]
+ptax_sd: [1.5, 1.5]
 
 # Flags are only applied if there are at least this many sales in the group
 min_groups_threshold: 30

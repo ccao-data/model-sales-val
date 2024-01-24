@@ -9,6 +9,7 @@ import pandas as pd
 
 from scipy.stats import zscore
 from sklearn.ensemble import IsolationForest
+from sklearn.preprocessing import LabelEncoder
 from sklearn.decomposition import PCA
 
 SHORT_TERM_OWNER_THRESHOLD = 365  # 365 = 365 days or 1 year
@@ -92,36 +93,28 @@ def outlier_taxonomy(df: pd.DataFrame, permut: tuple, groups: tuple, condos: boo
     return df
 
 
-def iso_forest(
-    df: pd.DataFrame,
-    groups: tuple,
-    columns: list,
-    n_estimators: int = 1000,
-    max_samples: int or float = 0.2,
-) -> pd.DataFrame:
+def iso_forest(df, groups, columns, n_estimators=1000, max_samples=0.2):
     """
-    Runs an isolation forest model on our data for outlier detection.
-    First does PCA, then, attaches township/class info, and then runs the
-    IsoForest model with given parameters.
-    Inputs:
-        df (pd.DataFrame): dataframe with data for IsoForest
-        groups (tuple): grouping for the data to input into the IsoForest
-        columns (list): list with columns to run PCA/IsoForest on
-        n_estimators (int): number of estimators in IsoForest
-        max_samples(int or float): share of data to use as sample if float,
-                                   number to use if int
-    Outputs:
-        df (pd.DataFrame): with 'sv_anomaly' column from IsoForest.
+    Modified iso_forest function with label encoding for the 'geography_split' group.
     """
-
+    # Set index
     df.set_index("meta_sale_document_num", inplace=True)
 
+    # Perform PCA (assuming pca is a predefined function)
     feed = pca(df, columns)
 
     feed.index = df.index
+
+    # Label encode non-numeric groups
+    label_encoders = {}
     for group in groups:
+        if df[group].dtype not in ["int64", "float64", "int32", "float32"]:
+            le = LabelEncoder()
+            df[group] = le.fit_transform(df[group])
+            label_encoders[group] = le  # Store the encoder if needed later
         feed[group] = df[group]
 
+    # Initialize and fit the Isolation Forest
     isof = IsolationForest(
         n_estimators=n_estimators,
         max_samples=max_samples,
@@ -130,12 +123,14 @@ def iso_forest(
     )
     df["sv_anomaly"] = isof.fit_predict(feed)
 
+    # Assign labels for anomalies
     df["sv_anomaly"] = np.select(
         [(df["sv_anomaly"] == -1), (df["sv_anomaly"] == 1)],
         ["Outlier", "Not Outlier"],
         default="Not Outlier",
     )
 
+    # Reset index
     df.reset_index(inplace=True)
 
     return df
