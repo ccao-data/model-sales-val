@@ -237,6 +237,8 @@ for df_name, df in dfs_to_feature_creation.items():
 
         if "res_single_family" in df_name:
             # Bin sf
+            print("Start making bins")
+            print(df_copy)
             char_bldg_sf_bins, char_bldg_sf_labels = create_bins_and_labels(
                 inputs["stat_groups"]["current"]["res_single_family"][
                     "sf_bin_specification"
@@ -258,7 +260,8 @@ for df_name, df in dfs_to_feature_creation.items():
                 bins=char_bldg_sf_bins,
                 labels=char_bldg_sf_labels,
             )
-
+            print("Finish bins")
+            print(df_copy)
         if "res_multi_family" in df_name:
             # Define bins for building age
             bldg_age_bins, bldg_age_labels = create_bins_and_labels(
@@ -288,18 +291,93 @@ for df_name, df in dfs_to_feature_creation.items():
     # Add the edited or unedited dataframe to the new dictionary
     dfs_to_rolling_window[df_name] = df_copy
 
-
+# - - - - - -
 # Make rolling window
-#
-#
+# - - - - - -
 
-# Create rolling windows
-df_res_to_flag = flg.add_rolling_window(
-    df_res, num_months=inputs["rolling_window_months"]
-)
-df_condo_to_flag = flg.add_rolling_window(
-    df_condo, num_months=inputs["rolling_window_months"]
-)
+dfs_to_flag = {}
+
+for df_name, df in dfs_to_rolling_window.items():
+    print(f"Assigning rolling window for {df_name}")
+    df_copy = df.copy()
+
+    df_copy = flg.add_rolling_window(
+        df_copy, num_months=inputs["rolling_window_months"]
+    )
+    dfs_to_flag[df_name] = df_copy
+
+
+# - - - - -
+# Flag Sales
+# - - - - -
+
+# check names
+for key in dfs_to_flag:
+    print(key)
+
+dfs_flagged = {}
+
+for df_name, df in dfs_to_flag.items():
+    # Make a copy of the data frame to edit
+    print(f"Flagging sales for {df_name}")
+    df = df.copy()
+
+    if "current" in df_name:
+        if "res_single_family" in df_name:
+            df = flg_model.go(
+                df=df,
+                groups=tuple(
+                    inputs["stat_groups"]["current"]["res_single_family"]["columns"]
+                ),
+                iso_forest_cols=inputs["iso_forest"],
+                dev_bounds=tuple(inputs["dev_bounds"]),
+                condos=False,
+            )
+
+        if "res_multi_family" in df_name:
+            # Define bins for building age
+            df = flg_model.go(
+                df=df,
+                groups=tuple(
+                    inputs["stat_groups"]["current"]["res_multi_family"]["columns"]
+                ),
+                iso_forest_cols=inputs["iso_forest"],
+                dev_bounds=tuple(inputs["dev_bounds"]),
+                condos=False,
+            )
+
+        if "condos" in df_name:
+            df = flg_model.go(
+                df=df,
+                groups=tuple(inputs["stat_groups"]["current"]["condos"]["columns"]),
+                iso_forest_cols=inputs["iso_forest"],
+                dev_bounds=tuple(inputs["dev_bounds"]),
+                condos=True,
+            )
+
+    elif "og_mansueto" in df_name:
+        print("og_mansueto")
+        if "res" in df_name:
+            df = flg_model.go(
+                df=df,
+                groups=tuple(
+                    inputs["stat_groups"]["og_mansueto"]["res_single_family"]["columns"]
+                ),
+                iso_forest_cols=inputs["iso_forest"],
+                dev_bounds=tuple(inputs["dev_bounds"]),
+                condos=False,
+            )
+        if "condos" in df_name:
+            df = flg_model.go(
+                df=df,
+                groups=tuple(inputs["stat_groups"]["og_mansueto"]["condos"]["columns"]),
+                iso_forest_cols=inputs["iso_forest"],
+                dev_bounds=tuple(inputs["dev_bounds"]),
+                condos=True,
+            )
+
+    # Add the edited or unedited dataframe to the new dictionary
+    dfs_flagged[df_name] = df
 
 
 # Flag outliers using the main flagging model
