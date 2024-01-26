@@ -157,8 +157,10 @@ if "current" in tri_stat_groups.values():
         os.path.join(root, "QC_salesval_nbhds_round2.xlsx"),
         usecols=["Town Nbhd", "Town Grp 1"],
     ).rename(columns={"Town Nbhd": "nbhd", "Town Grp 1": "geography_split"})
-
+    df["nbhd"] = df["nbhd"].astype(int)
     df = pd.merge(df, df_new_groups, on="nbhd", how="left")
+
+# quick test
 
 
 dfs_to_feature_creation = {}  # Dictionary to store DataFrames
@@ -172,9 +174,7 @@ for tri, method in tri_stat_groups.items():
             key = f"df_tri{tri}_{market}_current"
             # Filter by triad code and market type
             triad_code_filter = df["triad_code"] == str(tri)
-            market_filter = df["class"].isin(
-                inputs["stat_groups"]["current"][market]["class_filter"]
-            )
+            market_filter = df["class"].isin(inputs["housing_run_type_filters"][market])
 
             # Combine filters
             dfs_to_feature_creation[key] = df[triad_code_filter & market_filter]
@@ -227,6 +227,7 @@ def create_bins_and_labels(input_list):
 
 # Iterate through loop and correctly create columns that are used for statistical grouping
 dfs_to_rolling_window = {}
+
 for df_name, df in dfs_to_feature_creation.items():
     # Make a copy of the data frame to edit
     df_copy = df.copy()

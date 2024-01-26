@@ -7,6 +7,26 @@
 # 'condos'
 housing_run_type: ["res_single_family", "res_multi_family", "condos"]
 
+housing_run_type_filters:
+  res_single_family: [
+    "202",
+    "203",
+    "204",
+    "205",
+    "206",
+    "207",
+    "208",
+    "209",
+    "210",
+    "218",
+    "219",
+    "234",
+    "278",
+    "295"
+  ]
+  res_multi_family: ["211", "212"]
+  condos: ["297", "299", "399"]
+
 stat_groups:
   current:
     res_single_family:
@@ -17,67 +37,31 @@ stat_groups:
         - "char_bldg_sf_bin"
       sf_bin_specification: [1200, 2400]
       age_bin_specification: [40]
-      class_filter: [
-        "202",
-        "203",
-        "204",
-        "205",
-        "206",
-        "207",
-        "208",
-        "209",
-        "210",
-        "218",
-        "219",
-        "234",
-        "278",
-        "295"
-      ]
     res_multi_family:
       columns:
         - "rolling_window"
         - "geography_split"
         - "bldg_age_bin"
       age_bin_specification: [20]
-      class_filter: ["211", "212"]
     condos:
       columns:
         - "rolling_window"
         - "geography_split"
-      class_filter: ["297", "299", "399"]
   og_mansueto:
     res_single_family:
       columns:
         - "rolling_window"
         - "township_code"
         - "class"
-      class_filter: [
-        "202",
-        "203",
-        "204",
-        "205",
-        "206",
-        "207",
-        "208",
-        "209",
-        "210",
-        "218",
-        "219",
-        "234",
-        "278",
-        "295"
-      ]
     res_multi_family:
       columns:
         - "rolling_window"
         - "township_code"
         - "class"
-      class_filter: ["211", "212"]
     condos:
       columns:
         - "rolling_window"
         - "township_code"
-      class_filter: ["297", "299", "399"]
 
 run_tri: [1, 2, 3]
 
