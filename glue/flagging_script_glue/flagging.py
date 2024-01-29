@@ -9,6 +9,7 @@ import pandas as pd
 
 from scipy.stats import zscore
 from sklearn.ensemble import IsolationForest
+from sklearn.preprocessing import LabelEncoder
 from sklearn.decomposition import PCA
 
 SHORT_TERM_OWNER_THRESHOLD = 365  # 365 = 365 days or 1 year
@@ -113,15 +114,26 @@ def iso_forest(
     Outputs:
         df (pd.DataFrame): with 'sv_anomaly' column from IsoForest.
     """
-
+    # Set index
     df.set_index("meta_sale_document_num", inplace=True)
 
+    # Perform PCA (assuming pca is a predefined function)
     feed = pca(df, columns)
 
     feed.index = df.index
+
+    # Label encode non-numeric groups
+    label_encoders = {}
     for group in groups:
+        if df[group].dtype not in ["int64", "float64", "int32", "float32"]:
+            le = LabelEncoder()
+            df[group] = le.fit_transform(df[group])
+            label_encoders[
+                group
+            ] = le  # Store the encoder to change value back to original
         feed[group] = df[group]
 
+    # Initialize and fit the Isolation Forest
     isof = IsolationForest(
         n_estimators=n_estimators,
         max_samples=max_samples,
@@ -130,12 +142,18 @@ def iso_forest(
     )
     df["sv_anomaly"] = isof.fit_predict(feed)
 
+    # Assign labels for anomalies
     df["sv_anomaly"] = np.select(
         [(df["sv_anomaly"] == -1), (df["sv_anomaly"] == 1)],
         ["Outlier", "Not Outlier"],
         default="Not Outlier",
     )
 
+    # Restore original values for encoded columns
+    for group, le in label_encoders.items():
+        df[group] = le.inverse_transform(df[group])
+
+    # Reset index
     df.reset_index(inplace=True)
 
     return df
