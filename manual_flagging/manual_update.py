@@ -101,7 +101,7 @@ FROM CombinedData data
 INNER JOIN default.vw_pin_sale sale
     ON sale.pin = data.pin
     AND sale.year = data.year
-INNER JOIN "default"."vw_pin_universe" universe 
+INNER JOIN default.vw_pin_universe universe 
     ON universe.pin = data.pin
     AND universe.year = data.year
 WHERE {sql_time_frame}
