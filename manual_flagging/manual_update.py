@@ -15,9 +15,6 @@ from pyathena.pandas.util import as_pandas
 root = sp.getoutput("git rev-parse --show-toplevel")
 os.chdir(os.path.join(root, "manual_flagging"))
 
-# Set time for run_id
-chicago_tz = pytz.timezone("America/Chicago")
-
 # Use yaml as inputs
 with open(os.path.join("yaml", "inputs_update.yaml"), "r") as stream:
     inputs = yaml.safe_load(stream)
@@ -95,7 +92,7 @@ SELECT
     data.year,
     data.pin,
     data.char_bldg_sf,
-    data.indicator,  -- Selecting the indicator column
+    data.indicator,
     universe.triad_code
 FROM CombinedData data
 INNER JOIN default.vw_pin_sale sale
@@ -146,159 +143,58 @@ df["ptax_flag_original"].fillna(False, inplace=True)
 
 # Ingest groups
 df_new_groups = pd.read_excel(
-    os.path.join(root, "QC_salesval_nbhds_round2.xlsx"),
+    os.path.join(root, "QC_salesval_nbhds_condos.xlsx"),
     usecols=["Town Nbhd", "Town Grp 1"],
 ).rename(columns={"Town Nbhd": "nbhd", "Town Grp 1": "geography_split"})
 
 # Subset to only City Tri data
 df = df[df["triad_code"] == "1"]
-# Grab only res data
-df_res = df[df["indicator"] == "res"].reset_index(drop=True)
+# Grab only condo data
+df_condo = df[df["indicator"] == "condo"].reset_index(drop=True)
+df_condo["nbhd"] = df_condo["nbhd"].replace("77-13", "770130")
 
-df_res["nbhd"] = df_res["nbhd"].astype(int)
-# - - -
-# Create new geographies and building age features
-# - - -
+df_condo["nbhd"] = df_condo["nbhd"].astype(int)
+df_condo = pd.merge(df_condo, df_new_groups, on="nbhd", how="left")
 
-
-df_res = pd.merge(df_res, df_new_groups, on="nbhd", how="left")
-
-# Calculate the building's age
-current_year = datetime.datetime.now().year
-df_res["bldg_age"] = current_year - df_res["yrblt"]
-
-# - - -
-# Single Family
-# - - -
-single_family_classes = [
-    "202",
-    "203",
-    "204",
-    "205",
-    "206",
-    "207",
-    "208",
-    "209",
-    "210",
-    "218",
-    "219",
-    "234",
-    "278",
-    "295",
-]
-
-df_res_single_fam = df_res[df_res["class"].isin(single_family_classes)]
-
-# Define bins for char_bldg_sf
-char_bldg_sf_bins = [0, 1200, 2400, float("inf")]
-char_bldg_sf_labels = ["below_1200", "1200_to_2400", "above_2400"]
-
-# Bin the char_bldg_sf data
-df_res_single_fam["char_bldg_sf_bin"] = pd.cut(
-    df_res_single_fam["char_bldg_sf"],
-    bins=char_bldg_sf_bins,
-    labels=char_bldg_sf_labels,
-)
-
-# Define bins for building age
-bldg_age_bins = [0, 40, float("inf")]
-bldg_age_labels = ["below_40_years", "above_40_years"]
-
-# Bin the building age data
-df_res_single_fam["bldg_age_bin"] = pd.cut(
-    df_res_single_fam["bldg_age"], bins=bldg_age_bins, labels=bldg_age_labels
-)
-
-# - - - -
-# Multi Family
-# - - - -
-
-multi_family_classes = ["211", "212"]
-df_res_multi_fam = df_res[df_res["class"].isin(multi_family_classes)]
-
-# Define bins for building age
-bldg_age_bins = [0, 20, float("inf")]
-bldg_age_labels = ["below_20_years", "above_20_years"]
-
-# Bin the building age data
-df_res_multi_fam["bldg_age_bin"] = pd.cut(
-    df_res_multi_fam["bldg_age"], bins=bldg_age_bins, labels=bldg_age_labels
-)
 
 # - - -
 # Create rolling windows
 # - - -
-
-# Rolling window for single family
-df_res_single_fam_to_flag = flg.add_rolling_window(
-    df_res_single_fam, num_months=inputs["rolling_window_months"]
+df_condo_to_flag = flg.add_rolling_window(
+    df_condo, num_months=inputs["rolling_window_months"]
 )
+# Flag condo outliers, here we remove price per sqft as an input
+# for the isolation forest model since condos don't have a unit sqft
+condo_iso_forest = inputs["iso_forest"].copy()
+condo_iso_forest.remove("sv_price_per_sqft")
 
-# Rolling window for multi_family
-df_res_multi_fam_to_flag = flg.add_rolling_window(
-    df_res_multi_fam, num_months=inputs["rolling_window_months"]
-)
-# - - -
-# Separate flagging for both
-# - - -
-# Flag outliers using the main flagging model
-df_res_single_fam_flagged = flg_model.go(
-    df=df_res_single_fam_to_flag,
-    groups=tuple(inputs["stat_groups"]["single_family"]),
-    iso_forest_cols=inputs["iso_forest"],
+condo_stat_groups = ["rolling_window", "geography_split"]
+
+df_condo_flagged = flg_model.go(
+    df=df_condo_to_flag,
+    groups=tuple(condo_stat_groups),
+    iso_forest_cols=condo_iso_forest,
     dev_bounds=tuple(inputs["dev_bounds"]),
-    condos=False,
+    condos=True,
 )
 
-# Flag outliers using the main flagging model
-df_res_multi_fam_flagged = flg_model.go(
-    df=df_res_multi_fam_to_flag,
-    groups=tuple(inputs["stat_groups"]["multi_family"]),
-    iso_forest_cols=inputs["iso_forest"],
-    dev_bounds=tuple(inputs["dev_bounds"]),
-    condos=False,
-)
-# - - -
-# Separate group size for both
-# - - -
-# Discard any flags with a group size under the threshold
-df_res_single_fam_flagged_updated = flg.group_size_adjustment(
-    df=df_res_single_fam_flagged,
-    stat_groups=inputs["stat_groups"]["single_family"],
+df_condo_flagged_updated = flg.group_size_adjustment(
+    df=df_condo_flagged,
+    stat_groups=condo_stat_groups,
     min_threshold=inputs["min_groups_threshold"],
-    condos=False,
+    condos=True,
 )
 
-df_res_multi_fam_flagged_updated = flg.group_size_adjustment(
-    df=df_res_multi_fam_flagged,
-    stat_groups=inputs["stat_groups"]["multi_family"],
-    min_threshold=inputs["min_groups_threshold"],
-    condos=False,
-)
-
-# Iterate through both ptax groups
-# Update the PTAX flag column with an additional std dev conditional
-df_res_single_fam_flagged_ptax = flg.ptax_adjustment(
-    df=df_res_single_fam_flagged_updated,
-    groups=inputs["stat_groups"]["single_family"],
+df_condo_flagged_ptax = flg.ptax_adjustment(
+    df=df_condo_flagged_updated,
+    groups=condo_stat_groups,
     ptax_sd=inputs["ptax_sd"],
-    condos=False,
+    condos=True,
 )
-
-df_res_multi_fam_flagged_ptax = flg.ptax_adjustment(
-    df=df_res_multi_fam_flagged_updated,
-    groups=inputs["stat_groups"]["multi_family"],
-    ptax_sd=inputs["ptax_sd"],
-    condos=False,
-)
-
-df_flagged_merged = pd.concat(
-    [df_res_single_fam_flagged_ptax, df_res_multi_fam_flagged_ptax]
-).reset_index(drop=True)
 
 # Finish flagging and subset to write to flag table
 df_flagged_final, run_id, timestamp = flg.finish_flags(
-    df=df_flagged_merged,
+    df=df_condo_flagged_ptax,
     start_date=inputs["time_frame"]["start"],
     manual_update=False,
 )
