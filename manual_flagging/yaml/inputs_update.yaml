@@ -2,19 +2,12 @@
 # We use these inputs when we want to re-flag already flagged sales.
 ---
 stat_groups:
-  single_family:
+  condos:
     - "rolling_window"
     - "geography_split"
-    - "bldg_age_bin"
-    - "char_bldg_sf_bin"
-  multi_family:
-    - "rolling_window"
-    - "geography_split"
-    - "bldg_age_bin"
 
 iso_forest: [
   "meta_sale_price",
-  "sv_price_per_sqft",
   "sv_days_since_last_transaction",
   "sv_cgdr",
   "sv_sale_dup_counts"

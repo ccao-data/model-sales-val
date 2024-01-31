@@ -163,31 +163,25 @@ df_condo = pd.merge(df_condo, df_new_groups, on="nbhd", how="left")
 df_condo_to_flag = flg.add_rolling_window(
     df_condo, num_months=inputs["rolling_window_months"]
 )
-# Flag condo outliers, here we remove price per sqft as an input
-# for the isolation forest model since condos don't have a unit sqft
-condo_iso_forest = inputs["iso_forest"].copy()
-condo_iso_forest.remove("sv_price_per_sqft")
-
-condo_stat_groups = ["rolling_window", "geography_split"]
 
 df_condo_flagged = flg_model.go(
     df=df_condo_to_flag,
-    groups=tuple(condo_stat_groups),
-    iso_forest_cols=condo_iso_forest,
+    groups=tuple(inputs["stat_groups"]["condos"]),
+    iso_forest_cols=inputs["iso_forest"],
     dev_bounds=tuple(inputs["dev_bounds"]),
     condos=True,
 )
 
 df_condo_flagged_updated = flg.group_size_adjustment(
     df=df_condo_flagged,
-    stat_groups=condo_stat_groups,
+    stat_groups=inputs["stat_groups"]["condos"],
     min_threshold=inputs["min_groups_threshold"],
     condos=True,
 )
 
 df_condo_flagged_ptax = flg.ptax_adjustment(
     df=df_condo_flagged_updated,
-    groups=condo_stat_groups,
+    groups=inputs["stat_groups"]["condos"],
     ptax_sd=inputs["ptax_sd"],
     condos=True,
 )
