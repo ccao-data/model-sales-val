@@ -231,8 +231,8 @@ df_parameters = flg.get_parameter_df(
     df_to_write=df_to_write,
     df_ingest=df_ingest,
     iso_forest_cols=inputs["iso_forest"],
-    res_stat_groups=inputs["stat_groups"],
-    condo_stat_groups=pd.NA,
+    res_stat_groups=pd.NA,
+    condo_stat_groups=inputs["stat_groups"]["condos"],
     dev_bounds=inputs["dev_bounds"],
     ptax_sd=inputs["ptax_sd"],
     rolling_window=inputs["rolling_window_months"],
@@ -253,23 +253,13 @@ flg.write_to_table(
 )
 """
 # Write to sale.group_mean table
-df_res_single_fam_group_mean = flg.get_group_mean_df(
-    df=df_res_single_fam_flagged,
-    stat_groups=inputs["stat_groups"]["single_family"],
-    run_id=run_id,
-    condos=False,
-)
-
-df_res_multi_group_mean = flg.get_group_mean_df(
-    df=df_res_multi_fam_flagged,
-    stat_groups=inputs["stat_groups"]["multi_family"],
+df_condos_group_mean = flg.get_group_mean_df(
+    df=df_condo_flagged,
+    stat_groups=inputs["stat_groups"]["condos"],
     run_id=run_id,
     condos=True,
 )
 
-df_group_mean_merged = pd.concat(
-    [df_res_single_fam_group_mean, df_res_multi_group_mean]
-).reset_index(drop=True)
 """
 flg.write_to_table(
     df=df_group_mean_merged,
