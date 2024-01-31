@@ -73,13 +73,20 @@ tri_stat_groups:
   # south
   3: "og_mansueto"
 
-iso_forest: [
-  "meta_sale_price",
-  "sv_price_per_sqft",
-  "sv_days_since_last_transaction",
-  "sv_cgdr",
-  "sv_sale_dup_counts"
-]
+iso_forest:
+  res: [
+    "meta_sale_price",
+    "sv_price_per_sqft",
+    "sv_days_since_last_transaction",
+    "sv_cgdr",
+    "sv_sale_dup_counts"
+  ]
+  condos: [
+    "meta_sale_price",
+    "sv_days_since_last_transaction",
+    "sv_cgdr",
+    "sv_sale_dup_counts"
+  ]
 
 dev_bounds: [2, 2]
 
@@ -87,7 +94,7 @@ dev_bounds: [2, 2]
 # sale.flag table. Leave 'end' blank if we want to flag all sales
 # since the start date
 time_frame:
-  start: "2014-01-01"
+  start: "2018-01-01"
   end:
 
 # How many total months to include in the grouping methodology

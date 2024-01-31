@@ -194,7 +194,7 @@ for tri, method in tri_stat_groups.items():
 
             # Append these DataFrames to the dictionary
             key_res = f"df_res_og_mansueto"
-            key_condo = f"df_condo_og_mansueto"
+            key_condo = f"df_condos_og_mansueto"
             dfs_to_feature_creation[key_res] = df_res_og_mansueto
             dfs_to_feature_creation[key_condo] = df_condo_og_mansueto
             break
@@ -319,7 +319,7 @@ dfs_flagged = {}
 
 for df_name, df in dfs_to_flag.items():
     # Make a copy of the data frame to edit
-    print(f"Flagging sales for {df_name}")
+    print(f"\nFlagging sales for {df_name}")
     df = df.copy()
 
     if "current" in df_name:
@@ -329,7 +329,7 @@ for df_name, df in dfs_to_flag.items():
                 groups=tuple(
                     inputs["stat_groups"]["current"]["res_single_family"]["columns"]
                 ),
-                iso_forest_cols=inputs["iso_forest"],
+                iso_forest_cols=inputs["iso_forest"]["res"],
                 dev_bounds=tuple(inputs["dev_bounds"]),
                 condos=False,
             )
@@ -341,7 +341,7 @@ for df_name, df in dfs_to_flag.items():
                 groups=tuple(
                     inputs["stat_groups"]["current"]["res_multi_family"]["columns"]
                 ),
-                iso_forest_cols=inputs["iso_forest"],
+                iso_forest_cols=inputs["iso_forest"]["res"],
                 dev_bounds=tuple(inputs["dev_bounds"]),
                 condos=False,
             )
@@ -350,7 +350,7 @@ for df_name, df in dfs_to_flag.items():
             df = flg_model.go(
                 df=df,
                 groups=tuple(inputs["stat_groups"]["current"]["condos"]["columns"]),
-                iso_forest_cols=inputs["iso_forest"],
+                iso_forest_cols=inputs["iso_forest"]["condos"],
                 dev_bounds=tuple(inputs["dev_bounds"]),
                 condos=True,
             )
@@ -363,7 +363,7 @@ for df_name, df in dfs_to_flag.items():
                 groups=tuple(
                     inputs["stat_groups"]["og_mansueto"]["res_single_family"]["columns"]
                 ),
-                iso_forest_cols=inputs["iso_forest"],
+                iso_forest_cols=inputs["iso_forest"]["res"],
                 dev_bounds=tuple(inputs["dev_bounds"]),
                 condos=False,
             )
@@ -371,7 +371,7 @@ for df_name, df in dfs_to_flag.items():
             df = flg_model.go(
                 df=df,
                 groups=tuple(inputs["stat_groups"]["og_mansueto"]["condos"]["columns"]),
-                iso_forest_cols=inputs["iso_forest"],
+                iso_forest_cols=inputs["iso_forest"]["condos"],
                 dev_bounds=tuple(inputs["dev_bounds"]),
                 condos=True,
             )
@@ -380,14 +380,10 @@ for df_name, df in dfs_to_flag.items():
     dfs_flagged[df_name] = df
 
 
-# Flag outliers using the main flagging model
-df_res_flagged = flg_model.go(
-    df=df_res_to_flag,
-    groups=tuple(inputs["stat_groups"]),
-    iso_forest_cols=inputs["iso_forest"],
-    dev_bounds=tuple(inputs["dev_bounds"]),
-    condos=False,
-)
+# check names
+for key in dfs_flagged:
+    print(key)
+
 
 # Discard any flags with a group size under the threshold
 df_res_flagged_updated = flg.group_size_adjustment(
@@ -397,18 +393,6 @@ df_res_flagged_updated = flg.group_size_adjustment(
     condos=False,
 )
 
-# Flag condo outliers, here we remove price per sqft as an input
-# for the isolation forest model since condos don't have a unit sqft
-condo_iso_forest = inputs["iso_forest"].copy()
-condo_iso_forest.remove("sv_price_per_sqft")
-
-df_condo_flagged = flg_model.go(
-    df=df_condo_to_flag,
-    groups=tuple(condo_stat_groups),
-    iso_forest_cols=condo_iso_forest,
-    dev_bounds=tuple(inputs["dev_bounds"]),
-    condos=True,
-)
 
 df_condo_flagged_updated = flg.group_size_adjustment(
     df=df_condo_flagged,
