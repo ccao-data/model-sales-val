@@ -146,7 +146,7 @@ df["ptax_flag_original"].fillna(False, inplace=True)
 
 # Ingest groups
 df_new_groups = pd.read_excel(
-    os.path.join(root, "QC_salesval_nbhds_condos.xlsx"),
+    os.path.join(root, "QC_salesval_nbhds_round2.xlsx"),
     usecols=["Town Nbhd", "Town Grp 1"],
 ).rename(columns={"Town Nbhd": "nbhd", "Town Grp 1": "geography_split"})
 
