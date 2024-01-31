@@ -154,7 +154,6 @@ df_new_groups = pd.read_excel(
 df = df[df["triad_code"] == "1"]
 # Grab only condo data
 df_condo = df[df["indicator"] == "condo"].reset_index(drop=True)
-df_condo["nbhd"] = df_condo["nbhd"].replace("77-13", "770130")
 
 df_condo["nbhd"] = df_condo["nbhd"].astype(int)
 df_condo = pd.merge(df_condo, df_new_groups, on="nbhd", how="left")
