@@ -384,6 +384,100 @@ for df_name, df in dfs_to_flag.items():
 for key in dfs_flagged:
     print(key)
 
+#
+# Adjust outliers based on group sizes and incorporate ptax information
+#
+
+dfs_to_finalize = {}
+
+for df_name, df in dfs_flagged.items():
+    # Make a copy of the data frame to edit
+    df = df.copy()
+
+    if "current" in df_name:
+        if "res_single_family" in df_name:
+            df = flg.group_size_adjustment(
+                df=df,
+                stat_groups=inputs["stat_groups"]["current"]["res_single_family"][
+                    "columns"
+                ],
+                min_threshold=inputs["min_groups_threshold"],
+                condos=False,
+            )
+            df = flg.ptax_adjustment(
+                df=df,
+                groups=inputs["stat_groups"]["current"]["res_single_family"]["columns"],
+                ptax_sd=inputs["ptax_sd"],
+                condos=False,
+            )
+
+        if "res_multi_family" in df_name:
+            # Define bins for building age
+            df = flg.group_size_adjustment(
+                df=df,
+                stat_groups=inputs["stat_groups"]["current"]["res_multi_family"][
+                    "columns"
+                ],
+                min_threshold=inputs["min_groups_threshold"],
+                condos=False,
+            )
+            df = flg.ptax_adjustment(
+                df=df,
+                groups=inputs["stat_groups"]["current"]["res_multi_family"]["columns"],
+                ptax_sd=inputs["ptax_sd"],
+                condos=False,
+            )
+
+        if "condos" in df_name:
+            df = flg.group_size_adjustment(
+                df=df,
+                stat_groups=inputs["stat_groups"]["current"]["condos"]["columns"],
+                min_threshold=inputs["min_groups_threshold"],
+                condos=True,
+            )
+            df = flg.ptax_adjustment(
+                df=df,
+                groups=inputs["stat_groups"]["current"]["condos"]["columns"],
+                ptax_sd=inputs["ptax_sd"],
+                condos=True,
+            )
+
+    elif "og_mansueto" in df_name:
+        print("og_mansueto")
+        if "res" in df_name:
+            df = flg.group_size_adjustment(
+                df=df,
+                stat_groups=inputs["stat_groups"]["og_mansueto"]["res_single_family"][
+                    "columns"
+                ],
+                min_threshold=inputs["min_groups_threshold"],
+                condos=False,
+            )
+            df = flg.ptax_adjustment(
+                df=df,
+                groups=inputs["stat_groups"]["og_mansueto"]["res_single_family"][
+                    "columns"
+                ],
+                ptax_sd=inputs["ptax_sd"],
+                condos=False,
+            )
+        if "condos" in df_name:
+            df = flg.group_size_adjustment(
+                df=df,
+                stat_groups=inputs["stat_groups"]["og_mansueto"]["condos"]["columns"],
+                min_threshold=inputs["min_groups_threshold"],
+                condos=True,
+            )
+            df = flg.ptax_adjustment(
+                df=df,
+                groups=inputs["stat_groups"]["og_mansueto"]["condos"]["columns"],
+                ptax_sd=inputs["ptax_sd"],
+                condos=True,
+            )
+
+    # Add the edited or unedited dataframe to the new dictionary
+    dfs_to_finalize[df_name] = df
+
 
 # Discard any flags with a group size under the threshold
 df_res_flagged_updated = flg.group_size_adjustment(
@@ -394,13 +488,6 @@ df_res_flagged_updated = flg.group_size_adjustment(
 )
 
 
-df_condo_flagged_updated = flg.group_size_adjustment(
-    df=df_condo_flagged,
-    stat_groups=condo_stat_groups,
-    min_threshold=inputs["min_groups_threshold"],
-    condos=True,
-)
-
 # Update the PTAX flag column with an additional std dev conditional w/ res groups
 df_res_flagged_updated_ptax = flg.ptax_adjustment(
     df=df_res_flagged_updated,
@@ -409,13 +496,6 @@ df_res_flagged_updated_ptax = flg.ptax_adjustment(
     condos=False,
 )
 
-# Update the PTAX flag column with an additional std dev conditional w/ condo groups
-df_condo_flagged_updated_ptax = flg.ptax_adjustment(
-    df=df_condo_flagged_updated,
-    groups=condo_stat_groups,
-    ptax_sd=inputs["ptax_sd"],
-    condos=True,
-)
 
 df_flagged_ptax_merged = pd.concat(
     [df_res_flagged_updated_ptax, df_condo_flagged_updated_ptax]
