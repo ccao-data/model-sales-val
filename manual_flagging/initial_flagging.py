@@ -177,6 +177,10 @@ for tri, method in tri_stat_groups.items():
             dfs_to_feature_creation[key] = {
                 "df": df[triad_code_filter & market_filter],
                 "columns": inputs["stat_groups"]["current"][market]["columns"],
+                "iso_forest_cols": inputs["iso_forest"][
+                    "res" if "res" in market else "condos"
+                ],
+                "condos_boolean": market == "condos",
             }
 
         elif method == "og_mansueto":
@@ -196,18 +200,19 @@ for tri, method in tri_stat_groups.items():
             key_res = f"df_res_og_mansueto"
             key_condo = f"df_condos_og_mansueto"
 
-            boop = inputs["stat_groups"]["og_mansueto"][market]["columns"]
-            print(f"\n{boop}\n")
-
             dfs_to_feature_creation[key_res] = {
                 "df": df_res_og_mansueto,
                 "columns": inputs["stat_groups"]["og_mansueto"]["res_single_family"][
                     "columns"
                 ],
+                "iso_forest_cols": inputs["iso_forest"]["res"],
+                "condos_boolean": False,
             }
             dfs_to_feature_creation[key_condo] = {
                 "df": df_condo_og_mansueto,
                 "columns": inputs["stat_groups"]["og_mansueto"]["condos"]["columns"],
+                "iso_forset_cols": inputs["iso_forest"]["condos"],
+                "condos_boolean": True,
             }
 
 # check names
