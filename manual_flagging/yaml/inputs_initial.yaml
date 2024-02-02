@@ -1,31 +1,22 @@
-# This file contains relevant inputs for the initial_flagging.py script,
-# which will (ideally) be run one time when we first populate the flagging
-# tables in Athena.
+# TODO: Add overview here
 ---
 
-# This value can either be 'res_single_family', 'res_multi_family',
-# 'condos'
-housing_run_type: ["res_single_family", "res_multi_family", "condos"]
 
-housing_run_type_filters:
-  res_single_family: [
-    "202",
-    "203",
-    "204",
-    "205",
-    "206",
-    "207",
-    "208",
-    "209",
-    "210",
-    "218",
-    "219",
-    "234",
-    "278",
-    "295"
-  ]
-  res_multi_family: ["211", "212"]
-  condos: ["297", "299", "399"]
+# The values in housing_run_type and run_tri will tell the sales val script
+# which properties will be updated. The housing_run_type list currenty supports
+# "res_single_family", "res_multi_family", and/or "condos". The run_tri van be
+# 1, 2, and/or 3. We can run any combination of these
+housing_run_type: ["res_single_family", "res_multi_family", "condos"]
+run_tri: [1, 2, 3]
+
+# tri_stat_groups maps the method to be used for each tri.
+tri_stat_groups:
+  # city
+  1: "current"
+  # north
+  2: "og_mansueto"
+  # south
+  3: "og_mansueto"
 
 stat_groups:
   current:
@@ -63,16 +54,6 @@ stat_groups:
         - "rolling_window"
         - "township_code"
 
-run_tri: [1, 2, 3]
-
-tri_stat_groups:
-  # city
-  1: "current"
-  # north
-  2: "og_mansueto"
-  # south
-  3: "og_mansueto"
-
 iso_forest:
   res: [
     "meta_sale_price",
@@ -88,6 +69,28 @@ iso_forest:
     "sv_sale_dup_counts"
   ]
 
+housing_run_type_filters:
+  res_single_family: [
+    "202",
+    "203",
+    "204",
+    "205",
+    "206",
+    "207",
+    "208",
+    "209",
+    "210",
+    "218",
+    "219",
+    "234",
+    "278",
+    "295"
+  ]
+  res_multi_family: ["211", "212"]
+  condos: ["297", "299", "399"]
+
+# These are the price standard deviation bounds that the sales must exceed
+# to be classified as an outlier
 dev_bounds: [2, 2]
 
 # 'start' and 'end' determine which sales will be written to the
