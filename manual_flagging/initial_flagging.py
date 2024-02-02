@@ -135,17 +135,6 @@ df["ptax_flag_original"].fillna(False, inplace=True)
 # Development
 # - - - - - - - - -
 
-#
-# Make correct filters
-#
-
-# Filter to correct tris
-tri_stat_groups = {
-    tri: method
-    for tri, method in inputs["tri_stat_groups"].items()
-    if tri in inputs["run_tri"]
-}
-
 # Handle current methodology data manipulation if needed
 if "current" in tri_stat_groups.values():
     # Calculate the building's age
@@ -160,7 +149,16 @@ if "current" in tri_stat_groups.values():
     df["nbhd"] = df["nbhd"].astype(int)
     df = pd.merge(df, df_new_groups, on="nbhd", how="left")
 
-# quick test
+#
+# Make correct filters and set up dictionary structure
+#
+
+# Filter to correct tris
+tri_stat_groups = {
+    tri: method
+    for tri, method in inputs["tri_stat_groups"].items()
+    if tri in inputs["run_tri"]
+}
 
 
 dfs_to_feature_creation = {}  # Dictionary to store DataFrames
@@ -176,8 +174,10 @@ for tri, method in tri_stat_groups.items():
             triad_code_filter = df["triad_code"] == str(tri)
             market_filter = df["class"].isin(inputs["housing_run_type_filters"][market])
 
-            # Combine filters
-            dfs_to_feature_creation[key] = df[triad_code_filter & market_filter]
+            dfs_to_feature_creation[key] = {
+                "df": df[triad_code_filter & market_filter],
+                "columns": inputs["stat_groups"]["current"][market]["columns"],
+            }
 
         elif method == "og_mansueto":
             # Collect all mansueto tris
@@ -195,16 +195,27 @@ for tri, method in tri_stat_groups.items():
             # Append these DataFrames to the dictionary
             key_res = f"df_res_og_mansueto"
             key_condo = f"df_condos_og_mansueto"
-            dfs_to_feature_creation[key_res] = df_res_og_mansueto
-            dfs_to_feature_creation[key_condo] = df_condo_og_mansueto
-            break
+
+            boop = inputs["stat_groups"]["og_mansueto"][market]["columns"]
+            print(f"\n{boop}\n")
+
+            dfs_to_feature_creation[key_res] = {
+                "df": df_res_og_mansueto,
+                "columns": inputs["stat_groups"]["og_mansueto"]["res_single_family"][
+                    "columns"
+                ],
+            }
+            dfs_to_feature_creation[key_condo] = {
+                "df": df_condo_og_mansueto,
+                "columns": inputs["stat_groups"]["og_mansueto"]["condos"]["columns"],
+            }
 
 # check names
 for key in dfs_to_feature_creation:
     print(key)
 
 # - - - - - - -
-# make features
+# Make features
 # - - - - - - -
 
 
@@ -238,7 +249,6 @@ for df_name, df in dfs_to_feature_creation.items():
         if "res_single_family" in df_name:
             # Bin sf
             print("Start making bins")
-            print(df_copy)
             char_bldg_sf_bins, char_bldg_sf_labels = create_bins_and_labels(
                 inputs["stat_groups"]["current"]["res_single_family"][
                     "sf_bin_specification"
@@ -261,7 +271,6 @@ for df_name, df in dfs_to_feature_creation.items():
                 labels=char_bldg_sf_labels,
             )
             print("Finish bins")
-            print(df_copy)
         if "res_multi_family" in df_name:
             # Define bins for building age
             bldg_age_bins, bldg_age_labels = create_bins_and_labels(
@@ -277,6 +286,10 @@ for df_name, df in dfs_to_feature_creation.items():
             pass
 
         if "condos" in df_name:
+            """
+            Currently no feature engineering needed in
+            the current condos method
+            """
             pass
 
     elif "og_mansueto" in df_name:
@@ -290,6 +303,11 @@ for df_name, df in dfs_to_feature_creation.items():
 
     # Add the edited or unedited dataframe to the new dictionary
     dfs_to_rolling_window[df_name] = df_copy
+
+
+# check names
+for key in dfs_to_rolling_window:
+    print(key)
 
 # - - - - - -
 # Make rolling window
