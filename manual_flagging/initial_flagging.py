@@ -211,7 +211,7 @@ for tri, method in tri_stat_groups.items():
             dfs_to_feature_creation[key_condo] = {
                 "df": df_condo_og_mansueto,
                 "columns": inputs["stat_groups"]["og_mansueto"]["condos"]["columns"],
-                "iso_forset_cols": inputs["iso_forest"]["condos"],
+                "iso_forest_cols": inputs["iso_forest"]["condos"],
                 "condos_boolean": True,
             }
 
@@ -242,12 +242,13 @@ def create_bins_and_labels(input_list):
 
 
 # Iterate through loop and correctly create columns that are used for statistical grouping
-dfs_to_rolling_window = {}
+dfs_to_rolling_window = dfs_to_feature_creation.copy()
 
 for df_name, df in dfs_to_feature_creation.items():
     # Make a copy of the data frame to edit
-    df_copy = df.copy()
+    df_copy = df["df"].copy()
 
+    # print(f"{df_name}")
     if "current" in df_name:
         print("current")
 
@@ -259,6 +260,7 @@ for df_name, df in dfs_to_feature_creation.items():
                     "sf_bin_specification"
                 ]
             )
+
             df_copy["char_bldg_sf_bin"] = pd.cut(
                 df_copy["char_bldg_sf"],
                 bins=char_bldg_sf_bins,
@@ -300,108 +302,68 @@ for df_name, df in dfs_to_feature_creation.items():
     elif "og_mansueto" in df_name:
         print("og_mansueto")
         if "res" in df_name:
-            # Process residential data here on df_copy
+            """
+            Currently no feature engineering needed in
+            the og_mansueto method
+            """
             pass
 
         if "condos" in df_name:
+            """
+            Currently no feature engineering needed in
+            the current og_mansueto method
+            """
             pass
 
-    # Add the edited or unedited dataframe to the new dictionary
-    dfs_to_rolling_window[df_name] = df_copy
+        # Add the edited or unedited dataframe to the new dictionary
+    dfs_to_rolling_window[df_name]["df"] = df_copy
 
 
-# check names
-for key in dfs_to_rolling_window:
+# check names and columns
+for key, value in dfs_to_rolling_window.items():
     print(key)
+    print(value["df"].columns)
 
 # - - - - - -
 # Make rolling window
 # - - - - - -
 
-dfs_to_flag = {}
+dfs_to_flag = dfs_to_rolling_window.copy()
 
 for df_name, df in dfs_to_rolling_window.items():
     print(f"Assigning rolling window for {df_name}")
-    df_copy = df.copy()
+    df_copy = df["df"].copy()
 
     df_copy = flg.add_rolling_window(
         df_copy, num_months=inputs["rolling_window_months"]
     )
-    dfs_to_flag[df_name] = df_copy
+    dfs_to_flag[df_name]["df"] = df_copy
 
 
 # - - - - -
 # Flag Sales
 # - - - - -
 
-# check names
-for key in dfs_to_flag:
-    print(key)
+# - -
+# new flagging
+# - -
 
-dfs_flagged = {}
+dfs_flagged = dfs_to_flag.copy()
 
 for df_name, df in dfs_to_flag.items():
     # Make a copy of the data frame to edit
     print(f"\nFlagging sales for {df_name}")
-    df = df.copy()
-
-    if "current" in df_name:
-        if "res_single_family" in df_name:
-            df = flg_model.go(
-                df=df,
-                groups=tuple(
-                    inputs["stat_groups"]["current"]["res_single_family"]["columns"]
-                ),
-                iso_forest_cols=inputs["iso_forest"]["res"],
-                dev_bounds=tuple(inputs["dev_bounds"]),
-                condos=False,
-            )
-
-        if "res_multi_family" in df_name:
-            # Define bins for building age
-            df = flg_model.go(
-                df=df,
-                groups=tuple(
-                    inputs["stat_groups"]["current"]["res_multi_family"]["columns"]
-                ),
-                iso_forest_cols=inputs["iso_forest"]["res"],
-                dev_bounds=tuple(inputs["dev_bounds"]),
-                condos=False,
-            )
-
-        if "condos" in df_name:
-            df = flg_model.go(
-                df=df,
-                groups=tuple(inputs["stat_groups"]["current"]["condos"]["columns"]),
-                iso_forest_cols=inputs["iso_forest"]["condos"],
-                dev_bounds=tuple(inputs["dev_bounds"]),
-                condos=True,
-            )
-
-    elif "og_mansueto" in df_name:
-        print("og_mansueto")
-        if "res" in df_name:
-            df = flg_model.go(
-                df=df,
-                groups=tuple(
-                    inputs["stat_groups"]["og_mansueto"]["res_single_family"]["columns"]
-                ),
-                iso_forest_cols=inputs["iso_forest"]["res"],
-                dev_bounds=tuple(inputs["dev_bounds"]),
-                condos=False,
-            )
-        if "condos" in df_name:
-            df = flg_model.go(
-                df=df,
-                groups=tuple(inputs["stat_groups"]["og_mansueto"]["condos"]["columns"]),
-                iso_forest_cols=inputs["iso_forest"]["condos"],
-                dev_bounds=tuple(inputs["dev_bounds"]),
-                condos=True,
-            )
+    df_copy = df["df"].copy()
+    df_copy = flg_model.go(
+        df=df_copy,
+        groups=tuple(df["columns"]),
+        iso_forest_cols=df["iso_forest_cols"],
+        dev_bounds=tuple(inputs["dev_bounds"]),
+        condos=df["condos_boolean"],
+    )
 
     # Add the edited or unedited dataframe to the new dictionary
-    dfs_flagged[df_name] = df
-
+    dfs_flagged[df_name]["df"] = df_copy
 
 # check names
 for key in dfs_flagged:
