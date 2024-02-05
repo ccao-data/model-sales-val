@@ -530,8 +530,7 @@ def get_parameter_df(
     df_to_write,
     df_ingest,
     iso_forest_cols,
-    res_stat_groups,
-    condo_stat_groups,
+    stat_groups,
     dev_bounds,
     ptax_sd,
     rolling_window,
@@ -563,8 +562,7 @@ def get_parameter_df(
     earliest_sale_ingest = df_ingest.meta_sale_date.min()
     latest_sale_ingest = df_ingest.meta_sale_date.max()
     iso_forest_cols = iso_forest_cols
-    res_stat_groups = res_stat_groups
-    condo_stat_groups = condo_stat_groups
+    stat_groups = stat_groups
     dev_bounds = dev_bounds
     ptax_sd = ptax_sd
     rolling_window = rolling_window
@@ -578,8 +576,7 @@ def get_parameter_df(
         "earliest_data_ingest": [earliest_sale_ingest],
         "latest_data_ingest": [latest_sale_ingest],
         "iso_forest_cols": [iso_forest_cols],
-        "res_stat_groups": [res_stat_groups],
-        "condo_stat_groups": [condo_stat_groups],
+        "stat_groups": [stat_groups],
         "dev_bounds": [dev_bounds],
         "ptax_sd": [ptax_sd],
         "rolling_window": [rolling_window],
