@@ -135,6 +135,13 @@ df["ptax_flag_original"].fillna(False, inplace=True)
 # Development
 # - - - - - - - - -
 
+# Filter to correct tris
+tri_stat_groups = {
+    tri: method
+    for tri, method in inputs["tri_stat_groups"].items()
+    if tri in inputs["run_tri"]
+}
+
 # Handle current methodology data manipulation if needed
 if "current" in tri_stat_groups.values():
     # Calculate the building's age
@@ -152,14 +159,6 @@ if "current" in tri_stat_groups.values():
 #
 # Make correct filters and set up dictionary structure
 #
-
-# Filter to correct tris
-tri_stat_groups = {
-    tri: method
-    for tri, method in inputs["tri_stat_groups"].items()
-    if tri in inputs["run_tri"]
-}
-
 
 dfs_to_feature_creation = {}  # Dictionary to store DataFrames
 
@@ -197,8 +196,8 @@ for tri, method in tri_stat_groups.items():
             df_condo_og_mansueto = df[(df["indicator"] == "condo") & triad_code_filter]
 
             # Append these DataFrames to the dictionary
-            key_res = f"df_res_og_mansueto"
-            key_condo = f"df_condos_og_mansueto"
+            key_res = f"df_{tri}_res_og_mansueto"
+            key_condo = f"df_{tri}_condos_og_mansueto"
 
             dfs_to_feature_creation[key_res] = {
                 "df": df_res_og_mansueto,
@@ -369,8 +368,6 @@ for key in dfs_flagged:
 # Adjust outliers based on group sizes and incorporate ptax information
 #
 
-
-# NEW
 dfs_to_finalize = dfs_flagged.copy()
 
 for df_name, df in dfs_flagged.items():
