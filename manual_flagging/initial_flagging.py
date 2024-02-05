@@ -1,6 +1,7 @@
 from glue.flagging_script_glue import flagging as flg_model
 from glue import sales_val_flagging as flg
 import awswrangler as wr
+import copy
 import os
 import datetime
 import numpy as np
@@ -196,8 +197,8 @@ for tri, method in tri_stat_groups.items():
             df_condo_og_mansueto = df[(df["indicator"] == "condo") & triad_code_filter]
 
             # Append these DataFrames to the dictionary
-            key_res = f"df_{tri}_res_og_mansueto"
-            key_condo = f"df_{tri}_condos_og_mansueto"
+            key_res = f"df_tri{tri}_res_og_mansueto"
+            key_condo = f"df_tri{tri}_condos_og_mansueto"
 
             dfs_to_feature_creation[key_res] = {
                 "df": df_res_og_mansueto,
@@ -240,8 +241,12 @@ def create_bins_and_labels(input_list):
     return bins, labels
 
 
+for df_name, df in dfs_to_feature_creation.items():
+    print(df_name)
+    print(df["df"].columns)
+
 # Iterate through loop and correctly create columns that are used for statistical grouping
-dfs_to_rolling_window = dfs_to_feature_creation.copy()
+dfs_to_rolling_window = copy.deepcopy(dfs_to_feature_creation)
 
 for df_name, df in dfs_to_feature_creation.items():
     # Make a copy of the data frame to edit
@@ -327,7 +332,7 @@ for key, value in dfs_to_rolling_window.items():
 # Make rolling window
 # - - - - - -
 
-dfs_to_flag = dfs_to_rolling_window.copy()
+dfs_to_flag = copy.deepcopy(dfs_to_rolling_window)
 
 for df_name, df in dfs_to_rolling_window.items():
     print(f"Assigning rolling window for {df_name}")
@@ -343,7 +348,7 @@ for df_name, df in dfs_to_rolling_window.items():
 # Flag Sales
 # - - - - -
 
-dfs_flagged = dfs_to_flag.copy()
+dfs_flagged = copy.deepcopy(dfs_to_flag)
 
 for df_name, df in dfs_to_flag.items():
     # Make a copy of the data frame to edit
@@ -368,7 +373,7 @@ for key in dfs_flagged:
 # Adjust outliers based on group sizes and incorporate ptax information
 #
 
-dfs_to_finalize = dfs_flagged.copy()
+dfs_to_finalize = copy.deepcopy(dfs_flagged)
 
 for df_name, df in dfs_flagged.items():
     # Make a copy of the data frame to edit
@@ -390,64 +395,85 @@ for df_name, df in dfs_flagged.items():
     # Add the edited or unedited dataframe to the new dictionary
     dfs_to_finalize[df_name]["df"] = df_copy
 
+#
+# Finalize data to write and grab run_id, current time info
+#
 
-df_flagged_ptax_merged = pd.concat(
-    [df_res_flagged_updated_ptax, df_condo_flagged_updated_ptax]
-).reset_index(drop=True)
+dfs_to_write = copy.deepcopy(dfs_to_finalize)
 
-# Finish flagging and subset to write to flag table
-df_to_write, run_id, timestamp = flg.finish_flags(
-    df=df_flagged_ptax_merged,
-    start_date=inputs["time_frame"]["start"],
-    manual_update=False,
-)
+for df_name, df in dfs_to_finalize.items():
+    df_copy = df["df"].copy()
 
-# Write to sale.flag table
-flg.write_to_table(
-    df=df_to_write,
-    table_name="flag",
-    s3_warehouse_bucket_path=os.getenv("AWS_S3_WAREHOUSE_BUCKET"),
-    run_id=run_id,
-)
+    df_copy, run_id, timestamp = flg.finish_flags(
+        df=df_copy,
+        start_date=inputs["time_frame"]["start"],
+        manual_update=False,
+    )
 
-# Write to sale.parameter table
-df_parameters = flg.get_parameter_df(
-    df_to_write=df_to_write,
-    df_ingest=df_ingest,
-    iso_forest_cols=inputs["iso_forest"],
-    res_stat_groups=inputs["stat_groups"],
-    condo_stat_groups=condo_stat_groups,
-    dev_bounds=inputs["dev_bounds"],
-    ptax_sd=inputs["ptax_sd"],
-    rolling_window=inputs["rolling_window_months"],
-    date_floor=inputs["time_frame"]["start"],
-    short_term_thresh=flg_model.SHORT_TERM_OWNER_THRESHOLD,
-    min_group_thresh=inputs["min_groups_threshold"],
-    run_id=run_id,
-)
+    dfs_to_write[df_name]["df"] = df_copy
+    dfs_to_write[df_name]["run_id"] = run_id
+    dfs_to_write[df_name]["timestamp"] = timestamp
 
-# Standardize dtypes to prevent Athena errors
-df_parameters = flg.modify_dtypes(df_parameters)
+for df_name, df in dfs_to_write.items():
+    print(df["df"])
+    df_copy = df["df"].copy()
 
-flg.write_to_table(
-    df=df_parameters,
-    table_name="parameter",
-    s3_warehouse_bucket_path=os.getenv("AWS_S3_WAREHOUSE_BUCKET"),
-    run_id=run_id,
-)
+    # Write to sale.flag table
+    flg.write_to_table(
+        df=df_copy,
+        table_name="flag",
+        s3_warehouse_bucket_path=os.getenv("AWS_TEST_ARCH_CHANGE_BUCKET"),
+        run_id=df["run_id"],
+    )
 
-# Write to sale.group_mean table
-df_res_group_mean = flg.get_group_mean_df(
-    df=df_res_flagged, stat_groups=inputs["stat_groups"], run_id=run_id, condos=False
-)
+for df_name, df in dfs_to_write.items():
+    print(f"{df_name}\n")
+    print(dfs_to_feature_creation[df_name]["df"].columns)
 
-df_condo_group_mean = flg.get_group_mean_df(
-    df=df_condo_flagged, stat_groups=condo_stat_groups, run_id=run_id, condos=True
-)
+    # Write to sale.parameter table
+    df_parameter = flg.get_parameter_df(
+        df_to_write=dfs_to_write[df_name]["df"],
+        df_ingest=dfs_to_feature_creation[df_name]["df"],
+        iso_forest_cols=dfs_to_write[df_name]["iso_forest_cols"],
+        stat_groups=dfs_to_write[df_name]["columns"],
+        dev_bounds=inputs["dev_bounds"],
+        ptax_sd=inputs["ptax_sd"],
+        rolling_window=inputs["rolling_window_months"],
+        date_floor=inputs["time_frame"]["start"],
+        short_term_thresh=flg_model.SHORT_TERM_OWNER_THRESHOLD,
+        min_group_thresh=inputs["min_groups_threshold"],
+        run_id=dfs_to_write[df_name]["run_id"],
+    )
 
-df_group_mean_merged = pd.concat([df_res_group_mean, df_condo_group_mean]).reset_index(
-    drop=True
-)
+    # Standardize dtypes to prevent Athena errors
+    df_parameter = flg.modify_dtypes(df_parameter)
+
+    dfs_to_write[df_name]["df_parameter"] = df_parameter
+
+for df_name, df in dfs_to_write.items():
+    df_copy = df["df_parameter"].copy()
+
+    # Write to sale.parameter table
+    flg.write_to_table(
+        df=df_copy,
+        table_name="parameter",
+        s3_warehouse_bucket_path=os.getenv("AWS_TEST_ARCH_CHANGE_BUCKET"),
+        run_id=df["run_id"],
+    )
+
+
+for df_name, df in dfs_to_write.items():
+    print(df_name)
+
+    # Write to sale.group_mean table
+    df_group_mean = flg.get_group_mean_df(
+        df=dfs_flagged[df_name]["df"],
+        stat_groups=df["columns"],
+        run_id=run_id,
+        condos=df["condos_boolean"],
+    )
+
+    dfs_to_write[df_name]["df_group_mean"] = df_group_mean
 
 flg.write_to_table(
     df=df_group_mean_merged,
