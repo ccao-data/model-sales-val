@@ -466,7 +466,9 @@ for df_name, df in dfs_to_write.items():
     df_metadata = flg.get_metadata_df(
         run_id=df["run_id"],
         timestamp=df["timestamp"],
-        run_type="initial_flagging",
+        run_type="initial_flagging"
+        if inputs["manual_update"] == False
+        else "manual_update",
         commit_sha=commit_sha,
     )
 
