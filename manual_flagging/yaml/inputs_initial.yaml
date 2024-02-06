@@ -2,12 +2,22 @@
 ---
 
 
-# The values in housing_run_type and run_tri will tell the sales val script
-# which properties will be updated. The housing_run_type list currenty supports
-# "res_single_family", "res_multi_family", and/or "condos". The run_tri van be
-# 1, 2, and/or 3. We can run any combination of these
+# The values in housing_run_type, run_tri, and tri_stat_groups will tell the
+# sales val script which properties will be updated. The housing_run_type list
+# currently supports 'res_single_family', 'res_multi_family', and/or 'condos'.
+# The run_tri van be 1, 2, and/or 3, and the values for the tri_stat_groups
+# can be "current" or "og_mansueto".
+
+# 'tri_stat_groups' specifies which flagging methodology will be used for
+# which tri
+
+# Note: If 'og_mansueto' is selected along with either 'res_single_family' or
+# 'res_multi_family', it will trigger an update for all residential property
+# types ('res_single_family' and 'res_multi_family'). This behavior is
+# intrinsic to the 'og_mansueto' script's functionality.
+
 housing_run_type: ["res_single_family", "res_multi_family", "condos"]
-run_tri: [1, 2, 3]
+run_tri: [1, 2]
 
 # tri_stat_groups maps the method to be used for each tri.
 tri_stat_groups:

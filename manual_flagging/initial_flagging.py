@@ -131,11 +131,6 @@ conversion_dict = {
 df = df.astype(conversion_dict)
 df["ptax_flag_original"].fillna(False, inplace=True)
 
-
-# - - - - - - - - -
-# Development
-# - - - - - - - - -
-
 # Filter to correct tris
 tri_stat_groups = {
     tri: method
@@ -143,7 +138,7 @@ tri_stat_groups = {
     if tri in inputs["run_tri"]
 }
 
-# Handle current methodology data manipulation if needed
+# Handle current methodology data manipulation if needed (temporary, need to find a better way)
 if "current" in tri_stat_groups.values():
     # Calculate the building's age
     current_year = datetime.datetime.now().year
@@ -157,9 +152,9 @@ if "current" in tri_stat_groups.values():
     df["nbhd"] = df["nbhd"].astype(int)
     df = pd.merge(df, df_new_groups, on="nbhd", how="left")
 
-#
+# - - - - - - -
 # Make correct filters and set up dictionary structure
-#
+# - - - - - - -
 
 dfs_to_feature_creation = {}  # Dictionary to store DataFrames
 
@@ -215,16 +210,19 @@ for tri, method in tri_stat_groups.items():
                 "condos_boolean": True,
             }
 
-# check names
-for key in dfs_to_feature_creation:
-    print(key)
-
-# - - - - - - -
-# Make features
-# - - - - - - -
+# - - - - - - - -
+# Intermediate feature creation
+# - - - - - - - -
 
 
 def create_bins_and_labels(input_list):
+    """
+    Some of the groups used for flagging are partitions of
+    building size or age, this helper function returns the
+    bins and labels for the column creation based on input data
+    from our config file.
+    """
+
     # Initialize bins with 0 and float("inf")
     bins = [0] + input_list + [float("inf")]
 
@@ -241,11 +239,6 @@ def create_bins_and_labels(input_list):
     return bins, labels
 
 
-for df_name, df in dfs_to_feature_creation.items():
-    print(df_name)
-    print(df["df"].columns)
-
-# Iterate through loop and correctly create columns that are used for statistical grouping
 dfs_to_rolling_window = copy.deepcopy(dfs_to_feature_creation)
 
 for df_name, df in dfs_to_feature_creation.items():
@@ -322,12 +315,6 @@ for df_name, df in dfs_to_feature_creation.items():
         # Add the edited or unedited dataframe to the new dictionary
     dfs_to_rolling_window[df_name]["df"] = df_copy
 
-
-# check names and columns
-for key, value in dfs_to_rolling_window.items():
-    print(key)
-    print(value["df"].columns)
-
 # - - - - - -
 # Make rolling window
 # - - - - - -
@@ -343,7 +330,6 @@ for df_name, df in dfs_to_rolling_window.items():
     )
     dfs_to_flag[df_name]["df"] = df_copy
 
-
 # - - - - -
 # Flag Sales
 # - - - - -
@@ -351,7 +337,6 @@ for df_name, df in dfs_to_rolling_window.items():
 dfs_flagged = copy.deepcopy(dfs_to_flag)
 
 for df_name, df in dfs_to_flag.items():
-    # Make a copy of the data frame to edit
     print(f"\nFlagging sales for {df_name}")
     df_copy = df["df"].copy()
     df_copy = flg_model.go(
@@ -365,13 +350,9 @@ for df_name, df in dfs_to_flag.items():
     # Add the edited or unedited dataframe to the new dictionary
     dfs_flagged[df_name]["df"] = df_copy
 
-# check names
-for key in dfs_flagged:
-    print(key)
-
-#
+# - - - - - - - - - - -
 # Adjust outliers based on group sizes and incorporate ptax information
-#
+# - - - - - - - - - - -
 
 dfs_to_finalize = copy.deepcopy(dfs_flagged)
 
@@ -395,9 +376,9 @@ for df_name, df in dfs_flagged.items():
     # Add the edited or unedited dataframe to the new dictionary
     dfs_to_finalize[df_name]["df"] = df_copy
 
-#
-# Finalize data to write and grab run_id, current time info
-#
+# - - - - - - -
+# Finalize data to write and create data for all metadata tables
+# - - - - - - - -
 
 dfs_to_write = copy.deepcopy(dfs_to_finalize)
 
@@ -415,22 +396,9 @@ for df_name, df in dfs_to_finalize.items():
     dfs_to_write[df_name]["timestamp"] = timestamp
 
 for df_name, df in dfs_to_write.items():
-    print(df["df"])
-    df_copy = df["df"].copy()
-
-    # Write to sale.flag table
-    flg.write_to_table(
-        df=df_copy,
-        table_name="flag",
-        s3_warehouse_bucket_path=os.getenv("AWS_TEST_ARCH_CHANGE_BUCKET"),
-        run_id=df["run_id"],
-    )
-
-for df_name, df in dfs_to_write.items():
     print(f"{df_name}\n")
     print(dfs_to_feature_creation[df_name]["df"].columns)
 
-    # Write to sale.parameter table
     df_parameter = flg.get_parameter_df(
         df_to_write=dfs_to_write[df_name]["df"],
         df_ingest=dfs_to_feature_creation[df_name]["df"],
@@ -444,56 +412,73 @@ for df_name, df in dfs_to_write.items():
         min_group_thresh=inputs["min_groups_threshold"],
         run_id=dfs_to_write[df_name]["run_id"],
     )
-
     # Standardize dtypes to prevent Athena errors
     df_parameter = flg.modify_dtypes(df_parameter)
 
     dfs_to_write[df_name]["df_parameter"] = df_parameter
 
 for df_name, df in dfs_to_write.items():
-    df_copy = df["df_parameter"].copy()
-
-    # Write to sale.parameter table
-    flg.write_to_table(
-        df=df_copy,
-        table_name="parameter",
-        s3_warehouse_bucket_path=os.getenv("AWS_TEST_ARCH_CHANGE_BUCKET"),
-        run_id=df["run_id"],
-    )
-
-
-for df_name, df in dfs_to_write.items():
     print(df_name)
 
-    # Write to sale.group_mean table
     df_group_mean = flg.get_group_mean_df(
         df=dfs_flagged[df_name]["df"],
         stat_groups=df["columns"],
-        run_id=run_id,
+        run_id=df["run_id"],
         condos=df["condos_boolean"],
     )
 
     dfs_to_write[df_name]["df_group_mean"] = df_group_mean
 
-flg.write_to_table(
-    df=df_group_mean_merged,
-    table_name="group_mean",
-    s3_warehouse_bucket_path=os.getenv("AWS_S3_WAREHOUSE_BUCKET"),
-    run_id=run_id,
-)
-
-# Write to sale.metadata table
 commit_sha = sp.getoutput("git rev-parse HEAD")
-df_metadata = flg.get_metadata_df(
-    run_id=run_id,
-    timestamp=timestamp,
-    run_type="initial_flagging",
-    commit_sha=commit_sha,
-)
 
-flg.write_to_table(
-    df=df_metadata,
-    table_name="metadata",
-    s3_warehouse_bucket_path=os.getenv("AWS_S3_WAREHOUSE_BUCKET"),
-    run_id=run_id,
-)
+for df_name, df in dfs_to_write.items():
+    print(df_name)
+
+    # Write to sale.group_mean table
+    df_metadata = flg.get_metadata_df(
+        run_id=df["run_id"],
+        timestamp=df["timestamp"],
+        run_type="initial_flagging",
+        commit_sha=commit_sha,
+    )
+
+    dfs_to_write[df_name]["df_metadata"] = df_metadata
+
+# - - - -
+# Write tables
+# - - - -
+
+for df_name, df in dfs_to_write.items():
+    print(f"Writing output tables for {df_name}")
+    df_to_write = df["df"].copy()
+    df_parameter = df["df_parameter"].copy()
+    df_group_mean = df["df_group_mean"].copy()
+    df_metadata = df["df_metadata"].copy()
+
+    flg.write_to_table(
+        df=df_to_write,
+        table_name="flag",
+        s3_warehouse_bucket_path=os.getenv("AWS_TEST_ARCH_CHANGE_BUCKET"),
+        run_id=df["run_id"],
+    )
+
+    flg.write_to_table(
+        df=df_parameter,
+        table_name="parameter",
+        s3_warehouse_bucket_path=os.getenv("AWS_TEST_ARCH_CHANGE_BUCKET"),
+        run_id=df["run_id"],
+    )
+
+    flg.write_to_table(
+        df=df_group_mean,
+        table_name="group_mean",
+        s3_warehouse_bucket_path=os.getenv("AWS_TEST_ARCH_CHANGE_BUCKET"),
+        run_id=df["run_id"],
+    )
+
+    flg.write_to_table(
+        df=df_metadata,
+        table_name="metadata",
+        s3_warehouse_bucket_path=os.getenv("AWS_TEST_ARCH_CHANGE_BUCKET"),
+        run_id=df["run_id"],
+    )
