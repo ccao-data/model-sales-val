@@ -123,6 +123,15 @@ metadata = cursor.description
 df_ingest = as_pandas(cursor)
 df = df_ingest
 
+if inputs["manual_update"] == True:
+    SQL_QUERY_SALES_VAL = """
+    SELECT *
+    FROM ci_model_sales_val_89_architecture_change_for_variable_methodology_sale.flag
+    """
+    cursor.execute(SQL_QUERY_SALES_VAL)
+    df_ingest_flag = as_pandas(cursor)
+    df_flag_table = df_ingest_flag
+
 conversion_dict = {
     col[0]: flg.sql_type_to_pd_type(col[1])
     for col in metadata
@@ -382,14 +391,33 @@ for df_name, df in dfs_flagged.items():
 
 dfs_to_write = copy.deepcopy(dfs_to_finalize)
 
+if inputs["manual_update"] == True:
+    # Group the existing data by 'ID' and find the maximum 'version' for each sale
+    existing_max_version = (
+        df_flag_table.groupby("meta_sale_document_num")["version"]
+        .max()
+        .reset_index()
+        .rename(columns={"version": "existing_version"})
+    )
+
 for df_name, df in dfs_to_finalize.items():
     df_copy = df["df"].copy()
 
     df_copy, run_id, timestamp = flg.finish_flags(
-        df=df_copy,
-        start_date=inputs["time_frame"]["start"],
-        manual_update=False,
+        df=df_copy, start_date=inputs["time_frame"]["start"]
     )
+
+    if inputs["manual_update"] == True:
+        # Merge, compute new version, and drop unnecessary columns
+        df_copy = (
+            df_copy.merge(existing_max_version, on="meta_sale_document_num", how="left")
+            .assign(
+                version=lambda x: x["existing_version"]
+                .apply(lambda y: y + 1 if pd.notnull(y) else 1)
+                .astype(int)
+            )
+            .drop(columns=["existing_version"])
+        )
 
     dfs_to_write[df_name]["df"] = df_copy
     dfs_to_write[df_name]["run_id"] = run_id
