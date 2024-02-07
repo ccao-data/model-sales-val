@@ -147,19 +147,17 @@ tri_stat_groups = {
     if tri in inputs["run_tri"]
 }
 
-# Handle current methodology data manipulation if needed (temporary, need to find a better way)
-if "current" in tri_stat_groups.values():
-    # Calculate the building's age
-    current_year = datetime.datetime.now().year
-    df["bldg_age"] = current_year - df["yrblt"]
+# Calculate the building's age
+current_year = datetime.datetime.now().year
+df["bldg_age"] = current_year - df["yrblt"]
 
-    # Ingest new geographic groups
-    df_new_groups = pd.read_excel(
-        os.path.join(root, "QC_salesval_nbhds_round2.xlsx"),
-        usecols=["Town Nbhd", "Town Grp 1"],
-    ).rename(columns={"Town Nbhd": "nbhd", "Town Grp 1": "geography_split"})
-    df["nbhd"] = df["nbhd"].astype(int)
-    df = pd.merge(df, df_new_groups, on="nbhd", how="left")
+# Ingest new geographic groups for current methodology
+df_new_groups = pd.read_excel(
+    os.path.join(root, "QC_salesval_nbhds_round2.xlsx"),
+    usecols=["Town Nbhd", "Town Grp 1"],
+).rename(columns={"Town Nbhd": "nbhd", "Town Grp 1": "geography_split"})
+df["nbhd"] = df["nbhd"].astype(int)
+df = pd.merge(df, df_new_groups, on="nbhd", how="left")
 
 # - - - - - - -
 # Make correct filters and set up dictionary structure
