@@ -79,7 +79,7 @@ iso_forest:
     "sv_sale_dup_counts"
   ]
 
-housing_run_type_filters:
+housing_market_class_codes:
   res_single_family: [
     "202",
     "203",
