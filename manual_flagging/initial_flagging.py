@@ -174,7 +174,9 @@ for tri, method in tri_stat_groups.items():
             key = f"df_tri{tri}_{market}_current"
             # Filter by triad code and market type
             triad_code_filter = df["triad_code"] == str(tri)
-            market_filter = df["class"].isin(inputs["housing_run_type_filters"][market])
+            market_filter = df["class"].isin(
+                inputs["housing_market_class_codes"][market]
+            )
 
             dfs_to_feature_creation[key] = {
                 "df": df[triad_code_filter & market_filter],
