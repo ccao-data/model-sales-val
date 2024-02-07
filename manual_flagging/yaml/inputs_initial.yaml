@@ -1,11 +1,11 @@
 # TODO: Add overview here
 ---
 #
-manual_update: True
+manual_update: true
 
-# The values in housing_run_type, run_tri, and tri_stat_groups will tell the
-# sales val script which properties will be updated. The housing_run_type list
-# currently supports 'res_single_family', 'res_multi_family', and/or 'condos'.
+# The values in housing_market_type, run_tri, and tri_stat_groups will tell the
+# sales val script which properties will be updated. The housing_market_type
+# list supports 'res_single_family', 'res_multi_family', and/or 'condos'.
 # The run_tri van be 1, 2, and/or 3, and the values for the tri_stat_groups
 # can be "current" or "og_mansueto".
 
@@ -17,7 +17,7 @@ manual_update: True
 # types ('res_single_family' and 'res_multi_family'). This behavior is
 # intrinsic to the 'og_mansueto' script's functionality.
 
-housing_run_type: ["res_single_family"]
+housing_market_type: ["res_single_family"]
 run_tri: [1]
 
 # tri_stat_groups maps the method to be used for each tri.

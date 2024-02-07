@@ -171,7 +171,7 @@ for tri, method in tri_stat_groups.items():
     print(tri, method)
 
     # Iterate over markets
-    for market in inputs["housing_run_type"]:
+    for market in inputs["housing_market_type"]:
         if method == "current":
             key = f"df_tri{tri}_{market}_current"
             # Filter by triad code and market type
