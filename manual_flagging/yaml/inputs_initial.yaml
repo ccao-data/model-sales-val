@@ -66,13 +66,12 @@ stat_groups:
         - "township_code"
 
 iso_forest:
-  res: [
-    "meta_sale_price",
-    "sv_price_per_sqft",
-    "sv_days_since_last_transaction",
-    "sv_cgdr",
-    "sv_sale_dup_counts"
-  ]
+  res:
+    - "meta_sale_price"
+    - "sv_price_per_sqft"
+    - "sv_days_since_last_transaction"
+    - "sv_cgdr"
+    - "sv_sale_dup_counts"
   condos: [
     "meta_sale_price",
     "sv_days_since_last_transaction",
