@@ -159,14 +159,39 @@ df_new_groups = pd.read_excel(
 df["nbhd"] = df["nbhd"].astype(int)
 df = pd.merge(df, df_new_groups, on="nbhd", how="left")
 
+
+def create_bins_and_labels(input_list):
+    """
+    Some of the groups used for flagging are partitions of
+    building size or age, this helper function returns the
+    bins and labels for the column creation based on input data
+    from our config file.
+    """
+
+    # Initialize bins with 0 and float("inf")
+    bins = [0] + input_list + [float("inf")]
+
+    # Generate labels based on bins
+    labels = []
+    for i in range(len(bins) - 1):
+        if i == 0:
+            labels.append(f"below-{bins[i+1]}")
+        elif i == len(bins) - 2:
+            labels.append(f"above-{bins[i]}")
+        else:
+            labels.append(f"{bins[i]}-to-{bins[i+1]}")
+
+    return bins, labels
+
+
 # - - - - - - -
 # Make correct filters and set up dictionary structure
 # - - - - - - -
 
-dfs_to_feature_creation = {}  # Dictionary to store DataFrames
+dfs_to_rolling_window = {}  # Dictionary to store DataFrames
 
 for tri, method in tri_stat_groups.items():
-    print(tri, method)
+    print(f"Setting up tri {tri} with {method} method")
 
     # Iterate over markets
     for market in inputs["housing_market_type"]:
@@ -178,14 +203,62 @@ for tri, method in tri_stat_groups.items():
                 inputs["housing_market_class_codes"][market]
             )
 
-            dfs_to_feature_creation[key] = {
+            dfs_to_rolling_window[key] = {
                 "df": df[triad_code_filter & market_filter],
-                "columns": inputs["stat_groups"]["current"][market]["columns"],
+                "columns": inputs["stat_groups"]["current"][f"tri{tri}"][market][
+                    "columns"
+                ],
                 "iso_forest_cols": inputs["iso_forest"][
                     "res" if "res" in market else "condos"
                 ],
                 "condos_boolean": market == "condos",
             }
+
+            # Binning feature creation
+            if "res_single_family" in key:
+                df_copy = dfs_to_rolling_window[key]["df"].copy()
+
+                # Bin sf
+                char_bldg_sf_bins, char_bldg_sf_labels = create_bins_and_labels(
+                    inputs["stat_groups"]["current"][f"tri{tri}"]["res_single_family"][
+                        "sf_bin_specification"
+                    ]
+                )
+
+                df_copy["char_bldg_sf_bin"] = pd.cut(
+                    df_copy["char_bldg_sf"],
+                    bins=char_bldg_sf_bins,
+                    labels=char_bldg_sf_labels,
+                )
+                # Bin age
+                bldg_age_bins, bldg_age_labels = create_bins_and_labels(
+                    inputs["stat_groups"]["current"][f"tri{tri}"]["res_single_family"][
+                        "age_bin_specification"
+                    ]
+                )
+                df_copy["bldg_age_bin"] = pd.cut(
+                    df_copy["bldg_age"],
+                    bins=bldg_age_bins,
+                    labels=bldg_age_labels,
+                )
+                dfs_to_rolling_window[key]["df"] = df_copy
+
+            # Binning feature creation
+            if "res_multi_family" in key:
+                df_copy = dfs_to_rolling_window[key]["df"].copy()
+
+                # Define bins for building age
+                bldg_age_bins, bldg_age_labels = create_bins_and_labels(
+                    inputs["stat_groups"]["current"][f"tri{tri}"]["res_multi_family"][
+                        "age_bin_specification"
+                    ]
+                )
+                df_copy["bldg_age_bin"] = pd.cut(
+                    df_copy["bldg_age"],
+                    bins=bldg_age_bins,
+                    labels=bldg_age_labels,
+                )
+                dfs_to_rolling_window[key]["df"] = df_copy
 
         elif method == "og_mansueto":
             # Collect all mansueto tris
@@ -204,7 +277,7 @@ for tri, method in tri_stat_groups.items():
             key_res = f"df_tri{tri}_res_og_mansueto"
             key_condo = f"df_tri{tri}_condos_og_mansueto"
 
-            dfs_to_feature_creation[key_res] = {
+            dfs_to_rolling_window[key_res] = {
                 "df": df_res_og_mansueto,
                 "columns": inputs["stat_groups"]["og_mansueto"]["res_single_family"][
                     "columns"
@@ -212,117 +285,12 @@ for tri, method in tri_stat_groups.items():
                 "iso_forest_cols": inputs["iso_forest"]["res"],
                 "condos_boolean": False,
             }
-            dfs_to_feature_creation[key_condo] = {
+            dfs_to_rolling_window[key_condo] = {
                 "df": df_condo_og_mansueto,
                 "columns": inputs["stat_groups"]["og_mansueto"]["condos"]["columns"],
                 "iso_forest_cols": inputs["iso_forest"]["condos"],
                 "condos_boolean": True,
             }
-
-# - - - - - - - -
-# Intermediate feature creation
-# - - - - - - - -
-
-
-def create_bins_and_labels(input_list):
-    """
-    Some of the groups used for flagging are partitions of
-    building size or age, this helper function returns the
-    bins and labels for the column creation based on input data
-    from our config file.
-    """
-
-    # Initialize bins with 0 and float("inf")
-    bins = [0] + input_list + [float("inf")]
-
-    # Generate labels based on bins
-    labels = []
-    for i in range(len(bins) - 1):
-        if i == 0:
-            labels.append(f"below_{bins[i+1]}")
-        elif i == len(bins) - 2:
-            labels.append(f"above_{bins[i]}")
-        else:
-            labels.append(f"{bins[i]}_to_{bins[i+1]}")
-
-    return bins, labels
-
-
-dfs_to_rolling_window = copy.deepcopy(dfs_to_feature_creation)
-
-for df_name, df in dfs_to_feature_creation.items():
-    # Make a copy of the data frame to edit
-    df_copy = df["df"].copy()
-
-    # print(f"{df_name}")
-    if "current" in df_name:
-        print("current")
-
-        if "res_single_family" in df_name:
-            # Bin sf
-            print("Start making bins")
-            char_bldg_sf_bins, char_bldg_sf_labels = create_bins_and_labels(
-                inputs["stat_groups"]["current"]["res_single_family"][
-                    "sf_bin_specification"
-                ]
-            )
-
-            df_copy["char_bldg_sf_bin"] = pd.cut(
-                df_copy["char_bldg_sf"],
-                bins=char_bldg_sf_bins,
-                labels=char_bldg_sf_labels,
-            )
-            # Define bins for building age
-            bldg_age_bins, bldg_age_labels = create_bins_and_labels(
-                inputs["stat_groups"]["current"]["res_single_family"][
-                    "age_bin_specification"
-                ]
-            )
-            df_copy["bldg_age_bin"] = pd.cut(
-                df_copy["bldg_age"],
-                bins=char_bldg_sf_bins,
-                labels=char_bldg_sf_labels,
-            )
-            print("Finish bins")
-        if "res_multi_family" in df_name:
-            # Define bins for building age
-            bldg_age_bins, bldg_age_labels = create_bins_and_labels(
-                inputs["stat_groups"]["current"]["res_multi_family"][
-                    "age_bin_specification"
-                ]
-            )
-            df_copy["bldg_age_bin"] = pd.cut(
-                df_copy["bldg_age"],
-                bins=char_bldg_sf_bins,
-                labels=char_bldg_sf_labels,
-            )
-            pass
-
-        if "condos" in df_name:
-            """
-            Currently no feature engineering needed in
-            the current condos method
-            """
-            pass
-
-    elif "og_mansueto" in df_name:
-        print("og_mansueto")
-        if "res" in df_name:
-            """
-            Currently no feature engineering needed in
-            the og_mansueto method
-            """
-            pass
-
-        if "condos" in df_name:
-            """
-            Currently no feature engineering needed in
-            the current og_mansueto method
-            """
-            pass
-
-        # Add the edited or unedited dataframe to the new dictionary
-    dfs_to_rolling_window[df_name]["df"] = df_copy
 
 # - - - - - -
 # Make rolling window

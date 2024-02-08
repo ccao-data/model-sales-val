@@ -17,7 +17,7 @@ manual_update: true
 # types ('res_single_family' and 'res_multi_family'). This behavior is
 # intrinsic to the 'og_mansueto' script's functionality.
 
-housing_market_type: ["res_single_family"]
+housing_market_type: ["res_single_family", "res_multi_family"]
 run_tri: [1]
 
 # tri_stat_groups maps the method to be used for each tri.
@@ -31,24 +31,25 @@ tri_stat_groups:
 
 stat_groups:
   current:
-    res_single_family:
-      columns:
-        - "rolling_window"
-        - "geography_split"
-        - "bldg_age_bin"
-        - "char_bldg_sf_bin"
-      sf_bin_specification: [1200, 2400]
-      age_bin_specification: [40]
-    res_multi_family:
-      columns:
-        - "rolling_window"
-        - "geography_split"
-        - "bldg_age_bin"
-      age_bin_specification: [20]
-    condos:
-      columns:
-        - "rolling_window"
-        - "geography_split"
+    tri1:
+      res_single_family:
+        columns:
+          - "rolling_window"
+          - "geography_split"
+          - "bldg_age_bin"
+          - "char_bldg_sf_bin"
+        sf_bin_specification: [1200, 2400]
+        age_bin_specification: [40]
+      res_multi_family:
+        columns:
+          - "rolling_window"
+          - "geography_split"
+          - "bldg_age_bin"
+        age_bin_specification: [20]
+      condos:
+        columns:
+          - "rolling_window"
+          - "geography_split"
   og_mansueto:
     res_single_family:
       columns:
