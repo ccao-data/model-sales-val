@@ -186,111 +186,107 @@ def create_bins_and_labels(input_list):
 
 # - - - - - - -
 # Make correct filters and set up dictionary structure
+# Split tris into groups according to their flagging methods
 # - - - - - - -
 
 dfs_to_rolling_window = {}  # Dictionary to store DataFrames
 
-for tri, method in tri_stat_groups.items():
-    print(f"Setting up tri {tri} with {method} method")
+# Collect tris where our contemporary flagging methods are used
+current_tris = [tri for tri, method in tri_stat_groups.items() if method == "current"]
 
-    # Iterate over markets
+# Flag tris that use the most contemporary flagging method
+for tri in current_tris:
     for market in inputs["housing_market_type"]:
-        if method == "current":
-            key = f"df_tri{tri}_{market}_current"
-            # Filter by triad code and market type
-            triad_code_filter = df["triad_code"] == str(tri)
-            market_filter = df["class"].isin(
-                inputs["housing_market_class_codes"][market]
+        key = f"df_tri{tri}_{market}_current"
+        # Filter by triad code and market type
+        triad_code_filter = df["triad_code"] == str(tri)
+        market_filter = df["class"].isin(inputs["housing_market_class_codes"][market])
+
+        dfs_to_rolling_window[key] = {
+            "df": df[triad_code_filter & market_filter],
+            "columns": inputs["stat_groups"]["current"][f"tri{tri}"][market]["columns"],
+            "iso_forest_cols": inputs["iso_forest"][
+                "res" if "res" in market else "condos"
+            ],
+            "condos_boolean": market == "condos",
+        }
+
+        # Binning feature creation
+        if "res_single_family" in key:
+            df_copy = dfs_to_rolling_window[key]["df"].copy()
+
+            # Bin sf
+            char_bldg_sf_bins, char_bldg_sf_labels = create_bins_and_labels(
+                inputs["stat_groups"]["current"][f"tri{tri}"]["res_single_family"][
+                    "sf_bin_specification"
+                ]
             )
 
-            dfs_to_rolling_window[key] = {
-                "df": df[triad_code_filter & market_filter],
-                "columns": inputs["stat_groups"]["current"][f"tri{tri}"][market][
-                    "columns"
-                ],
-                "iso_forest_cols": inputs["iso_forest"][
-                    "res" if "res" in market else "condos"
-                ],
-                "condos_boolean": market == "condos",
-            }
+            df_copy["char_bldg_sf_bin"] = pd.cut(
+                df_copy["char_bldg_sf"],
+                bins=char_bldg_sf_bins,
+                labels=char_bldg_sf_labels,
+            )
+            # Bin age
+            bldg_age_bins, bldg_age_labels = create_bins_and_labels(
+                inputs["stat_groups"]["current"][f"tri{tri}"]["res_single_family"][
+                    "age_bin_specification"
+                ]
+            )
+            df_copy["bldg_age_bin"] = pd.cut(
+                df_copy["bldg_age"],
+                bins=bldg_age_bins,
+                labels=bldg_age_labels,
+            )
+            dfs_to_rolling_window[key]["df"] = df_copy
 
-            # Binning feature creation
-            if "res_single_family" in key:
-                df_copy = dfs_to_rolling_window[key]["df"].copy()
+        # Binning feature creation
+        if "res_multi_family" in key:
+            df_copy = dfs_to_rolling_window[key]["df"].copy()
 
-                # Bin sf
-                char_bldg_sf_bins, char_bldg_sf_labels = create_bins_and_labels(
-                    inputs["stat_groups"]["current"][f"tri{tri}"]["res_single_family"][
-                        "sf_bin_specification"
-                    ]
-                )
+            # Define bins for building age
+            bldg_age_bins, bldg_age_labels = create_bins_and_labels(
+                inputs["stat_groups"]["current"][f"tri{tri}"]["res_multi_family"][
+                    "age_bin_specification"
+                ]
+            )
+            df_copy["bldg_age_bin"] = pd.cut(
+                df_copy["bldg_age"],
+                bins=bldg_age_bins,
+                labels=bldg_age_labels,
+            )
+            dfs_to_rolling_window[key]["df"] = df_copy
 
-                df_copy["char_bldg_sf_bin"] = pd.cut(
-                    df_copy["char_bldg_sf"],
-                    bins=char_bldg_sf_bins,
-                    labels=char_bldg_sf_labels,
-                )
-                # Bin age
-                bldg_age_bins, bldg_age_labels = create_bins_and_labels(
-                    inputs["stat_groups"]["current"][f"tri{tri}"]["res_single_family"][
-                        "age_bin_specification"
-                    ]
-                )
-                df_copy["bldg_age_bin"] = pd.cut(
-                    df_copy["bldg_age"],
-                    bins=bldg_age_bins,
-                    labels=bldg_age_labels,
-                )
-                dfs_to_rolling_window[key]["df"] = df_copy
+# Collect tris that will be flagged for OG method
+og_mansueto_tris = [
+    tri for tri, method in tri_stat_groups.items() if method == "og_mansueto"
+]
 
-            # Binning feature creation
-            if "res_multi_family" in key:
-                df_copy = dfs_to_rolling_window[key]["df"].copy()
+if len(og_mansueto_tris) != 0:
+    # Filter by triad code and market type
+    og_mansueto_filter = ~df["triad_code"].isin(og_mansueto_tris)
 
-                # Define bins for building age
-                bldg_age_bins, bldg_age_labels = create_bins_and_labels(
-                    inputs["stat_groups"]["current"][f"tri{tri}"]["res_multi_family"][
-                        "age_bin_specification"
-                    ]
-                )
-                df_copy["bldg_age_bin"] = pd.cut(
-                    df_copy["bldg_age"],
-                    bins=bldg_age_bins,
-                    labels=bldg_age_labels,
-                )
-                dfs_to_rolling_window[key]["df"] = df_copy
+    df_res_og_mansueto = df[(df["indicator"] == "res") & triad_code_filter]
+    df_condo_og_mansueto = df[(df["indicator"] == "condo") & triad_code_filter]
 
-        elif method == "og_mansueto":
-            # Collect all mansueto tris
-            mansueto_tris_to_flag = [
-                str(key)
-                for key, value in tri_stat_groups.items()
-                if value == "og_mansueto"
-            ]
-            # Filter by triad code and market type
-            triad_code_filter = ~df["triad_code"].isin(mansueto_tris_to_flag)
+    # Append these DataFrames to the dictionary
+    key_res = (
+        f"df_tri{'&'.join(str(number) for number in og_mansueto_tris)}_res_og_mansueto"
+    )
+    key_condo = f"df_tri{'&'.join(str(number) for number in og_mansueto_tris)}_condos_og_mansueto"
 
-            df_res_og_mansueto = df[(df["indicator"] == "res") & triad_code_filter]
-            df_condo_og_mansueto = df[(df["indicator"] == "condo") & triad_code_filter]
-
-            # Append these DataFrames to the dictionary
-            key_res = f"df_tri{tri}_res_og_mansueto"
-            key_condo = f"df_tri{tri}_condos_og_mansueto"
-
-            dfs_to_rolling_window[key_res] = {
-                "df": df_res_og_mansueto,
-                "columns": inputs["stat_groups"]["og_mansueto"]["res_single_family"][
-                    "columns"
-                ],
-                "iso_forest_cols": inputs["iso_forest"]["res"],
-                "condos_boolean": False,
-            }
-            dfs_to_rolling_window[key_condo] = {
-                "df": df_condo_og_mansueto,
-                "columns": inputs["stat_groups"]["og_mansueto"]["condos"]["columns"],
-                "iso_forest_cols": inputs["iso_forest"]["condos"],
-                "condos_boolean": True,
-            }
+    dfs_to_rolling_window[key_res] = {
+        "df": df_res_og_mansueto,
+        "columns": inputs["stat_groups"]["og_mansueto"]["res_single_family"]["columns"],
+        "iso_forest_cols": inputs["iso_forest"]["res"],
+        "condos_boolean": False,
+    }
+    dfs_to_rolling_window[key_condo] = {
+        "df": df_condo_og_mansueto,
+        "columns": inputs["stat_groups"]["og_mansueto"]["condos"]["columns"],
+        "iso_forest_cols": inputs["iso_forest"]["condos"],
+        "condos_boolean": True,
+    }
 
 # - - - - - -
 # Make rolling window
