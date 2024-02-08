@@ -209,6 +209,7 @@ for tri in current_tris:
                 "res" if "res" in market else "condos"
             ],
             "condos_boolean": market == "condos",
+            "market": market,
         }
 
         # Binning feature creation
@@ -280,12 +281,14 @@ if len(og_mansueto_tris) != 0:
         "columns": inputs["stat_groups"]["og_mansueto"]["res_single_family"]["columns"],
         "iso_forest_cols": inputs["iso_forest"]["res"],
         "condos_boolean": False,
+        "market": "res_og_mansueto",
     }
     dfs_to_rolling_window[key_condo] = {
         "df": df_condo_og_mansueto,
         "columns": inputs["stat_groups"]["og_mansueto"]["condos"]["columns"],
         "iso_forest_cols": inputs["iso_forest"]["condos"],
         "condos_boolean": True,
+        "market": "condos_og_mansueto",
     }
 
 # - - - - - -
@@ -353,7 +356,7 @@ for df_name, df in dfs_flagged.items():
 # Finalize data to write and create data for all metadata tables
 # - - - - - - - -
 
-dfs_to_write = copy.deepcopy(dfs_to_finalize)
+# dfs_to_write = copy.deepcopy(dfs_to_finalize)
 
 if inputs["manual_update"] == True:
     # Group the existing data by 'ID' and find the maximum 'version' for each sale
@@ -364,36 +367,119 @@ if inputs["manual_update"] == True:
         .rename(columns={"version": "existing_version"})
     )
 
-for df_name, df in dfs_to_finalize.items():
-    df_copy = df["df"].copy()
 
-    df_copy, run_id, timestamp = flg.finish_flags(
-        df=df_copy, start_date=inputs["time_frame"]["start"]
+dfs_to_finalize_list = [details["df"] for details in dfs_to_finalize.values()]
+df_to_finalize = pd.concat(dfs_to_finalize_list, axis=0)
+
+df_to_write, run_id, timestamp = flg.finish_flags(
+    df=df_to_finalize, start_date=inputs["time_frame"]["start"]
+)
+
+if inputs["manual_update"] == True:
+    # Merge, compute new version, and drop unnecessary columns
+    df_to_write = (
+        df_to_write.merge(existing_max_version, on="meta_sale_document_num", how="left")
+        .assign(
+            version=lambda x: x["existing_version"]
+            .apply(lambda y: y + 1 if pd.notnull(y) else 1)
+            .astype(int)
+        )
+        .drop(columns=["existing_version"])
     )
 
-    if inputs["manual_update"] == True:
-        # Merge, compute new version, and drop unnecessary columns
-        df_copy = (
-            df_copy.merge(existing_max_version, on="meta_sale_document_num", how="left")
-            .assign(
-                version=lambda x: x["existing_version"]
-                .apply(lambda y: y + 1 if pd.notnull(y) else 1)
-                .astype(int)
-            )
-            .drop(columns=["existing_version"])
-        )
 
-    dfs_to_write[df_name]["df"] = df_copy
-    dfs_to_write[df_name]["run_id"] = run_id
-    dfs_to_write[df_name]["timestamp"] = timestamp
+def get_parameter_df(
+    df_to_write,
+    df_ingest,
+    iso_forest_cols,
+    stat_groups,
+    tri_stat_groups,
+    dev_bounds,
+    ptax_sd,
+    rolling_window,
+    date_floor,
+    short_term_thresh,
+    min_group_thresh,
+    run_id,
+):
+    """
+    This functions extracts relevant data to write a parameter table,
+    which tracks important information about the flagging run.
+    Inputs:
+        df_to_write: The final table used to write data to the sale.flag table
+        df_ingest: raw data read in to perform flagging
+        iso_forest_cols: columns used in iso_forest model in Mansueto's flagging model
+        res_stat_groups: which groups were used for mansueto's flagging model
+        condo_stat_groups: which groups were used for condos
+        dev_bounds: standard deviation bounds to catch outliers
+        ptax_sd: list of standard deviations used for ptax flagging
+        rolling_window: how many months used in rolling window methodology
+        date_floor: parameter specification that limits earliest flagging write
+        short_term_thresh: short-term threshold for Mansueto's flagging model
+        min_group_thresh: minimum group size threshold needed to flag as outlier
+        run_id: unique run_id to flagging program run
+    Outputs:
+        df_parameters: parameters table associated with flagging run
+    """
+    sales_flagged = df_to_write.shape[0]
+    earliest_sale_ingest = df_ingest.meta_sale_date.min()
+    latest_sale_ingest = df_ingest.meta_sale_date.max()
+    iso_forest_cols = iso_forest_cols
+    stat_groups = stat_groups
+    tri_stat_groups = tri_stat_groups
+    dev_bounds = dev_bounds
+    ptax_sd = ptax_sd
+    rolling_window = rolling_window
+    date_floor = date_floor
+    short_term_owner_threshold = short_term_thresh
+    min_group_thresh = min_group_thresh
 
+    parameter_dict_to_df = {
+        "run_id": [run_id],
+        "sales_flagged": [sales_flagged],
+        "earliest_data_ingest": [earliest_sale_ingest],
+        "latest_data_ingest": [latest_sale_ingest],
+        "iso_forest_cols": [iso_forest_cols],
+        "stat_groups": [stat_groups],
+        "tri_stat_groups": [tri_stat_groups],
+        "dev_bounds": [dev_bounds],
+        "ptax_sd": [ptax_sd],
+        "rolling_window": [rolling_window],
+        "date_floor": [date_floor],
+        "short_term_owner_threshold": [short_term_owner_threshold],
+        "min_group_thresh": [min_group_thresh],
+    }
+
+    df_parameters = pd.DataFrame(parameter_dict_to_df)
+
+    return df_parameters
+
+
+# NEW
+df_parameter = get_parameter_df(
+    df_to_write=df_to_write,
+    df_ingest=df_ingest,
+    iso_forest_cols=inputs["iso_forest"],
+    stat_groups=inputs["stat_groups"],
+    tri_stat_groups=inputs["tri_stat_groups"],
+    dev_bounds=inputs["dev_bounds"],
+    ptax_sd=inputs["ptax_sd"],
+    rolling_window=inputs["rolling_window_months"],
+    date_floor=inputs["time_frame"]["start"],
+    short_term_thresh=flg_model.SHORT_TERM_OWNER_THRESHOLD,
+    min_group_thresh=inputs["min_groups_threshold"],
+    run_id=run_id,
+)
+
+
+# OLD
 for df_name, df in dfs_to_write.items():
     print(f"{df_name}\n")
-    print(dfs_to_feature_creation[df_name]["df"].columns)
+    print(dfs_to_rolling_window[df_name]["df"].columns)
 
     df_parameter = flg.get_parameter_df(
         df_to_write=dfs_to_write[df_name]["df"],
-        df_ingest=dfs_to_feature_creation[df_name]["df"],
+        df_ingest=dfs_to_rolling_window[df_name]["df"],
         iso_forest_cols=dfs_to_write[df_name]["iso_forest_cols"],
         stat_groups=dfs_to_write[df_name]["columns"],
         dev_bounds=inputs["dev_bounds"],
