@@ -470,11 +470,16 @@ df_metadata = flg.get_metadata_df(
 # Write tables
 # - - - -
 
-tables_to_write = ["flag", "parameter", "group_mean", "metadata"]
+tables_to_write = {
+    "flag": df_to_write,
+    "parameter": df_parameter,
+    "group_mean": df_group_mean_to_write,
+    "metadata": df_metadata,
+}
 
-for table in tables_to_write:
+for table, df in tables_to_write:
     flg.write_to_table(
-        df=df_to_write,
+        df=df,
         table_name=table,
         s3_warehouse_bucket_path=os.getenv("AWS_TEST_ARCH_CHANGE_BUCKET"),
         run_id=run_id,
