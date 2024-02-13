@@ -477,7 +477,7 @@ tables_to_write = {
     "metadata": df_metadata,
 }
 
-for table, df in tables_to_write:
+for table, df in tables_to_write.items():
     flg.write_to_table(
         df=df,
         table_name=table,
