@@ -512,6 +512,14 @@ def modify_dtypes(df):
     for col in df.select_dtypes("Int64").columns:
         df[col] = df[col].astype("int64")
 
+    # Without this adjustment, the dictionary/json structure data
+    # doesn't write to athena
+    df = df.assign(
+        iso_forest_cols=df["iso_forest_cols"].astype("str"),
+        stat_groups=df["stat_groups"].astype("str"),
+        tri_stat_groups=df["tri_stat_groups"].astype("str"),
+    )
+
     return df
 
 
@@ -520,6 +528,7 @@ def get_parameter_df(
     df_ingest,
     iso_forest_cols,
     stat_groups,
+    tri_stat_groups,
     dev_bounds,
     ptax_sd,
     rolling_window,
@@ -552,6 +561,7 @@ def get_parameter_df(
     latest_sale_ingest = df_ingest.meta_sale_date.max()
     iso_forest_cols = iso_forest_cols
     stat_groups = stat_groups
+    tri_stat_groups = tri_stat_groups
     dev_bounds = dev_bounds
     ptax_sd = ptax_sd
     rolling_window = rolling_window
@@ -566,6 +576,7 @@ def get_parameter_df(
         "latest_data_ingest": [latest_sale_ingest],
         "iso_forest_cols": [iso_forest_cols],
         "stat_groups": [stat_groups],
+        "tri_stat_groups": [tri_stat_groups],
         "dev_bounds": [dev_bounds],
         "ptax_sd": [ptax_sd],
         "rolling_window": [rolling_window],

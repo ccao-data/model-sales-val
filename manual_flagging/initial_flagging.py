@@ -195,6 +195,14 @@ dfs_to_rolling_window = {}  # Dictionary to store DataFrames
 current_tris = [tri for tri, method in tri_stat_groups.items() if method == "current"]
 
 # Flag tris that use the most contemporary flagging method
+"""
+TODO: Need to build this so that the 'for market in inputs' loop
+will default to the data in the tri{n} data, currently if we add different
+columns for a new tri 2, it will still look for the same structure (bins, etc),
+I think the only way to do this is to build a conditional for each tri. It
+seems really clunky but I'm not sure there is another way. Maybe I could add it 
+as a conditional below the 'if "res_single_ family" in' block
+"""
 for tri in current_tris:
     for market in inputs["housing_market_type"]:
         key = f"df_tri{tri}_{market}_current"
@@ -348,6 +356,16 @@ for df_name, df in dfs_flagged.items():
         ptax_sd=inputs["ptax_sd"],
         condos=df["condos_boolean"],
     )
+    """
+    Modify the 'group' column by appending '-market_value', this is done
+    to make sure that a two different groups with the same run_id won't
+    be returned with the same value. For example, if res and condos have the 
+    same column groupings, joining the group column from sale.flag to sale.group_mean
+    by 'group' and 'run_id' could potentially return two groups. This market type
+    append fixes that. This is also added in the group_mean data.
+    """
+    market_value = df["market"]
+    df_copy["group"] = df_copy["group"].astype(str) + "-" + market_value
 
     # Add the edited or unedited dataframe to the new dictionary
     dfs_to_finalize[df_name]["df"] = df_copy
@@ -387,76 +405,8 @@ if inputs["manual_update"] == True:
         .drop(columns=["existing_version"])
     )
 
-
-def get_parameter_df(
-    df_to_write,
-    df_ingest,
-    iso_forest_cols,
-    stat_groups,
-    tri_stat_groups,
-    dev_bounds,
-    ptax_sd,
-    rolling_window,
-    date_floor,
-    short_term_thresh,
-    min_group_thresh,
-    run_id,
-):
-    """
-    This functions extracts relevant data to write a parameter table,
-    which tracks important information about the flagging run.
-    Inputs:
-        df_to_write: The final table used to write data to the sale.flag table
-        df_ingest: raw data read in to perform flagging
-        iso_forest_cols: columns used in iso_forest model in Mansueto's flagging model
-        res_stat_groups: which groups were used for mansueto's flagging model
-        condo_stat_groups: which groups were used for condos
-        dev_bounds: standard deviation bounds to catch outliers
-        ptax_sd: list of standard deviations used for ptax flagging
-        rolling_window: how many months used in rolling window methodology
-        date_floor: parameter specification that limits earliest flagging write
-        short_term_thresh: short-term threshold for Mansueto's flagging model
-        min_group_thresh: minimum group size threshold needed to flag as outlier
-        run_id: unique run_id to flagging program run
-    Outputs:
-        df_parameters: parameters table associated with flagging run
-    """
-    sales_flagged = df_to_write.shape[0]
-    earliest_sale_ingest = df_ingest.meta_sale_date.min()
-    latest_sale_ingest = df_ingest.meta_sale_date.max()
-    iso_forest_cols = iso_forest_cols
-    stat_groups = stat_groups
-    tri_stat_groups = tri_stat_groups
-    dev_bounds = dev_bounds
-    ptax_sd = ptax_sd
-    rolling_window = rolling_window
-    date_floor = date_floor
-    short_term_owner_threshold = short_term_thresh
-    min_group_thresh = min_group_thresh
-
-    parameter_dict_to_df = {
-        "run_id": [run_id],
-        "sales_flagged": [sales_flagged],
-        "earliest_data_ingest": [earliest_sale_ingest],
-        "latest_data_ingest": [latest_sale_ingest],
-        "iso_forest_cols": [iso_forest_cols],
-        "stat_groups": [stat_groups],
-        "tri_stat_groups": [tri_stat_groups],
-        "dev_bounds": [dev_bounds],
-        "ptax_sd": [ptax_sd],
-        "rolling_window": [rolling_window],
-        "date_floor": [date_floor],
-        "short_term_owner_threshold": [short_term_owner_threshold],
-        "min_group_thresh": [min_group_thresh],
-    }
-
-    df_parameters = pd.DataFrame(parameter_dict_to_df)
-
-    return df_parameters
-
-
-# NEW
-df_parameter = get_parameter_df(
+# Get sale.parameter data
+df_parameter = flg.get_parameter_df(
     df_to_write=df_to_write,
     df_ingest=df_ingest,
     iso_forest_cols=inputs["iso_forest"],
@@ -471,94 +421,51 @@ df_parameter = get_parameter_df(
     run_id=run_id,
 )
 
+# Standardize dtypes to prevent Athena errors
+df_parameter = flg.modify_dtypes(df_parameter)
 
-# OLD
-for df_name, df in dfs_to_write.items():
-    print(f"{df_name}\n")
-    print(dfs_to_rolling_window[df_name]["df"].columns)
+# Get sale.group_mean data
+df_group_means = []  # List to store the transformed DataFrames
 
-    df_parameter = flg.get_parameter_df(
-        df_to_write=dfs_to_write[df_name]["df"],
-        df_ingest=dfs_to_rolling_window[df_name]["df"],
-        iso_forest_cols=dfs_to_write[df_name]["iso_forest_cols"],
-        stat_groups=dfs_to_write[df_name]["columns"],
-        dev_bounds=inputs["dev_bounds"],
-        ptax_sd=inputs["ptax_sd"],
-        rolling_window=inputs["rolling_window_months"],
-        date_floor=inputs["time_frame"]["start"],
-        short_term_thresh=flg_model.SHORT_TERM_OWNER_THRESHOLD,
-        min_group_thresh=inputs["min_groups_threshold"],
-        run_id=dfs_to_write[df_name]["run_id"],
-    )
-    # Standardize dtypes to prevent Athena errors
-    df_parameter = flg.modify_dtypes(df_parameter)
-
-    dfs_to_write[df_name]["df_parameter"] = df_parameter
-
-for df_name, df in dfs_to_write.items():
-    print(df_name)
-
+for df_name, df in dfs_to_finalize.items():
+    # Get the group mean DataFrame
     df_group_mean = flg.get_group_mean_df(
         df=dfs_flagged[df_name]["df"],
         stat_groups=df["columns"],
-        run_id=df["run_id"],
+        run_id=run_id,
         condos=df["condos_boolean"],
     )
+    market_value = df["market"]
+    df_group_mean["group"] = df_group_mean["group"].astype(str) + "-" + market_value
 
-    dfs_to_write[df_name]["df_group_mean"] = df_group_mean
+    df_group_means.append(df_group_mean)
 
+df_group_mean_to_write = pd.concat(df_group_means, ignore_index=True)
+
+# Get sale.metadata table
 commit_sha = sp.getoutput("git rev-parse HEAD")
 
-for df_name, df in dfs_to_write.items():
-    print(df_name)
-
-    # Write to sale.group_mean table
-    df_metadata = flg.get_metadata_df(
-        run_id=df["run_id"],
-        timestamp=df["timestamp"],
-        run_type="initial_flagging"
-        if inputs["manual_update"] == False
-        else "manual_update",
-        commit_sha=commit_sha,
-    )
-
-    dfs_to_write[df_name]["df_metadata"] = df_metadata
+# Write to sale.group_mean table
+df_metadata = flg.get_metadata_df(
+    run_id=run_id,
+    timestamp=timestamp,
+    run_type="initial_flagging"
+    if inputs["manual_update"] == False
+    else "manual_update",
+    commit_sha=commit_sha,
+)
 
 # - - - -
 # Write tables
 # - - - -
 
-for df_name, df in dfs_to_write.items():
-    print(f"Writing output tables for {df_name}")
-    df_to_write = df["df"].copy()
-    df_parameter = df["df_parameter"].copy()
-    df_group_mean = df["df_group_mean"].copy()
-    df_metadata = df["df_metadata"].copy()
+tables_to_write = ["flag", "parameter", "group_mean", "metadata"]
 
+for table in tables_to_write:
     flg.write_to_table(
         df=df_to_write,
-        table_name="flag",
+        table_name=table,
         s3_warehouse_bucket_path=os.getenv("AWS_TEST_ARCH_CHANGE_BUCKET"),
-        run_id=df["run_id"],
+        run_id=run_id,
     )
-
-    flg.write_to_table(
-        df=df_parameter,
-        table_name="parameter",
-        s3_warehouse_bucket_path=os.getenv("AWS_TEST_ARCH_CHANGE_BUCKET"),
-        run_id=df["run_id"],
-    )
-
-    flg.write_to_table(
-        df=df_group_mean,
-        table_name="group_mean",
-        s3_warehouse_bucket_path=os.getenv("AWS_TEST_ARCH_CHANGE_BUCKET"),
-        run_id=df["run_id"],
-    )
-
-    flg.write_to_table(
-        df=df_metadata,
-        table_name="metadata",
-        s3_warehouse_bucket_path=os.getenv("AWS_TEST_ARCH_CHANGE_BUCKET"),
-        run_id=df["run_id"],
-    )
+    print(f"{table} table successfully written")

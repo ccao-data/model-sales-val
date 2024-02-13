@@ -1,7 +1,7 @@
 # TODO: Add overview here
 ---
 #
-manual_update: true
+manual_update: false
 
 # The values in housing_market_type, run_tri, and tri_stat_groups will tell the
 # sales val script which properties will be updated. The housing_market_type
@@ -18,7 +18,7 @@ manual_update: true
 # intrinsic to the 'og_mansueto' script's functionality.
 
 housing_market_type: ["res_single_family", "res_multi_family"]
-run_tri: [1]
+run_tri: [1, 2]
 
 # tri_stat_groups maps the method to be used for each tri.
 tri_stat_groups:
@@ -50,6 +50,8 @@ stat_groups:
         columns:
           - "rolling_window"
           - "geography_split"
+    tri2:
+    tri3:
   og_mansueto:
     res_single_family:
       columns:
@@ -108,7 +110,7 @@ dev_bounds: [2, 2]
 # sale.flag table. Leave 'end' blank if we want to flag all sales
 # since the start date
 time_frame:
-  start: "2018-01-01"
+  start: "2020-01-01"
   end:
 
 # How many total months to include in the grouping methodology
