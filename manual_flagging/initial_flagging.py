@@ -195,14 +195,6 @@ dfs_to_rolling_window = {}  # Dictionary to store DataFrames
 current_tris = [tri for tri, method in tri_stat_groups.items() if method == "current"]
 
 # Flag tris that use the most contemporary flagging method
-"""
-TODO: Need to build this so that the 'for market in inputs' loop
-will default to the data in the tri{n} data, currently if we add different
-columns for a new tri 2, it will still look for the same structure (bins, etc),
-I think the only way to do this is to build a conditional for each tri. It
-seems really clunky but I'm not sure there is another way. Maybe I could add it 
-as a conditional below the 'if "res_single_ family" in' block
-"""
 for tri in current_tris:
     for market in inputs["housing_market_type"]:
         key = f"df_tri{tri}_{market}_current"
@@ -219,52 +211,60 @@ for tri in current_tris:
             "condos_boolean": market == "condos",
             "market": market,
         }
+        # - - -
+        # Feature creation based on yaml config file
+        # - - -
+        if tri == 1:
+            if "res_single_family" in key:
+                df_copy = dfs_to_rolling_window[key]["df"].copy()
 
-        # Binning feature creation
-        if "res_single_family" in key:
-            df_copy = dfs_to_rolling_window[key]["df"].copy()
+                # Bin sf
+                char_bldg_sf_bins, char_bldg_sf_labels = create_bins_and_labels(
+                    inputs["stat_groups"]["current"][f"tri{tri}"]["res_single_family"][
+                        "sf_bin_specification"
+                    ]
+                )
 
-            # Bin sf
-            char_bldg_sf_bins, char_bldg_sf_labels = create_bins_and_labels(
-                inputs["stat_groups"]["current"][f"tri{tri}"]["res_single_family"][
-                    "sf_bin_specification"
-                ]
-            )
+                df_copy["char_bldg_sf_bin"] = pd.cut(
+                    df_copy["char_bldg_sf"],
+                    bins=char_bldg_sf_bins,
+                    labels=char_bldg_sf_labels,
+                )
+                # Bin age
+                bldg_age_bins, bldg_age_labels = create_bins_and_labels(
+                    inputs["stat_groups"]["current"][f"tri{tri}"]["res_single_family"][
+                        "age_bin_specification"
+                    ]
+                )
+                df_copy["bldg_age_bin"] = pd.cut(
+                    df_copy["bldg_age"],
+                    bins=bldg_age_bins,
+                    labels=bldg_age_labels,
+                )
+                dfs_to_rolling_window[key]["df"] = df_copy
 
-            df_copy["char_bldg_sf_bin"] = pd.cut(
-                df_copy["char_bldg_sf"],
-                bins=char_bldg_sf_bins,
-                labels=char_bldg_sf_labels,
-            )
-            # Bin age
-            bldg_age_bins, bldg_age_labels = create_bins_and_labels(
-                inputs["stat_groups"]["current"][f"tri{tri}"]["res_single_family"][
-                    "age_bin_specification"
-                ]
-            )
-            df_copy["bldg_age_bin"] = pd.cut(
-                df_copy["bldg_age"],
-                bins=bldg_age_bins,
-                labels=bldg_age_labels,
-            )
-            dfs_to_rolling_window[key]["df"] = df_copy
+            # Binning feature creation
+            if "res_multi_family" in key:
+                df_copy = dfs_to_rolling_window[key]["df"].copy()
 
-        # Binning feature creation
-        if "res_multi_family" in key:
-            df_copy = dfs_to_rolling_window[key]["df"].copy()
-
-            # Define bins for building age
-            bldg_age_bins, bldg_age_labels = create_bins_and_labels(
-                inputs["stat_groups"]["current"][f"tri{tri}"]["res_multi_family"][
-                    "age_bin_specification"
-                ]
-            )
-            df_copy["bldg_age_bin"] = pd.cut(
-                df_copy["bldg_age"],
-                bins=bldg_age_bins,
-                labels=bldg_age_labels,
-            )
-            dfs_to_rolling_window[key]["df"] = df_copy
+                # Define bins for building age
+                bldg_age_bins, bldg_age_labels = create_bins_and_labels(
+                    inputs["stat_groups"]["current"][f"tri{tri}"]["res_multi_family"][
+                        "age_bin_specification"
+                    ]
+                )
+                df_copy["bldg_age_bin"] = pd.cut(
+                    df_copy["bldg_age"],
+                    bins=bldg_age_bins,
+                    labels=bldg_age_labels,
+                )
+                dfs_to_rolling_window[key]["df"] = df_copy
+        if tri == 2:
+            # Currently have not developed a new method for tri 2
+            pass
+        if tri == 3:
+            # Currently have not developed a new method for tri 3
+            pass
 
 # Collect tris that will be flagged for OG method
 og_mansueto_tris = [
@@ -374,8 +374,6 @@ for df_name, df in dfs_flagged.items():
 # Finalize data to write and create data for all metadata tables
 # - - - - - - - -
 
-# dfs_to_write = copy.deepcopy(dfs_to_finalize)
-
 if inputs["manual_update"] == True:
     # Group the existing data by 'ID' and find the maximum 'version' for each sale
     existing_max_version = (
@@ -428,7 +426,6 @@ df_parameter = flg.modify_dtypes(df_parameter)
 df_group_means = []  # List to store the transformed DataFrames
 
 for df_name, df in dfs_to_finalize.items():
-    # Get the group mean DataFrame
     df_group_mean = flg.get_group_mean_df(
         df=dfs_flagged[df_name]["df"],
         stat_groups=df["columns"],
@@ -437,7 +434,6 @@ for df_name, df in dfs_to_finalize.items():
     )
     market_value = df["market"]
     df_group_mean["group"] = df_group_mean["group"].astype(str) + "-" + market_value
-
     df_group_means.append(df_group_mean)
 
 df_group_mean_to_write = pd.concat(df_group_means, ignore_index=True)
