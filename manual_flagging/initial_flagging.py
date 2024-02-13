@@ -147,17 +147,31 @@ tri_stat_groups = {
     if tri in inputs["run_tri"]
 }
 
-# Calculate the building's age
+# Calculate the building's age for future feature creation (tri1  as of 2/1/2024)
 current_year = datetime.datetime.now().year
 df["bldg_age"] = current_year - df["yrblt"]
 
-# Ingest new geographic groups for current methodology
-df_new_groups = pd.read_excel(
-    os.path.join(root, "QC_salesval_nbhds_round2.xlsx"),
+"""
+Ingest and join new geographic groups for current methodology.
+
+To update our methodology for incorporating new geographic groups, we currently use
+a single 'geography_split' column, effective when groupings across all market types
+are uniform, as seen in the first tri. Moving forward, if new groups 
+introduced in later trimesters remain consistent across markets, they can be
+directly appended to existing data by neighborhood. However, if new geographic
+groups vary by market type (e.g., condos vs. single-family homes), we will need
+to introduce an additional column or apply a conditional join in the 
+'geo_geography_split' column to accurately integrate these diverse groupings. I think 
+this is the best spot in the code to do this, but I'm not 100% sure.
+"""
+
+df_new_groups_tri1 = pd.read_excel(
+    os.path.join(root, "group_data", "res_condos_nbhd_groups_2024.xlsx"),
     usecols=["Town Nbhd", "Town Grp 1"],
 ).rename(columns={"Town Nbhd": "nbhd", "Town Grp 1": "geography_split"})
+
 df["nbhd"] = df["nbhd"].astype(int)
-df = pd.merge(df, df_new_groups, on="nbhd", how="left")
+df = pd.merge(df, df_new_groups_tri1, on="nbhd", how="left")
 
 
 def create_bins_and_labels(input_list):
@@ -259,6 +273,7 @@ for tri in current_tris:
                     labels=bldg_age_labels,
                 )
                 dfs_to_rolling_window[key]["df"] = df_copy
+
         if tri == 2:
             # Currently have not developed a new method for tri 2
             pass
