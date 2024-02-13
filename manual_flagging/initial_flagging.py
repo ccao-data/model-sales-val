@@ -157,7 +157,7 @@ Ingest and join new geographic groups for current methodology.
 To update our methodology for incorporating new geographic groups, we currently use
 a single 'geography_split' column, effective when groupings across all market types
 are uniform, as seen in the first tri. Moving forward, if new groups 
-introduced in later trimesters remain consistent across markets, they can be
+introduced in later tris remain consistent across markets, they can be
 directly appended to existing data by neighborhood. However, if new geographic
 groups vary by market type (e.g., condos vs. single-family homes), we will need
 to introduce an additional column or apply a conditional join in the 
