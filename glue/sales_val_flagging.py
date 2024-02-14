@@ -515,6 +515,8 @@ def modify_dtypes(df):
     # Without this adjustment, the dictionary/json structure data
     # doesn't write to athena
     df = df.assign(
+        run_id=df["run_id"].astype("str"),
+        run_filter=df["run_filter"].astype("str"),
         iso_forest_cols=df["iso_forest_cols"].astype("str"),
         stat_groups=df["stat_groups"].astype("str"),
         tri_stat_groups=df["tri_stat_groups"].astype("str"),
