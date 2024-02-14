@@ -20,6 +20,8 @@ os.chdir(os.path.join(root, "manual_flagging"))
 with open(os.path.join("yaml", "inputs.yaml"), "r") as stream:
     inputs = yaml.safe_load(stream)
 
+# TODO: Add a check here on run filters.
+
 # Connect to Athena
 conn = connect(
     s3_staging_dir=os.getenv("AWS_ATHENA_S3_STAGING_DIR"),
@@ -418,10 +420,15 @@ if inputs["manual_update"] == True:
         .drop(columns=["existing_version"])
     )
 
+run_filter = str(
+    {"housing_market_type": inputs["housing_market_type"], "run_tri": inputs["run_tri"]}
+)
+
 # Get sale.parameter data
 df_parameter = flg.get_parameter_df(
     df_to_write=df_to_write,
     df_ingest=df_ingest,
+    run_filter=run_filter,
     iso_forest_cols=inputs["iso_forest"],
     stat_groups=inputs["stat_groups"],
     tri_stat_groups=inputs["tri_stat_groups"],

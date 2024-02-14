@@ -526,6 +526,7 @@ def modify_dtypes(df):
 def get_parameter_df(
     df_to_write,
     df_ingest,
+    run_filter,
     iso_forest_cols,
     stat_groups,
     tri_stat_groups,
@@ -574,6 +575,7 @@ def get_parameter_df(
         "sales_flagged": [sales_flagged],
         "earliest_data_ingest": [earliest_sale_ingest],
         "latest_data_ingest": [latest_sale_ingest],
+        "run_filter": [run_filter],
         "iso_forest_cols": [iso_forest_cols],
         "stat_groups": [stat_groups],
         "tri_stat_groups": [tri_stat_groups],
