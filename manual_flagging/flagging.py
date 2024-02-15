@@ -126,6 +126,7 @@ df_ingest = as_pandas(cursor)
 df = df_ingest
 
 if inputs["manual_update"] == True:
+    # TODO: sub this out for prod table before merging
     SQL_QUERY_SALES_VAL = """
     SELECT *
     FROM ci_model_sales_val_89_architecture_change_for_variable_methodology_sale.flag
@@ -432,6 +433,7 @@ df_parameter = flg.get_parameter_df(
     iso_forest_cols=inputs["iso_forest"],
     stat_groups=inputs["stat_groups"],
     tri_stat_groups=inputs["tri_stat_groups"],
+    housing_market_class_codes=inputs["housing_market_class_codes"],
     dev_bounds=inputs["dev_bounds"],
     ptax_sd=inputs["ptax_sd"],
     rolling_window=inputs["rolling_window_months"],

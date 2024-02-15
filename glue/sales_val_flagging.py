@@ -536,6 +536,7 @@ def modify_dtypes(df):
         "iso_forest_cols",
         "stat_groups",
         "tri_stat_groups",
+        "housing_market_class_codes",
     ]
     for col in string_columns:
         if col in df.columns:
@@ -551,6 +552,7 @@ def get_parameter_df(
     iso_forest_cols,
     stat_groups,
     tri_stat_groups,
+    housing_market_class_codes,
     dev_bounds,
     ptax_sd,
     rolling_window,
@@ -584,6 +586,7 @@ def get_parameter_df(
     iso_forest_cols = iso_forest_cols
     stat_groups = stat_groups
     tri_stat_groups = tri_stat_groups
+    housing_market_class_codes = housing_market_class_codes
     dev_bounds = dev_bounds
     ptax_sd = ptax_sd
     rolling_window = rolling_window
@@ -600,6 +603,7 @@ def get_parameter_df(
         "iso_forest_cols": [iso_forest_cols],
         "stat_groups": [stat_groups],
         "tri_stat_groups": [tri_stat_groups],
+        "housing_market_class_codes": [housing_market_class_codes],
         "dev_bounds": [dev_bounds],
         "ptax_sd": [ptax_sd],
         "rolling_window": [rolling_window],
