@@ -494,7 +494,7 @@ def get_group_mean_df(df, stat_groups, run_id, condos):
 
 def modify_dtypes(df):
     """
-    Helper function for resolving Athena parquet errors.
+    Helper function for resolving Athena parquet errors. Made for the parameter table.
 
     Sometimes, when writing data of pandas dtypes to S3/athena, there
     are errors with consistent metadata between the parquet files, even though
@@ -512,15 +512,34 @@ def modify_dtypes(df):
     for col in df.select_dtypes("Int64").columns:
         df[col] = df[col].astype("int64")
 
-    # Without this adjustment, the dictionary/json structure data
-    # doesn't write to athena
-    df = df.assign(
-        run_id=df["run_id"].astype("str"),
-        run_filter=df["run_filter"].astype("str"),
-        iso_forest_cols=df["iso_forest_cols"].astype("str"),
-        stat_groups=df["stat_groups"].astype("str"),
-        tri_stat_groups=df["tri_stat_groups"].astype("str"),
-    )
+    # Function to ensure all numeric values are converted to float
+    def to_float(value):
+        if isinstance(value, list):
+            return [float(i) for i in value]
+        elif isinstance(value, np.ndarray):
+            return value.astype(float).tolist()
+        elif isinstance(value, (int, float, np.integer, np.floating)):
+            return float(value)
+        else:
+            return value
+
+    # Apply conversion function to specified columns
+    conversion_columns = ["dev_bounds", "ptax_sd"]
+    for col in conversion_columns:
+        if col in df.columns:
+            df[col] = df[col].apply(to_float)
+
+    # Adjustments for specific string columns, ensuring compatibility
+    string_columns = [
+        "run_id",
+        "run_filter",
+        "iso_forest_cols",
+        "stat_groups",
+        "tri_stat_groups",
+    ]
+    for col in string_columns:
+        if col in df.columns:
+            df[col] = df[col].astype(str)
 
     return df
 
