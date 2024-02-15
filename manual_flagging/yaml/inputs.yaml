@@ -1,7 +1,7 @@
 # TODO: Add overview here
 ---
 #
-manual_update: false
+manual_update: true
 
 # The values in housing_market_type, run_tri, and tri_stat_groups will tell the
 # sales val script which properties will be updated. The housing_market_type
