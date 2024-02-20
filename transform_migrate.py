@@ -239,10 +239,13 @@ dfs_sale_parameter["2024-01-29_14:40-pensive-rina"]["stat_groups"] = str(
                     "geography_split",
                     "bldg_age_bin",
                     "char_bldg_sf_bin",
-                ]
+                ],
+                "sf_bin_specification": [1200, 2400],
+                "age_bin_specification": [40],
             },
             "multi_family": {
-                "columns": ["rolling_window", "geography_split", "bldg_age_bin"]
+                "columns": ["rolling_window", "geography_split", "bldg_age_bin"],
+                "age_bin_specification": [20],
             },
         }
     }
