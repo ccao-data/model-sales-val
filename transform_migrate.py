@@ -132,6 +132,9 @@ dfs_sale_parameter["2024-01-19_18:46-clever-boni"]["iso_forest_cols"] = str(
     }
 )
 
+# Although this structure didn't exist when we ran the sales val program
+# it still can fit into the new structure (all tris/market types
+#  were ran with og_mansueto)
 dfs_sale_parameter["2024-01-19_18:46-clever-boni"]["tri_stat_groups"] = str(
     {1: "og_mansueto", 2: "og_mansueto", 3: "og_mansueto"}
 )
@@ -142,6 +145,10 @@ dfs_sale_parameter["2024-01-19_18:46-clever-boni"]["run_filter"] = str(
         "run_tri": [1, 2, 3],
     }
 )
+
+# This run updated all condos and res, I believe leaving this column as null would be sufficient
+# since we didn't have the existing structure when this run happened.
+dfs_sale_parameter["2024-01-19_18:46-clever-boni"]["housing_market_class_codes"] = ""
 
 dfs_sale_parameter["2024-01-19_18:46-clever-boni"] = dfs_sale_parameter[
     "2024-01-19_18:46-clever-boni"
@@ -193,6 +200,9 @@ dfs_sale_parameter["2024-02-01_12:24-nifty-tayun"]["tri_stat_groups"] = str(
 dfs_sale_parameter["2024-02-01_12:24-nifty-tayun"]["run_filter"] = str(
     {"housing_market_type": ["condos"], "run_tri": [1]}
 )
+
+# Class code structure in yaml wasn't present in this run
+dfs_sale_parameter["2024-02-01_12:24-nifty-tayun"]["housing_market_class_codes"] = ""
 
 dfs_sale_parameter["2024-02-01_12:24-nifty-tayun"] = dfs_sale_parameter[
     "2024-02-01_12:24-nifty-tayun"
@@ -259,6 +269,9 @@ dfs_sale_parameter["2024-01-29_14:40-pensive-rina"]["tri_stat_groups"] = str(
 dfs_sale_parameter["2024-01-29_14:40-pensive-rina"]["run_filter"] = str(
     {"housing_market_type": ["res"], "run_tri": [1]}
 )
+
+# Class code structure in yaml wasn't present in this run
+dfs_sale_parameter["2024-01-29_14:40-pensive-rina"]["housing_market_class_codes"] = ""
 
 dfs_sale_parameter["2024-01-29_14:40-pensive-rina"] = dfs_sale_parameter[
     "2024-01-29_14:40-pensive-rina"
