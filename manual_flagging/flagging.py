@@ -182,7 +182,7 @@ To update our methodology for incorporating new geographic groups, we currently 
 a single 'geography_split' column, effective when groupings across all market types
 are uniform, as seen in the first tri. Moving forward, if new groups 
 introduced in later tris remain consistent across markets, they can be
-directly appended to existing data by neighborhood. However, if new geographic
+directly appended to existing data since it is grouped by neighborhood. However, if new geographic
 groups vary by market type (e.g., condos vs. single-family homes), we will need
 to introduce an additional column or apply a conditional join in the 
 'geo_geography_split' column to accurately integrate these diverse groupings. I think 
