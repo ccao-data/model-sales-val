@@ -226,78 +226,57 @@ dfs_to_rolling_window = {}  # Dictionary to store DataFrames
 # Collect tris where our contemporary flagging methods are used
 current_tris = [tri for tri, method in tri_stat_groups.items() if method == "current"]
 
-# Flag tris that use the most contemporary flagging method
 for tri in current_tris:
-    for market in inputs["housing_market_type"]:
-        key = f"df_tri{tri}_{market}_current"
-        # Filter by triad code and market type
+    # Iterate over housing types defined in yaml
+    for housing_type in inputs["housing_market_type"]:
+        # Assign the df a name
+        key = f"df_tri{tri}_{housing_type}_current"
+
+        # Perform filtering based on tri and housing market class codes
         triad_code_filter = df["triad_code"] == str(tri)
-        market_filter = df["class"].isin(inputs["housing_market_class_codes"][market])
+        market_filter = df["class"].isin(
+            inputs["housing_market_class_codes"][housing_type]
+        )
 
-        dfs_to_rolling_window[key] = {
-            "df": df[triad_code_filter & market_filter],
-            "columns": inputs["stat_groups"]["current"][f"tri{tri}"][market]["columns"],
-            "iso_forest_cols": inputs["iso_forest"][
-                "res" if "res" in market else "condos"
-            ],
-            "condos_boolean": market == "condos",
-            "market": market,
-        }
-        # - - -
-        # Feature creation based on yaml config file
-        # - - -
-        if tri == 1:
-            if "res_single_family" in key:
-                df_copy = dfs_to_rolling_window[key]["df"].copy()
+        # Initialize the DataFrame for the current key
+        df_filtered = df[triad_code_filter & market_filter].copy()
+        dfs_to_rolling_window[key] = {"df": df_filtered}  # Store the filtered DataFrame
 
-                # Bin sf
-                char_bldg_sf_bins, char_bldg_sf_labels = create_bins_and_labels(
-                    inputs["stat_groups"]["current"][f"tri{tri}"]["res_single_family"][
-                        "sf_bin_specification"
-                    ]
-                )
+        # Extract the specific housing type configuration
+        housing_type_config = inputs["stat_groups"]["current"][f"tri{tri}"][
+            housing_type
+        ]
 
-                df_copy["char_bldg_sf_bin"] = pd.cut(
-                    df_copy["char_bldg_sf"],
-                    bins=char_bldg_sf_bins,
-                    labels=char_bldg_sf_labels,
-                )
-                # Bin age
-                bldg_age_bins, bldg_age_labels = create_bins_and_labels(
-                    inputs["stat_groups"]["current"][f"tri{tri}"]["res_single_family"][
-                        "age_bin_specification"
-                    ]
-                )
-                df_copy["bldg_age_bin"] = pd.cut(
-                    df_copy["bldg_age"],
-                    bins=bldg_age_bins,
-                    labels=bldg_age_labels,
-                )
-                dfs_to_rolling_window[key]["df"] = df_copy
+        # Update market/tri configurations
+        dfs_to_rolling_window[key]["columns"] = housing_type_config["columns"]
+        dfs_to_rolling_window[key]["iso_forest_cols"] = inputs["iso_forest"][
+            "res" if "res" in housing_type else "condos"
+        ]
+        dfs_to_rolling_window[key]["condos_boolean"] = housing_type == "condos"
+        dfs_to_rolling_window[key]["market"] = housing_type
 
-            # Binning feature creation
-            if "res_multi_family" in key:
-                df_copy = dfs_to_rolling_window[key]["df"].copy()
+        # Apply binning configurations if they exist
+        if "sf_bin_specification" in housing_type_config:
+            # Create and apply bins for square footage
+            sf_bins, sf_labels = create_bins_and_labels(
+                housing_type_config["sf_bin_specification"]
+            )
+            dfs_to_rolling_window[key]["df"]["char_bldg_sf_bin"] = pd.cut(
+                dfs_to_rolling_window[key]["df"]["char_bldg_sf"],
+                bins=sf_bins,
+                labels=sf_labels,
+            )
 
-                # Define bins for building age
-                bldg_age_bins, bldg_age_labels = create_bins_and_labels(
-                    inputs["stat_groups"]["current"][f"tri{tri}"]["res_multi_family"][
-                        "age_bin_specification"
-                    ]
-                )
-                df_copy["bldg_age_bin"] = pd.cut(
-                    df_copy["bldg_age"],
-                    bins=bldg_age_bins,
-                    labels=bldg_age_labels,
-                )
-                dfs_to_rolling_window[key]["df"] = df_copy
-
-        if tri == 2:
-            # Currently have not developed a new method for tri 2
-            pass
-        if tri == 3:
-            # Currently have not developed a new method for tri 3
-            pass
+        if "age_bin_specification" in housing_type_config:
+            # Create and apply bins for age
+            age_bins, age_labels = create_bins_and_labels(
+                housing_type_config["age_bin_specification"]
+            )
+            dfs_to_rolling_window[key]["df"]["bldg_age_bin"] = pd.cut(
+                dfs_to_rolling_window[key]["df"]["bldg_age"],
+                bins=age_bins,
+                labels=age_labels,
+            )
 
 # Collect tris that will be flagged for OG method
 og_mansueto_tris = [
