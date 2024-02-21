@@ -165,7 +165,7 @@ tri_stat_groups = {
     if tri in inputs["run_tri"]
 }
 
-# Calculate the building's age for future feature creation (tri1  as of 2/1/2024)
+# Calculate the building's age for feature creation
 current_year = datetime.datetime.now().year
 df["bldg_age"] = current_year - df["yrblt"]
 
