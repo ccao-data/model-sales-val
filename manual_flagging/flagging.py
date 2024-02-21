@@ -21,27 +21,21 @@ with open(os.path.join("yaml", "inputs.yaml"), "r") as stream:
     inputs = yaml.safe_load(stream)
 
 # Validate the input specification
-try:
-    # Check housing_market_type
-    assert "housing_market_type" in inputs, "Missing key: 'housing_market_type'"
-    assert set(inputs["housing_market_type"]).issubset(
-        {"res_single_family", "res_multi_family", "condos"}
-    ), "housing_market_type can only contain 'res_single_family', 'res_multi_family', 'condos'"
-    assert len(inputs["housing_market_type"]) == len(
-        set(inputs["housing_market_type"])
-    ), "Duplicate values in 'housing_market_type'"
+# Check housing_market_type
+assert "housing_market_type" in inputs, "Missing key: 'housing_market_type'"
+assert set(inputs["housing_market_type"]).issubset(
+    {"res_single_family", "res_multi_family", "condos"}
+), "housing_market_type can only contain 'res_single_family', 'res_multi_family', 'condos'"
+assert len(inputs["housing_market_type"]) == len(
+    set(inputs["housing_market_type"])
+), "Duplicate values in 'housing_market_type'"
 
-    # Check run_tri
-    assert "run_tri" in inputs, "Missing key: 'run_tri'"
-    assert set(inputs["run_tri"]).issubset(
-        {1, 2, 3}
-    ), "run_tri can only contain 1, 2, 3"
-    assert len(inputs["run_tri"]) == len(
-        set(inputs["run_tri"])
-    ), "Duplicate values in 'run_tri'"
-
-except AssertionError as e:
-    print(f"Error: {e}")
+# Check run_tri
+assert "run_tri" in inputs, "Missing key: 'run_tri'"
+assert set(inputs["run_tri"]).issubset({1, 2, 3}), "run_tri can only contain 1, 2, 3"
+assert len(inputs["run_tri"]) == len(
+    set(inputs["run_tri"])
+), "Duplicate values in 'run_tri'"
 
 # Connect to Athena
 conn = connect(
