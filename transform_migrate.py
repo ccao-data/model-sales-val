@@ -28,7 +28,7 @@ def read_parquets_to_dfs(prefix, table):
 
     Parameters:
     - prefix: The prefix to prepend to each DataFrame name.
-    - s3_path: The S3 path where the parquet files are stored. Should be in the format "s3://bucket-name/path/to/files".
+    - table: The table for which we want to read from (flag, parameter, group_mean, or meteadata)
 
     Returns:
     A dictionary of DataFrames keyed by their names.
