@@ -190,7 +190,7 @@ this is the best spot in the code to do this, but I'm not 100% sure.
 """
 
 df_new_groups_tri1 = pd.read_excel(
-    os.path.join(root, "group_data", "res_condos_nbhd_groups_2024.xlsx"),
+    os.path.join(root, "data", "res_condos_nbhd_groups_2024.xlsx"),
     usecols=["Town Nbhd", "Town Grp 1"],
 ).rename(columns={"Town Nbhd": "nbhd", "Town Grp 1": "geography_split"})
 
