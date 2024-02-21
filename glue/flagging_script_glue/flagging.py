@@ -95,8 +95,11 @@ def outlier_taxonomy(df: pd.DataFrame, permut: tuple, groups: tuple, condos: boo
 
 def iso_forest(df, groups, columns, n_estimators=1000, max_samples=0.2):
     """
-    Modified iso_forest function with label encoding for the 'geography_split' group
-    and restoration of original values before returning the dataframe.
+    Runs an isolation forest model on our data for outlier detection.
+    First does PCA, then, attaches township/class info, and then runs the
+    IsoForest model with given parameters.
+    Uses label encoding for the 'geography_split' group
+    and restores original values before returning the dataframe.
     """
     # Set index
     df.set_index("meta_sale_document_num", inplace=True)
