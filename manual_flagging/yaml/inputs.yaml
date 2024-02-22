@@ -1,7 +1,14 @@
-# TODO: Add overview here
+# This is a config file that is used for run specifications of the
+# local flagging script.
 ---
-#
-manual_update: true
+# manual_update: A boolean setting to control flag updates. If set
+# to "false", it initializes a new set of flags with each assigned
+# a version number of "1". If set to "true", the script increments
+# the version number by 1 for existing flags in sales; for sales
+# without flags, it assigns a version number of "1". The latest
+# version of each sale flag can be found in the "default"."vw_pin_sale" view.
+
+manual_update: false
 
 # The values in housing_market_type, run_tri, and tri_stat_groups will tell the
 # sales val script which properties will be updated. The housing_market_type
@@ -29,6 +36,10 @@ tri_stat_groups:
   # south
   3: "og_mansueto"
 
+# The stat groups data structure is split between a current methodology and
+# an og_mansueto methodology. Each of these methodologies can be used for a
+# given tri, specified in the "tri stat groups" dict in this file. In each
+# tri, stat groups can be assigned dynamically in different housing markets.
 stat_groups:
   current:
     tri1:
@@ -50,7 +61,7 @@ stat_groups:
         columns:
           - "rolling_window"
           - "geography_split"
-    tri2:
+    tri2: "check"
     tri3:
   og_mansueto:
     res_single_family:
