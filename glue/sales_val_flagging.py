@@ -583,16 +583,6 @@ def get_parameter_df(
     sales_flagged = df_to_write.shape[0]
     earliest_sale_ingest = df_ingest.meta_sale_date.min()
     latest_sale_ingest = df_ingest.meta_sale_date.max()
-    iso_forest_cols = iso_forest_cols
-    stat_groups = stat_groups
-    tri_stat_groups = tri_stat_groups
-    housing_market_class_codes = housing_market_class_codes
-    dev_bounds = dev_bounds
-    ptax_sd = ptax_sd
-    rolling_window = rolling_window
-    date_floor = date_floor
-    short_term_owner_threshold = short_term_thresh
-    min_group_thresh = min_group_thresh
 
     parameter_dict_to_df = {
         "run_id": [run_id],
@@ -608,7 +598,7 @@ def get_parameter_df(
         "ptax_sd": [ptax_sd],
         "rolling_window": [rolling_window],
         "date_floor": [date_floor],
-        "short_term_owner_threshold": [short_term_owner_threshold],
+        "short_term_owner_threshold": [short_term_thresh],
         "min_group_thresh": [min_group_thresh],
     }
 
