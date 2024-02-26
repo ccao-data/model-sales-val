@@ -283,7 +283,7 @@ og_mansueto_tris = [
     tri for tri, method in tri_stat_groups.items() if method == "og_mansueto"
 ]
 
-if len(og_mansueto_tris) != 0:
+if og_mansueto_tris:
     # Filter by triad code and market type
     og_mansueto_filter = ~df["triad_code"].isin(og_mansueto_tris)
 
