@@ -20,13 +20,12 @@ def write_dfs_to_s3(dfs, bucket, table):
         wr.s3.to_parquet(df=df, path=file_path, index=False)
 
 
-def read_parquets_to_dfs(prefix, table):
+def read_parquets_to_dfs(table):
     """
-    Reads all parquet files from a specified S3 path into separate pandas DataFrames,
-    names them with a given prefix, and returns them in a dictionary.
+    Reads all parquet files from a specified S3 path into separate pandas
+    DataFrames, and returns them in a dictionary.
 
     Parameters:
-    - prefix: The prefix to prepend to each DataFrame name.
     - table: The table for which we want to read from (flag, parameter, group_mean, or meteadata)
 
     Returns:
@@ -46,7 +45,7 @@ def read_parquets_to_dfs(prefix, table):
         name_part = file.split("/")[-1].split(".")[
             0
         ]  # Adjust this as necessary based on your file naming convention
-        df_name = f"{prefix}{name_part}"
+        df_name = f"{name_part}"
 
         # Read the parquet file into a DataFrame
         df = wr.s3.read_parquet(file)
@@ -62,7 +61,7 @@ def read_parquets_to_dfs(prefix, table):
 # - - - - - -
 
 # Ingest sale.flag data
-dfs_sale_flag = read_parquets_to_dfs("", "flag")
+dfs_sale_flag = read_parquets_to_dfs("flag")
 
 # OG initial run
 # 'res_og_mansueto', 'condos_og_mansueto'
@@ -95,7 +94,7 @@ write_dfs_to_s3(dfs_sale_flag, os.getenv("AWS_BUCKET_SV"), "flag")
 # - - - - - -
 
 # Change existing prod param table
-dfs_sale_parameter = read_parquets_to_dfs("", "parameter")
+dfs_sale_parameter = read_parquets_to_dfs("parameter")
 
 dfs_sale_parameter["2024-01-19_18:46-clever-boni"].columns
 
@@ -305,7 +304,7 @@ write_dfs_to_s3(dfs_sale_parameter, os.getenv("AWS_BUCKET_SV"), "parameter")
 # - - -
 
 # Ingest sale.flag data
-dfs_sale_group_mean = read_parquets_to_dfs("", "group_mean")
+dfs_sale_group_mean = read_parquets_to_dfs("group_mean")
 
 # Read in other data here
 
@@ -349,7 +348,7 @@ write_dfs_to_s3(dfs_sale_group_mean, os.getenv("AWS_BUCKET_SV"), "group_mean")
 # - - -
 
 # get from prod bucket
-dfs_sale_metadata = read_parquets_to_dfs("", "metadata")
+dfs_sale_metadata = read_parquets_to_dfs("metadata")
 
 # Add/Adjust condos city tri updates:
 dfs_sale_metadata["2024-02-01_12:24-nifty-tayun"] = pd.read_parquet(
