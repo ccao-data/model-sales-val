@@ -48,7 +48,7 @@ def go(
     print("create_stats() done")
     df = string_processing(df)
     print("string_processing() done")
-    # df = iso_forest(df, groups, iso_forest_cols)
+    df = iso_forest(df, groups, iso_forest_cols)
     print("iso_forest() done")
     df = outlier_taxonomy(df, dev_bounds, groups, condos=condos)
     print("outlier_taxonomy() done\nfinished")
@@ -778,7 +778,7 @@ def outlier_type(df: pd.DataFrame, condos: bool) -> pd.DataFrame:
                 .any(axis=1)
             )
             & (df["sv_pricing"].str.contains("High")),
-            # (df["sv_anomaly"] == "Outlier") & (df["sv_pricing"].str.contains("High")),
+            (df["sv_anomaly"] == "Outlier") & (df["sv_pricing"].str.contains("High")),
             (df["sv_pricing"].str.contains("High price swing")),
             (df["sv_pricing"].str.contains("High")),
             (df["sv_short_owner"] == "Short-term owner")
@@ -791,7 +791,7 @@ def outlier_type(df: pd.DataFrame, condos: bool) -> pd.DataFrame:
                 .any(axis=1)
             )
             & (df["sv_pricing"].str.contains("Low")),
-            # (df["sv_anomaly"] == "Outlier") & (df["sv_pricing"].str.contains("Low")),
+            (df["sv_anomaly"] == "Outlier") & (df["sv_pricing"].str.contains("Low")),
             (df["sv_pricing"].str.contains("Low price swing")),
             (df["sv_pricing"].str.contains("Low")),
         ]
@@ -823,7 +823,7 @@ def outlier_type(df: pd.DataFrame, condos: bool) -> pd.DataFrame:
                 .any(axis=1)
             )
             & (df["sv_pricing"].str.contains("High")),
-            # (df["sv_anomaly"] == "Outlier") & (df["sv_pricing"].str.contains("High")),
+            (df["sv_anomaly"] == "Outlier") & (df["sv_pricing"].str.contains("High")),
             (df["sv_pricing"].str.contains("High price swing")),
             (df["sv_pricing"].str.contains("High"))
             & (df["sv_which_price"] == "(raw & sqft)"),
@@ -840,7 +840,7 @@ def outlier_type(df: pd.DataFrame, condos: bool) -> pd.DataFrame:
                 .any(axis=1)
             )
             & (df["sv_pricing"].str.contains("Low")),
-            # (df["sv_anomaly"] == "Outlier") & (df["sv_pricing"].str.contains("Low")),
+            (df["sv_anomaly"] == "Outlier") & (df["sv_pricing"].str.contains("Low")),
             (df["sv_pricing"].str.contains("Low price swing")),
             (df["sv_pricing"].str.contains("Low"))
             & (df["sv_which_price"] == "(raw & sqft)"),
