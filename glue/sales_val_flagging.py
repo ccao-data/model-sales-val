@@ -197,7 +197,7 @@ def group_size_adjustment(df, stat_groups: list, min_threshold, condos: bool):
     return df_flagged_updated
 
 
-def finish_flags(df, start_date):
+def finish_flags(df, start_date, manual_update):
     """
     This functions
         -takes the flagged data from the mansueto code
@@ -426,6 +426,17 @@ def finish_flags(df, start_date):
         "%Y-%m-%d_%H:%M"
     )
     run_id = timestamp + "-" + random_words
+
+    # Control flow for incorporating versioning
+    dynamic_assignment = {
+        "run_id": run_id,
+        "rolling_window": lambda df: pd.to_datetime(
+            df["rolling_window"], format="%Y%m"
+        ).dt.date,
+    }
+
+    if not manual_update:
+        dynamic_assignment["version"] = 1
 
     # Finalize to write to sale.flag table
     df = df[cols_to_write].reset_index(drop=True)

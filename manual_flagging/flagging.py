@@ -399,7 +399,9 @@ dfs_to_finalize_list = [details["df"] for details in dfs_to_finalize.values()]
 df_to_finalize = pd.concat(dfs_to_finalize_list, axis=0)
 
 df_to_write, run_id, timestamp = flg.finish_flags(
-    df=df_to_finalize, start_date=inputs["time_frame"]["start"]
+    df=df_to_finalize,
+    start_date=inputs["time_frame"]["start"],
+    manual_update=inputs["manual_update"],
 )
 
 if inputs["manual_update"] == True:
