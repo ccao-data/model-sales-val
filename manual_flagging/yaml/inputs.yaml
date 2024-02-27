@@ -8,7 +8,7 @@
 # without flags, it assigns a version number of "1". The latest
 # version of each sale flag can be found in the "default"."vw_pin_sale" view.
 
-manual_update: false
+manual_update: true
 
 # The values in housing_market_type, run_tri, and tri_stat_groups will tell the
 # sales val script which properties will be updated. The housing_market_type
