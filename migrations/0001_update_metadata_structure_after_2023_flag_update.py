@@ -5,6 +5,15 @@ import numpy as np
 from glue import sales_val_flagging as flg
 import subprocess as sp
 
+"""
+Migration to update the structure of the prod metadata following 2023 reassessment prod flag updates.
+This migration does not change any flags, but rather reads data from copied prod data,
+transforms it so that its metadata matches the most recent schema, and saves it to a new bucket where
+it can be QCed before being copied to the prod bucket. This migration was necessary in late
+Feb 2024 since prod flags for the 2023 reassessment were computed before the metadata schema
+was completely solidified.
+"""
+
 # Set working dir to manual_update, standardize yaml and src locations
 root = sp.getoutput("git rev-parse --show-toplevel")
 os.chdir(os.path.join(root))
