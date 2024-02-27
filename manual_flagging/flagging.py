@@ -172,15 +172,14 @@ df["bldg_age"] = current_year - df["yrblt"]
 """
 Ingest and join new geographic groups for current methodology.
 
-To update our methodology for incorporating new geographic groups, we currently use
-a single 'geography_split' column, effective when groupings across all market types
-are uniform, as seen in the first tri. Moving forward, if new groups 
-introduced in later tris remain consistent across markets, they can be
-directly appended to existing data since it is grouped by neighborhood. However, if new geographic
-groups vary by market type (e.g., condos vs. single-family homes), we will need
-to introduce an additional column or apply a conditional join in the 
-'geo_geography_split' column to accurately integrate these diverse groupings. I think 
-this is the best spot in the code to do this, but I'm not 100% sure.
+To update our methodology with new geographic classifications, we currently
+utilize the 'geography_split' column, which is effective for uniform groupings
+across all market types, as observed in the city tri(1). For
+subsequent tris, if new classifications are consistent across markets,
+they can be appended to the 'geo_geography_split' column. However, for
+market-specific variations (e.g., condos vs. single-family homes),
+we should introduce an additional column or use a conditional join to
+ensure accurate integration of these diverse groupings.
 """
 
 df_new_groups_tri1 = pd.read_excel(
