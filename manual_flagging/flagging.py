@@ -316,9 +316,9 @@ if og_mansueto_tris:
 
 dfs_to_flag = copy.deepcopy(dfs_to_rolling_window)
 
-for df_name, df in dfs_to_rolling_window.items():
+for df_name, df_info in dfs_to_rolling_window.items():
     print(f"Assigning rolling window for {df_name}")
-    df_copy = df["df"].copy()
+    df_copy = df_info["df"].copy()
 
     df_copy = flg.add_rolling_window(
         df_copy, num_months=inputs["rolling_window_months"]
@@ -331,15 +331,15 @@ for df_name, df in dfs_to_rolling_window.items():
 
 dfs_flagged = copy.deepcopy(dfs_to_flag)
 
-for df_name, df in dfs_to_flag.items():
+for df_name, df_info in dfs_to_flag.items():
     print(f"\nFlagging sales for {df_name}")
-    df_copy = df["df"].copy()
+    df_copy = df_info["df"].copy()
     df_copy = flg_model.go(
         df=df_copy,
-        groups=tuple(df["columns"]),
-        iso_forest_cols=df["iso_forest_cols"],
+        groups=tuple(df_info["columns"]),
+        iso_forest_cols=df_info["iso_forest_cols"],
         dev_bounds=tuple(inputs["dev_bounds"]),
-        condos=df["condos_boolean"],
+        condos=df_info["condos_boolean"],
     )
 
     # Add the edited or unedited dataframe to the new dictionary
@@ -351,21 +351,21 @@ for df_name, df in dfs_to_flag.items():
 
 dfs_to_finalize = copy.deepcopy(dfs_flagged)
 
-for df_name, df in dfs_flagged.items():
+for df_name, df_info in dfs_flagged.items():
     # Make a copy of the data frame to edit
     print(f"\n Enacting group threshold and creating ptax data for {df_name}")
-    df_copy = df["df"].copy()
+    df_copy = df_info["df"].copy()
     df_copy = flg.group_size_adjustment(
         df=df_copy,
-        stat_groups=df["columns"],
+        stat_groups=df_info["columns"],
         min_threshold=inputs["min_groups_threshold"],
-        condos=df["condos_boolean"],
+        condos=df_info["condos_boolean"],
     )
     df_copy = flg.ptax_adjustment(
         df=df_copy,
-        groups=df["columns"],
+        groups=df_info["columns"],
         ptax_sd=inputs["ptax_sd"],
-        condos=df["condos_boolean"],
+        condos=df_info["condos_boolean"],
     )
     """
     Modify the 'group' column by appending '-market_value', this is done
@@ -375,7 +375,7 @@ for df_name, df in dfs_flagged.items():
     by 'group' and 'run_id' could potentially return two groups. This market type
     append fixes that. This is also added in the group_mean data.
     """
-    market_value = df["market"]
+    market_value = df_info["market"]
     df_copy["group"] = df_copy["group"].astype(str) + "-" + market_value
 
     # Add the edited or unedited dataframe to the new dictionary
@@ -442,14 +442,14 @@ df_parameter = flg.modify_dtypes(df_parameter)
 # Get sale.group_mean data
 df_group_means = []  # List to store the transformed DataFrames
 
-for df_name, df in dfs_to_finalize.items():
+for df_name, df_info in dfs_to_finalize.items():
     df_group_mean = flg.get_group_mean_df(
         df=dfs_flagged[df_name]["df"],
-        stat_groups=df["columns"],
+        stat_groups=df_info["columns"],
         run_id=run_id,
-        condos=df["condos_boolean"],
+        condos=df_info["condos_boolean"],
     )
-    market_value = df["market"]
+    market_value = df_info["market"]
     df_group_mean["group"] = df_group_mean["group"].astype(str) + "-" + market_value
     df_group_means.append(df_group_mean)
 
