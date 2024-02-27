@@ -284,10 +284,10 @@ og_mansueto_tris = [
 
 if og_mansueto_tris:
     # Filter by triad code and market type
-    og_mansueto_filter = ~df["triad_code"].isin(og_mansueto_tris)
+    og_mansueto_filter = df["triad_code"].astype(int).isin(og_mansueto_tris)
 
-    df_res_og_mansueto = df[(df["indicator"] == "res") & triad_code_filter]
-    df_condo_og_mansueto = df[(df["indicator"] == "condo") & triad_code_filter]
+    df_res_og_mansueto = df[(df["indicator"] == "res") & og_mansueto_filter]
+    df_condo_og_mansueto = df[(df["indicator"] == "condo") & og_mansueto_filter]
 
     # Append these DataFrames to the dictionary
     key_res = (
