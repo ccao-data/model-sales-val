@@ -48,7 +48,7 @@ def go(
     print("create_stats() done")
     df = string_processing(df)
     print("string_processing() done")
-    # df = iso_forest(df, groups, iso_forest_cols)
+    df = iso_forest(df, groups, iso_forest_cols)
     print("iso_forest() done")
     df = outlier_taxonomy(df, dev_bounds, groups, condos=condos)
     print("outlier_taxonomy() done\nfinished")
