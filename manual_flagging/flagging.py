@@ -144,7 +144,7 @@ if inputs["manual_update"] == True:
     # TODO: sub this out for prod table before merging
     SQL_QUERY_SALES_VAL = """
     SELECT *
-    FROM ci_model_sales_val_89_architecture_change_for_variable_methodology_sale.flag
+    FROM sale.flag
     """
     cursor.execute(SQL_QUERY_SALES_VAL)
     df_ingest_flag = as_pandas(cursor)
