@@ -93,13 +93,7 @@ def outlier_taxonomy(df: pd.DataFrame, permut: tuple, groups: tuple, condos: boo
     return df
 
 
-def iso_forest(
-    df: pd.DataFrame,
-    groups: tuple,
-    columns: list,
-    n_estimators: int = 1000,
-    max_samples: int or float = 0.2,
-) -> pd.DataFrame:
+def iso_forest(df, groups, columns, n_estimators=1000, max_samples=0.2):
     """
     Runs an isolation forest model on our data for outlier detection.
     First does PCA, then, attaches township/class info, and then runs the
@@ -128,9 +122,7 @@ def iso_forest(
         if df[group].dtype not in ["int64", "float64", "int32", "float32"]:
             le = LabelEncoder()
             df[group] = le.fit_transform(df[group])
-            label_encoders[
-                group
-            ] = le  # Store the encoder to change value back to original
+            label_encoders[group] = le  # Store the encoder if needed later
         feed[group] = df[group]
 
     # Initialize and fit the Isolation Forest

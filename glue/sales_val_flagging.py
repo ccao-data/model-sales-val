@@ -505,7 +505,7 @@ def get_group_mean_df(df, stat_groups, run_id, condos):
 
 def modify_dtypes(df):
     """
-    Helper function for resolving Athena parquet errors.
+    Helper function for resolving Athena parquet errors. Made for the parameter table.
 
     Sometimes, when writing data of pandas dtypes to S3/athena, there
     are errors with consistent metadata between the parquet files, even though
@@ -523,15 +523,47 @@ def modify_dtypes(df):
     for col in df.select_dtypes("Int64").columns:
         df[col] = df[col].astype("int64")
 
+    # Function to ensure all numeric values are converted to float
+    def to_float(value):
+        if isinstance(value, list):
+            return [float(i) for i in value]
+        elif isinstance(value, np.ndarray):
+            return value.astype(float).tolist()
+        elif isinstance(value, (int, float, np.integer, np.floating)):
+            return float(value)
+        else:
+            return value
+
+    # Apply conversion function to specified columns
+    conversion_columns = ["dev_bounds", "ptax_sd"]
+    for col in conversion_columns:
+        if col in df.columns:
+            df[col] = df[col].apply(to_float)
+
+    # Adjustments for specific string columns, ensuring compatibility
+    string_columns = [
+        "run_id",
+        "run_filter",
+        "iso_forest_cols",
+        "stat_groups",
+        "tri_stat_groups",
+        "housing_market_class_codes",
+    ]
+    for col in string_columns:
+        if col in df.columns:
+            df[col] = df[col].astype(str)
+
     return df
 
 
 def get_parameter_df(
     df_to_write,
     df_ingest,
+    run_filter,
     iso_forest_cols,
-    res_stat_groups,
-    condo_stat_groups,
+    stat_groups,
+    tri_stat_groups,
+    housing_market_class_codes,
     dev_bounds,
     ptax_sd,
     rolling_window,
@@ -562,29 +594,22 @@ def get_parameter_df(
     sales_flagged = df_to_write.shape[0]
     earliest_sale_ingest = df_ingest.meta_sale_date.min()
     latest_sale_ingest = df_ingest.meta_sale_date.max()
-    iso_forest_cols = iso_forest_cols
-    res_stat_groups = res_stat_groups
-    condo_stat_groups = condo_stat_groups
-    dev_bounds = dev_bounds
-    ptax_sd = ptax_sd
-    rolling_window = rolling_window
-    date_floor = date_floor
-    short_term_owner_threshold = short_term_thresh
-    min_group_thresh = min_group_thresh
 
     parameter_dict_to_df = {
         "run_id": [run_id],
         "sales_flagged": [sales_flagged],
         "earliest_data_ingest": [earliest_sale_ingest],
         "latest_data_ingest": [latest_sale_ingest],
+        "run_filter": [run_filter],
         "iso_forest_cols": [iso_forest_cols],
-        "res_stat_groups": [res_stat_groups],
-        "condo_stat_groups": [condo_stat_groups],
+        "stat_groups": [stat_groups],
+        "tri_stat_groups": [tri_stat_groups],
+        "housing_market_class_codes": [housing_market_class_codes],
         "dev_bounds": [dev_bounds],
         "ptax_sd": [ptax_sd],
         "rolling_window": [rolling_window],
         "date_floor": [date_floor],
-        "short_term_owner_threshold": [short_term_owner_threshold],
+        "short_term_owner_threshold": [short_term_thresh],
         "min_group_thresh": [min_group_thresh],
     }
 
