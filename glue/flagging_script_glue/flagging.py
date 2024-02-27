@@ -48,7 +48,7 @@ def go(
     print("create_stats() done")
     df = string_processing(df)
     print("string_processing() done")
-    df = iso_forest(df, groups, iso_forest_cols)
+    # df = iso_forest(df, groups, iso_forest_cols)
     print("iso_forest() done")
     df = outlier_taxonomy(df, dev_bounds, groups, condos=condos)
     print("outlier_taxonomy() done\nfinished")
@@ -800,13 +800,13 @@ def outlier_type(df: pd.DataFrame, condos: bool) -> pd.DataFrame:
             "Home flip sale (high)",
             "Family sale (high)",
             "Non-person sale (high)",
-            # "Anomaly (high)",
+            "Anomaly (high)",
             "High price swing",
             "High price (raw)",
             "Home flip sale (low)",
             "Family sale (low)",
             "Non-person sale (low)",
-            # "Anomaly (low)",
+            "Anomaly (low)",
             "Low price swing",
             "Low price (raw)",
         ]
@@ -852,7 +852,7 @@ def outlier_type(df: pd.DataFrame, condos: bool) -> pd.DataFrame:
             "Home flip sale (high)",
             "Family sale (high)",
             "Non-person sale (high)",
-            # "Anomaly (high)",
+            "Anomaly (high)",
             "High price swing",
             "High price (raw & sqft)",
             "High price (raw)",
@@ -860,7 +860,7 @@ def outlier_type(df: pd.DataFrame, condos: bool) -> pd.DataFrame:
             "Home flip sale (low)",
             "Family sale (low)",
             "Non-person sale (low)",
-            # "Anomaly (low)",
+            "Anomaly (low)",
             "Low price swing",
             "Low price (raw & sqft)",
             "Low price (raw)",
