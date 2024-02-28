@@ -100,8 +100,8 @@ WITH TotalRecords AS (
     SELECT COUNT(*) as total_count
     FROM default.vw_pin_sale
     WHERE sv_is_outlier IS NOT null
-), NotOutlierCount AS (
-    SELECT COUNT(*) as not_outlier_count
+), OutlierCount AS (
+    SELECT COUNT(*) as outlier_count
     FROM default.vw_pin_sale
     WHERE sv_is_outlier IS NOT NULL
     AND sv_outlier_type <> 'Not outlier'
@@ -109,11 +109,11 @@ WITH TotalRecords AS (
 
 SELECT
     ROUND(
-        (not_outlier_count * 100.0) / total_count,
+        (outlier_count * 100.0) / total_count,
         3
-    ) AS not_outlier_percentage
+    ) AS outlier_percentage
 FROM
-    TotalRecords, NotOutlierCount;
+    TotalRecords, OutlierCount;
 -->
 
 As of 2024-02-28, around **6.9%** of the total sales have some sort of outlier classification. Within that 6.9%, the proportion of each outlier type is:
