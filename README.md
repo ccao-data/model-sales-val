@@ -116,7 +116,7 @@ FROM
     TotalRecords, NotOutlierCount;
 -->
 
-As of 2024-02-28, around **6.9%** of the total sales have some sort of outlier classification. Within that 7.2%, the proportion of each outlier type is:
+As of 2024-02-28, around **6.9%** of the total sales have some sort of outlier classification. Within that 6.9%, the proportion of each outlier type is:
 
 <!--
 /*
