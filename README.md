@@ -125,44 +125,48 @@ This query is used to generate the proportion of different outlier types
 
 WITH TotalRecords AS (
     SELECT COUNT(*) as total_count
-    FROM sale.flag
-    WHERE sv_outlier_type <> 'Not outlier'
+    FROM default.vw_pin_sale
+    WHERE sv_is_outlier IS NOT null
+    AND sv_outlier_type <> 'Not outlier'
 )
 
 SELECT
     sv_outlier_type,
     ROUND((COUNT(*) * 1.0 / total_count) * 100, 2) as proportion
 FROM
-    sale.flag
+    default.vw_pin_sale
 CROSS JOIN
     TotalRecords
 WHERE
-    sv_outlier_type <> 'Not outlier'
+    sv_is_outlier IS NOT null
+    AND sv_outlier_type <> 'Not outlier'
 GROUP BY
     sv_outlier_type, total_count
 ORDER BY
     proportion DESC;
 -->
 
-|Outlier Type           |Percentage|
-|-----------------------|---------:|
-|PTAX-203 flag          |40.10%    |
-|Non-person sale (low)  |17.56%    |
-|Non-person sale (high) |8.14%     |
-|Anomaly (high)         |6.35%     |
-|High price (raw)       |5.77%     |
-|Low price (raw)        |5.36%     |
-|Low price (raw & sqft) |5.19%     |
-|Low price (sqft)       |2.12%     |
-|Anomaly (low)          |1.96%     |
-|High price (sqft)      |1.92%     |
-|Home flip sale (high)  |1.86%     |
-|High price (raw & sqft)|1.65%     |
-|Home flip sale (low)   |1.38%     |
-|Family sale (low)      |0.56%     |
-|Family sale (high)     |0.05%     |
-|High price swing       |0.02%     |
-|Low price swing        |0.01%     |
+|Outlier Type           |Percenrtage|
+|-----------------------|-----------|
+|PTAX-203 flag (Low)    |35.4%      |
+|Non-person sale (low)  |18.07%     |
+|Non-person sale (high) |10.27%     |
+|High price (raw)       |6.67%      |
+|Anomaly (high)         |6.43%      |
+|Low price (raw)        |4.55%      |
+|Low price (raw & sqft) |4.09%      |
+|PTAX-203 flag (High)   |3.07%      |
+|Home flip sale (high)  |2.26%      |
+|High price (sqft)      |2.03%      |
+|Low price (sqft)       |1.99%      |
+|Anomaly (low)          |1.65%      |
+|High price (raw & sqft)|1.63%      |
+|Home flip sale (low)   |1.15%      |
+|Family sale (low)      |0.65%      |
+|Family sale (high)     |0.06%      |
+|High price swing       |0.02%      |
+|Low price swing        |0.01%      |
+
 
 *These outliers are flagged if the relevant price columns (log10 transformed and normalized) are 2 standard deviations below or above the mean within a given group*
 
