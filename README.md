@@ -98,11 +98,13 @@ This query is used to generate the total sales that have some sort of outlier cl
 
 WITH TotalRecords AS (
     SELECT COUNT(*) as total_count
-    FROM sale.flag
+    FROM default.vw_pin_sale
+    WHERE sv_is_outlier IS NOT null
 ), NotOutlierCount AS (
     SELECT COUNT(*) as not_outlier_count
-    FROM sale.flag
-    WHERE sv_outlier_type <> 'Not outlier'
+    FROM default.vw_pin_sale
+    WHERE sv_is_outlier IS NOT NULL
+    AND sv_outlier_type <> 'Not outlier'
 )
 
 SELECT
@@ -114,7 +116,7 @@ FROM
     TotalRecords, NotOutlierCount;
 -->
 
-As of 2023-11-29, around **7.2%** of the total sales have some sort of outlier classification. Within that 7.2%, the proportion of each outlier type is:
+As of 2024-02-28, around **6.9%** of the total sales have some sort of outlier classification. Within that 7.2%, the proportion of each outlier type is:
 
 <!--
 /*
