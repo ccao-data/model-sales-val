@@ -146,26 +146,26 @@ ORDER BY
     proportion DESC;
 -->
 
-|Outlier Type           |Percenrtage|
-|-----------------------|-----------|
-|PTAX-203 flag (Low)    |35.4%      |
-|Non-person sale (low)  |18.07%     |
-|Non-person sale (high) |10.27%     |
-|High price (raw)       |6.67%      |
-|Anomaly (high)         |6.43%      |
-|Low price (raw)        |4.55%      |
-|Low price (raw & sqft) |4.09%      |
-|PTAX-203 flag (High)   |3.07%      |
-|Home flip sale (high)  |2.26%      |
-|High price (sqft)      |2.03%      |
-|Low price (sqft)       |1.99%      |
-|Anomaly (low)          |1.65%      |
-|High price (raw & sqft)|1.63%      |
-|Home flip sale (low)   |1.15%      |
-|Family sale (low)      |0.65%      |
-|Family sale (high)     |0.06%      |
-|High price swing       |0.02%      |
-|Low price swing        |0.01%      |
+|Outlier Type           |Percentage|
+|-----------------------|---------:|
+|PTAX-203 flag (Low)    |35.4%     |
+|Non-person sale (low)  |18.07%    |
+|Non-person sale (high) |10.27%    |
+|High price (raw)       |6.67%     |
+|Anomaly (high)         |6.43%     |
+|Low price (raw)        |4.55%     |
+|Low price (raw & sqft) |4.09%     |
+|PTAX-203 flag (High)   |3.07%     |
+|Home flip sale (high)  |2.26%     |
+|High price (sqft)      |2.03%     |
+|Low price (sqft)       |1.99%     |
+|Anomaly (low)          |1.65%     |
+|High price (raw & sqft)|1.63%     |
+|Home flip sale (low)   |1.15%     |
+|Family sale (low)      |0.65%     |
+|Family sale (high)     |0.06%     |
+|High price swing       |0.02%     |
+|Low price swing        |0.01%     |
 
 
 *These outliers are flagged if the relevant price columns (log10 transformed and normalized) are 2 standard deviations below or above the mean within a given group*
