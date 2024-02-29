@@ -25,59 +25,109 @@ manual_update: true
 # intrinsic to the 'og_mansueto' script's functionality.
 
 housing_market_type: ["res_single_family", "res_multi_family"]
-run_tri: [1, 2]
 
-# tri_stat_groups maps the method to be used for each tri.
-tri_stat_groups:
-  # city
-  1: "current"
-  # north
-  2: "og_mansueto"
-  # south
-  3: "og_mansueto"
+# Need to set a default recurring config that doesn't double flag sales
+run_config:
+  run_geography:
 
-# The stat groups data structure is split between a current methodology and
-# an og_mansueto methodology. Each of these methodologies can be used for a
-# given tri, specified in the "tri stat groups" dict in this file. In each
-# tri, stat groups can be assigned dynamically in different housing markets.
-stat_groups:
-  current:
-    tri1:
-      res_single_family:
-        columns:
-          - "rolling_window"
-          - "geography_split"
-          - "bldg_age_bin"
-          - "char_bldg_sf_bin"
-        sf_bin_specification: [1200, 2400]
-        age_bin_specification: [40]
-      res_multi_family:
-        columns:
-          - "rolling_window"
-          - "geography_split"
-          - "bldg_age_bin"
-        age_bin_specification: [20]
-      condos:
-        columns:
-          - "rolling_window"
-          - "geography_split"
-    tri2: "check"
-    tri3:
-  og_mansueto:
+# First-level values from stat_groups_map goes
+# here ("city_tri", "north_tri", etc.)
+run_geography: []
+
+# This config can be used in the potential situation where we need to only
+# update x amount of sales where x+n amount of sales are needed for the
+# statistical groupings. Should build this so that more than one column
+# filter can be used
+sales_to_write_filter:
+  column:
+    values:
+
+# Maybe I can break this up into distinct dicts so that it
+# isn't so big, i.e data_filters['city_tri']['res_single_family']
+stat_groups_map:
+  city_tri:
     res_single_family:
       columns:
         - "rolling_window"
-        - "township_code"
-        - "class"
+        - "geography_split"
+        - "bldg_age_bin"
+        - "char_bldg_sf_bin"
+      data_filter:
+        column: "class"
+        values: [
+          "202",
+          "203",
+          "204",
+          "205",
+          "206",
+          "207",
+          "208",
+          "209",
+          "210",
+          "218",
+          "219",
+          "234",
+          "278",
+          "295"
+        ]
+      iso_forest: "res"
+      sf_bin_specification: [1200, 2400]
+      age_bin_specification: [40]
     res_multi_family:
+      columns:
+        - "rolling_window"
+        - "geography_split"
+        - "bldg_age_bin"
+      data_filter:
+        column: "class"
+        values: ["211", "212"]
+      age_bin_specification: [20]
+      iso_forest: "res"
+    condos:
+      columns:
+        - "rolling_window"
+        - "geography_split"
+      data_filter:
+        column: "class"
+        values: ["297", "299", "399"]
+      iso_forest: "condos"
+  north_tri:
+    all_res:
       columns:
         - "rolling_window"
         - "township_code"
         - "class"
+      data_filter:
+      #TODO change this to something more descriptive in the sql query
+        column: "indicator"
+        values: "res"
+      iso_forest: "res"
     condos:
       columns:
         - "rolling_window"
         - "township_code"
+      data_filter:
+        column: "indicator"
+        values: "res"
+      iso_forest: "condos"
+  south_tri:
+    all_res:
+      columns:
+        - "rolling_window"
+        - "township_code"
+        - "class"
+      data_filter:
+        column: "indicator"
+        values: "res"
+      iso_forest: "res"
+    condos:
+      columns:
+        - "rolling_window"
+        - "township_code"
+      data_filter:
+        column: "indicator"
+        values: "condos"
+
 
 iso_forest:
   res:
@@ -92,26 +142,6 @@ iso_forest:
     "sv_cgdr",
     "sv_sale_dup_counts"
   ]
-
-housing_market_class_codes:
-  res_single_family: [
-    "202",
-    "203",
-    "204",
-    "205",
-    "206",
-    "207",
-    "208",
-    "209",
-    "210",
-    "218",
-    "219",
-    "234",
-    "278",
-    "295"
-  ]
-  res_multi_family: ["211", "212"]
-  condos: ["297", "299", "399"]
 
 # These are the price standard deviation bounds that the sales must exceed
 # to be classified as an outlier
