@@ -8,7 +8,7 @@
 # without flags, it assigns a version number of "1". The latest
 # version of each sale flag can be found in the "default"."vw_pin_sale" view.
 
-manual_update: true
+manual_update: false
 
 # The values in housing_market_type, run_tri, and tri_stat_groups will tell the
 # sales val script which properties will be updated. The housing_market_type
@@ -108,7 +108,7 @@ stat_groups_map:
       data_filter:
       #TODO change this to something more descriptive in the sql query
         column: "indicator"
-        values: "res"
+        values: ["res"]
       iso_forest: "res"
     condos:
       columns:
@@ -116,7 +116,7 @@ stat_groups_map:
         - "township_code"
       data_filter:
         column: "indicator"
-        values: "res"
+        values: ["condo"]
       iso_forest: "condos"
   south_tri:
     data_filter:
@@ -129,7 +129,7 @@ stat_groups_map:
         - "class"
       data_filter:
         column: "indicator"
-        values: "res"
+        values: ["res"]
       iso_forest: "res"
     condos:
       columns:
@@ -137,7 +137,7 @@ stat_groups_map:
         - "township_code"
       data_filter:
         column: "indicator"
-        values: "condos"
+        values: ["condo"]
 
 
 iso_forest:

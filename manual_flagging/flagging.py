@@ -208,28 +208,27 @@ def create_bins_and_labels(input_list):
 
 dfs_to_rolling_window = {}  # Dictionary to store DataFrames
 
-# Collect geographies from
-inputs["run_geography"]
-
 for config in inputs["run_geography"]:
     print(f"Building data dictionary for {config}")
-    print(inputs["stat_groups_map"][config])
-    print(f"{inputs['stat_groups_map'][config]['data_filter']}")
+
+    # Filtering based on run_geography filters
     filter_col = inputs["stat_groups_map"][config]["data_filter"]["column"]
     filter_vals = inputs["stat_groups_map"][config]["data_filter"]["values"]
     df_run_geography_filtered = df[df[filter_col].isin(filter_vals)]
+
     for market in [
         market
         for market in inputs["stat_groups_map"][config]
         if market != "data_filter"
     ]:
-        print(f"Market: {market}")
         key = f"df_{config}_{market}"
-        print(f"Market Key: {key}")
-        print(inputs["stat_groups_map"][config][market]["data_filter"])
-        # filter_col
-        # filter_vals
-        dfs_to_rolling_window[key]["df"] = df_run_geography_filtered
+        # Filtering based on market filters
+        filter_col = inputs["stat_groups_map"][config][market]["data_filter"]["column"]
+        filter_vals = inputs["stat_groups_map"][config][market]["data_filter"]["values"]
+        df_to_store = df_run_geography_filtered[
+            df_run_geography_filtered[filter_col].isin(filter_vals)
+        ]
+        dfs_to_rolling_window[key] = {"df": df_to_store}  # Store the filtered DataFrame
 
 
 # - - - - - -
