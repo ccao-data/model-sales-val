@@ -30,13 +30,6 @@ assert len(inputs["housing_market_type"]) == len(
     set(inputs["housing_market_type"])
 ), "Duplicate values in 'housing_market_type'"
 
-# Check run_tri
-assert "run_tri" in inputs, "Missing key: 'run_tri'"
-assert set(inputs["run_tri"]).issubset({1, 2, 3}), "run_tri can only contain 1, 2, 3"
-assert len(inputs["run_tri"]) == len(
-    set(inputs["run_tri"])
-), "Duplicate values in 'run_tri'"
-
 # Connect to Athena
 conn = connect(
     s3_staging_dir=os.getenv("AWS_ATHENA_S3_STAGING_DIR"),
@@ -158,13 +151,6 @@ conversion_dict = {
 df = df.astype(conversion_dict)
 df["ptax_flag_original"].fillna(False, inplace=True)
 
-# Filter to correct tris
-tri_stat_groups = {
-    tri: method
-    for tri, method in inputs["tri_stat_groups"].items()
-    if tri in inputs["run_tri"]
-}
-
 # Calculate the building's age for feature creation
 current_year = datetime.datetime.now().year
 df["bldg_age"] = current_year - df["yrblt"]
@@ -222,93 +208,29 @@ def create_bins_and_labels(input_list):
 
 dfs_to_rolling_window = {}  # Dictionary to store DataFrames
 
-# Collect tris where our contemporary flagging methods are used
-current_tris = [tri for tri, method in tri_stat_groups.items() if method == "current"]
+# Collect geographies from
+inputs["run_geography"]
 
-for tri in current_tris:
-    # Iterate over housing types defined in yaml
-    for housing_type in inputs["housing_market_type"]:
-        # Assign the df a name
-        key = f"df_tri{tri}_{housing_type}_current"
+for config in inputs["run_geography"]:
+    print(f"Building data dictionary for {config}")
+    print(inputs["stat_groups_map"][config])
+    print(f"{inputs['stat_groups_map'][config]['data_filter']}")
+    filter_col = inputs["stat_groups_map"][config]["data_filter"]["column"]
+    filter_vals = inputs["stat_groups_map"][config]["data_filter"]["values"]
+    df_run_geography_filtered = df[df[filter_col].isin(filter_vals)]
+    for market in [
+        market
+        for market in inputs["stat_groups_map"][config]
+        if market != "data_filter"
+    ]:
+        print(f"Market: {market}")
+        key = f"df_{config}_{market}"
+        print(f"Market Key: {key}")
+        print(inputs["stat_groups_map"][config][market]["data_filter"])
+        # filter_col
+        # filter_vals
+        dfs_to_rolling_window[key]["df"] = df_run_geography_filtered
 
-        # Perform filtering based on tri and housing market class codes
-        triad_code_filter = df["triad_code"] == str(tri)
-        market_filter = df["class"].isin(
-            inputs["housing_market_class_codes"][housing_type]
-        )
-
-        # Initialize the DataFrame for the current key
-        df_filtered = df[triad_code_filter & market_filter].copy()
-        dfs_to_rolling_window[key] = {"df": df_filtered}  # Store the filtered DataFrame
-
-        # Extract the specific housing type configuration
-        housing_type_config = inputs["stat_groups"]["current"][f"tri{tri}"][
-            housing_type
-        ]
-
-        # Update market/tri configurations
-        dfs_to_rolling_window[key]["columns"] = housing_type_config["columns"]
-        dfs_to_rolling_window[key]["iso_forest_cols"] = inputs["iso_forest"][
-            "res" if "res" in housing_type else "condos"
-        ]
-        dfs_to_rolling_window[key]["condos_boolean"] = housing_type == "condos"
-        dfs_to_rolling_window[key]["market"] = housing_type
-
-        # Apply binning configurations if they exist
-        if "sf_bin_specification" in housing_type_config:
-            # Create and apply bins for square footage
-            sf_bins, sf_labels = create_bins_and_labels(
-                housing_type_config["sf_bin_specification"]
-            )
-            dfs_to_rolling_window[key]["df"]["char_bldg_sf_bin"] = pd.cut(
-                dfs_to_rolling_window[key]["df"]["char_bldg_sf"],
-                bins=sf_bins,
-                labels=sf_labels,
-            )
-
-        if "age_bin_specification" in housing_type_config:
-            # Create and apply bins for age
-            age_bins, age_labels = create_bins_and_labels(
-                housing_type_config["age_bin_specification"]
-            )
-            dfs_to_rolling_window[key]["df"]["bldg_age_bin"] = pd.cut(
-                dfs_to_rolling_window[key]["df"]["bldg_age"],
-                bins=age_bins,
-                labels=age_labels,
-            )
-
-# Collect tris that will be flagged for OG method
-og_mansueto_tris = [
-    tri for tri, method in tri_stat_groups.items() if method == "og_mansueto"
-]
-
-if og_mansueto_tris:
-    # Filter by triad code and market type
-    og_mansueto_filter = df["triad_code"].astype(int).isin(og_mansueto_tris)
-
-    df_res_og_mansueto = df[(df["indicator"] == "res") & og_mansueto_filter]
-    df_condo_og_mansueto = df[(df["indicator"] == "condo") & og_mansueto_filter]
-
-    # Append these DataFrames to the dictionary
-    key_res = (
-        f"df_tri{'&'.join(str(number) for number in og_mansueto_tris)}_res_og_mansueto"
-    )
-    key_condo = f"df_tri{'&'.join(str(number) for number in og_mansueto_tris)}_condos_og_mansueto"
-
-    dfs_to_rolling_window[key_res] = {
-        "df": df_res_og_mansueto,
-        "columns": inputs["stat_groups"]["og_mansueto"]["res_single_family"]["columns"],
-        "iso_forest_cols": inputs["iso_forest"]["res"],
-        "condos_boolean": False,
-        "market": "res_og_mansueto",
-    }
-    dfs_to_rolling_window[key_condo] = {
-        "df": df_condo_og_mansueto,
-        "columns": inputs["stat_groups"]["og_mansueto"]["condos"]["columns"],
-        "iso_forest_cols": inputs["iso_forest"]["condos"],
-        "condos_boolean": True,
-        "market": "condos_og_mansueto",
-    }
 
 # - - - - - -
 # Make rolling window

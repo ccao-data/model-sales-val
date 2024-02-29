@@ -26,13 +26,15 @@ manual_update: true
 
 housing_market_type: ["res_single_family", "res_multi_family"]
 
-# Need to set a default recurring config that doesn't double flag sales
-run_config:
-  run_geography:
+#TODO/PROBLEMS
+# - Need to set a default recurring config that doesn't double flag sales
+# - How to prevent double flagging given extreme flexibility.
+#   - Manual update should be super specific?
+#   - A check before writing the data/user guide in docs?
 
 # First-level values from stat_groups_map goes
 # here ("city_tri", "north_tri", etc.)
-run_geography: []
+run_geography: ["city_tri", "north_tri"]
 
 # This config can be used in the potential situation where we need to only
 # update x amount of sales where x+n amount of sales are needed for the
@@ -46,6 +48,9 @@ sales_to_write_filter:
 # isn't so big, i.e data_filters['city_tri']['res_single_family']
 stat_groups_map:
   city_tri:
+    data_filter:
+      column: "triad_code"
+      values: ["1"]
     res_single_family:
       columns:
         - "rolling_window"
@@ -92,6 +97,9 @@ stat_groups_map:
         values: ["297", "299", "399"]
       iso_forest: "condos"
   north_tri:
+    data_filter:
+      column: "triad_code"
+      values: ["2"]
     all_res:
       columns:
         - "rolling_window"
@@ -111,6 +119,9 @@ stat_groups_map:
         values: "res"
       iso_forest: "condos"
   south_tri:
+    data_filter:
+      column: "triad_code"
+      values: ["3"]
     all_res:
       columns:
         - "rolling_window"
