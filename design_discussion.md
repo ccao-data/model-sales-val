@@ -30,7 +30,28 @@ stat_groups_map:
 
 The `geography` key defines all of the pins needed for the statistical groups to be calculated. If we want to assign sales for all neighborhoods in the city tri we would filter using the `data_filter` key to grab all city tri sales. If we wanted to flag within 10 census tracts, we could also use `data_filter`. This works cleanly if we want to write flags for the same sales necessary for the statistical groupings. If that is not the case and we want to flag a subset of the sales necessary for the statistical grouping, we can use the `sales_to_write` filter.
 
-Within the `geography_key`, we can specify different markets.
+Within the `geography_key`, we can specify different markets. For example, in our current city tri and north tri configs it looks like 
+
+```yaml
+geography: city_tri
+  res_multi_family:
+  res_single_family:
+  condos:
+geography: north tri
+  res_all:
+  condos:
+```
+
+where each of these markets (one level under the `geography`) have their own filters, grouping columns, etc. If we didn't need any further market partition after the geography, we could just use a single value like 
+
+```yaml
+geography:
+  all_properties:
+
+    rest_of_config
+
+```
+  
 
 
 
