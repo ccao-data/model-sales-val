@@ -70,7 +70,7 @@ One thing I haven't yet taken care of is the integration of the external data. W
 ```yaml
 data_to_join:
   file_name: "file.csv"
-  shared_key: "column_to_join_on
+  shared_key: "column_to_join_on"
 
 ```
 
