@@ -36,7 +36,6 @@ geography: north tri
 ```
   
 where each of these markets (one level under the `geography`) have their own filters, grouping columns, etc. If we didn't need any further market partition after the geography, we could just use a single value:
-  
 ```yaml
 geography:
   all_properties:
