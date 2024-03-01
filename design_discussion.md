@@ -1,6 +1,7 @@
 # Design Discussion Document. 
 
-Here is an early prototype for a new config schema. I think there are ways to make this cleaner and more readable, but so far this is a functional example insofar as it [sets up data to be flagged](https://github.com/ccao-data/model-sales-val/blob/98-make-flagging-script-more-flexible-with-respect-to-geography/manual_flagging/flagging.py#L209-L245), even better than the current method on main. 
+### Stat groups schema
+Here is an early prototype for a new config schema. I think there are ways to make this cleaner and more readable, but so far this is a functional example insofar as it [sets up data to be flagged](https://github.com/ccao-data/model-sales-val/blob/98-make-flagging-script-more-flexible-with-respect-to-geography/manual_flagging/flagging.py#L209-L245), even better than the current method on main. The following structure is a 
 
 ```yaml
 stat_groups_map:
@@ -43,7 +44,7 @@ geography:
     rest_of_config
 
 ```
-  
+### Run Config
 To speficy a run configuration for we can use these data structures in the yaml file:
 
 ```yaml
@@ -52,6 +53,7 @@ sales_to_write_filter:
   column:
   values:
 ```
+where the `run_geography` is an array (athena) or list (python) object that takes in any number of `geography` configurations from `stat_groups_map`. We could have `run_geography = ["north_tri", "south_tri"]` or any type of geographically defines flagging config.
 
 
 
