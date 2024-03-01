@@ -31,6 +31,8 @@ housing_market_type: ["res_single_family", "res_multi_family"]
 # - How to prevent double flagging given extreme flexibility.
 #   - Manual update should be super specific?
 #   - A check before writing the data/user guide in docs?
+# - iso_forest in  stat_groups_map is weirdly names as it is used for iso forest
+# and condos/res boolean. Is there a better way to do/name this?
 
 # First-level values from stat_groups_map goes
 # here ("city_tri", "north_tri", etc.)

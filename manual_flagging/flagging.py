@@ -228,8 +228,21 @@ for config in inputs["run_geography"]:
         df_to_store = df_run_geography_filtered[
             df_run_geography_filtered[filter_col].isin(filter_vals)
         ]
-        dfs_to_rolling_window[key] = {"df": df_to_store}  # Store the filtered DataFrame
-
+        # Store the filtered DataFrame
+        dfs_to_rolling_window[key] = {"df": df_to_store}
+        # Store the rest of the config information
+        dfs_to_rolling_window[key]["columns"] = inputs["stat_groups_map"][config][
+            market
+        ]["columns"]
+        dfs_to_rolling_window[key]["iso_forest_cols"] = inputs["iso_forest"][
+            inputs["stat_groups_map"][config][market]["iso_forest"]
+        ]
+        dfs_to_rolling_window[key]["condos_boolean"] = (
+            True
+            if inputs["stat_groups_map"][config][market]["iso_forest"] == "condos"
+            else False
+        )
+        dfs_to_rolling_window[key]["market"] = market
 
 # - - - - - -
 # Make rolling window
