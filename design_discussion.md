@@ -101,6 +101,7 @@ I think this method ia good in terms of flexibility, but it is burdensome for a 
 
 ## Other structure prototypes
 
+### Option 1
 ```yaml
 run_config:
   geographies: ["city_tri", "north_tri"]
@@ -178,7 +179,7 @@ stat_groups:
       column: "indicator"
       values: ${market_types.all_res.indicator_values}
 ```
-
+### Option 2
 ```yaml
 run_geography: ["city_tri", "north_tri"]
 
@@ -256,4 +257,67 @@ stat_groups:
         column: "indicator"
         values: ["condo"]
 
+```
+### Option 3
+```yaml
+run_geography: ["city_tri", "north_tri"]
+
+sales_to_write_filter:
+  column:
+  values:
+
+data_filters:
+  city_tri:
+    column: "triad_code"
+    values: ["1"]
+  north_tri:
+    column: "triad_code"
+    values: ["2"]
+  south_tri:
+    column: "triad_code"
+    values: ["3"]
+  res_single_family:
+    column: "class"
+    values: ["202", "203", "204", "205", "206", "207", "208", "209", "210", "218", "219", "234", "278", "295"]
+  res_multi_family:
+    column: "class"
+    values: ["211", "212"]
+  condos:
+    column: "class"
+    values: ["297", "299", "399"]
+  all_res:
+    column: "indicator"
+    values: ["res"]
+
+market_types:
+  res_single_family:
+    iso_forest: "res"
+    sf_bin_specification: [1200, 2400]
+    age_bin_specification: [40]
+  res_multi_family:
+    age_bin_specification: [20]
+    iso_forest: "res"
+  condos:
+    iso_forest: "condos"
+  all_res:
+    iso_forest: "res"
+
+stat_groups:
+  city_tri:
+    res_single_family:
+      columns: ["rolling_window", "geography_split", "bldg_age_bin", "char_bldg_sf_bin"]
+    res_multi_family:
+      columns: ["rolling_window", "geography_split", "bldg_age_bin"]
+    condos:
+      columns: ["rolling_window", "geography_split"]
+  north_tri:
+    all_res:
+      columns: ["rolling_window", "township_code", "class"]
+    condos:
+      columns: ["rolling_window", "township_code"]
+  south_tri:
+    all_res:
+      columns: ["rolling_window", "township_code", "class"]
+    condos:
+      columns: ["rolling_window", "township_code"]
 ```
