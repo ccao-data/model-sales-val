@@ -85,7 +85,7 @@ data_to_join:
 
 Even with the entire configuration above we still run into an issue. This is the case of non-mutually exclusive geographies used for flagging. This is mostly a problem for the recurring script which will automatically flag any non-flagged sales on a schedule. If we have mutually exclusive grouping columns for every single sale/every single geography specification, then this is not a problem. However if there is overlap then it will be a problem. 
   
-I'll explain the problem with an example. Suppose we have `city_tri`, `north_tri` and `south_tri` geography. City tri and south tri have mutually exlusive statistical gropuping columns (township and nbhd groups both fit neatly in townships). But let's say that instead of north tri, we filter the `geography` configs on the census tracts that are in the north tri area. Some of these census tracts extend in the city tri. This results in some pins in both the new census tract geography around the north tri and some pins in the city_tri geography. In this situation in a recurring script we would have three values in the `run_geography`: `run_geography: [south_tri, city_tri, new_census_tracts_that_include_north_tri_pins]`. The default setting for this job would be this specificaiton. In this event where multiple pins are flagged with both `city_tri` and `new_census_tracts_that_include_north_tri_pins`, I think we could could assign a ranking system for the methodologys that would formalize the following logic: If there are pins with mulitple flag values we keep the flag value according the the ranking specification. This could be something like:
+I'll explain the problem with an example. Suppose we have `city_tri`, `north_tri` and `south_tri` geography. City tri and south tri have mutually exlusive statistical gropuping columns (township and nbhd groups both fit neatly in townships). But let's say that instead of north tri, we filter the `geography` configs on the census tracts that are in the north tri area. Some of these census tracts extend in the city tri. This results in some pins in both the new census tract geography around the north tri and some pins in the city_tri geography. In this situation in a recurring script we would have three values in the `run_geography`: `run_geography: [south_tri, city_tri, new_census_tracts_that_include_north_tri_pins]`. The default setting for this job would be this specificaiton. In this event where multiple pins are flagged with both `city_tri` and `new_census_tracts_that_include_north_tri_pins`, I think we could could assign a ranking system for the methodologies that would formalize the following logic: If there are pins with mulitple flag values we keep the flag value according the the ranking specification. This could be something like:
 
 ```yaml
 city_tri: 1
@@ -93,7 +93,7 @@ new_census_tracts_that_include_north_tri_pins: 2
 south_tri: 3
 ```
 
-where the lowest number takes precedence. 
+where the lowest number takes precedence. In this situation although the overaching geographies needed to calculate the statistical groupings overlap, we can still get clean cut singular flag updated per sale. The default method of the program assigns a flag to every single sale in within the query constrained by `time_frame:` What we would be doing with this ranking method is manually picking one of the flag otuputs if there was overlap.
 
 ## Other considerations
 
