@@ -1,7 +1,9 @@
 # Design Discussion Document
 
 ### Stat groups schema
-Here is an early prototype for a new config schema. I think there are ways to make this cleaner and more readable, but so far this is a functional example insofar as it [sets up data to be flagged](https://github.com/ccao-data/model-sales-val/blob/98-make-flagging-script-more-flexible-with-respect-to-geography/manual_flagging/flagging.py#L209-L245), even better than the current set-up loop on main. The current config can be viewed in `manual_flagging/yaml/inputs.yaml` on this branch. The following structure holds an entire config at the level of the `geography` key. In the rest of this document `geography` will refer to this second-level `geography` key below which is *all data required to run flagging over all of the statistical groupings necessary to create groups*. `Statistical grouping columns` will refer to the column by which the statistical groups are divided up (township or groups of nbhds).
+Here is an early prototype for a new config schema. I think there are ways to make this cleaner and more readable, but so far this is a functional example insofar as it [sets up data to be flagged](https://github.com/ccao-data/model-sales-val/blob/98-make-flagging-script-more-flexible-with-respect-to-geography/manual_flagging/flagging.py#L209-L245), even better than the current set-up loop on main. The current config can be viewed in `manual_flagging/yaml/inputs.yaml` on this branch. The following structure holds an entire config at the level of the `geography` key. 
+  
+In the rest of this document `geography` will refer to this second-level `geography` key below which is *all data required to run flagging over all of the statistical groupings necessary to create groups*. `Statistical grouping columns` will refer to the column by which the statistical groups are divided up (township or groups of nbhds).
 
 ```yaml
 stat_groups_map:
