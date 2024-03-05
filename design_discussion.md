@@ -91,3 +91,7 @@ south_tri: 3
 ```
 
 where the lowest number takes precedence. 
+
+### Other considerations
+
+I think this method ia good in terms of flexibility, but it is burdensome for a user to add a new specification, especially if we are adding a new `geography` config. I think we can split up this data structure better.
