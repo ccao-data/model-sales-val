@@ -69,7 +69,7 @@ sales_to_write_filter:
 ### Oustanding engineering questions
 - Add yaml option for data read in
 
-One thing I haven't yet taken care of is the integration of the external data. We currently have the neighborhood groupings defined for the city tri in the `data/` directory. One idea is that we could include the name of the excel/cvs file as a key value somewhere in the stat_groups_map` schema. It could work similarly to the bin specification where if we see the value in the config, we act on it and join the data such that we get a new column that can be used for grouping. Maybe something like:
+One thing I haven't yet taken care of is the integration of the external data. We currently have the neighborhood groupings defined for the city tri in the `data/` directory. One idea is that we could include the name of the excel/cvs file as a key value somewhere in the `stat_groups_map` schema. It could work similarly to the bin specification where if we see the value in the config, we act on it and join the data such that we get a new column that can be used for grouping. Maybe something like:
 
 ```yaml
 data_to_join:
