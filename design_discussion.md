@@ -59,7 +59,7 @@ sales_to_write_filter:
   column:
   values:
 ```
-where the `run_geography` is an array (athena) or list (python) object that takes in any number of `geography` configurations from `stat_groups_map`. We could have `run_geography = ["north_tri", "south_tri"]` or any type of geographically defined flagging config. If we want to target a specific update we can use `sales_to_write_filter`. For example, let's say we want to update flags that use the `city_tri` config but we only want to update flags in a specific census tract within that config. We can specify:
+where the `run_geography` is an array (athena) or list (python) object that takes in any number of `geography` configurations from `stat_groups_map`. We could have `run_geography = ["north_tri", "south_tri"]` or any type of geographically defined flagging config. If we want to target a specific update we can use `sales_to_write_filter`. For example, let's say we want to manually update flags that use the `city_tri` config but we only want to update flags in a specific census tract within that config. We can specify:
 
 ```yaml
 run_geography: ["city_tri]
