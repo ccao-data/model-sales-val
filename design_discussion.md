@@ -16,7 +16,7 @@ stat_groups_map:
       data_filter:
         column: 
         values: 
-      iso_forest: "res"
+      iso_forest:
       example_bin_specification:
     market_type2:
     ...
