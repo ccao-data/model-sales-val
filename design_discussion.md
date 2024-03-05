@@ -6,6 +6,8 @@ Here is an early prototype for a new config schema. I think there are ways to ma
 Defining terms:
 - In the rest of this document `geography` will refer to this second-level `geography` key below which is *all data required to run flagging over all of the statistical groupings necessary to create groups*.
 - `Statistical grouping columns` will refer to the column by which the statistical groups are divided up (township/groups of nbhds/bins/rolling window).
+  
+This is an example structure with no real data filled in. In the actualy design, `geography` and `market_type$n` are replaced with the actual names such as `north_tri` or `res_single_fam`.  
 
 ```yaml
 stat_groups_map:
