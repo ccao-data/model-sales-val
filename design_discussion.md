@@ -98,3 +98,83 @@ where the lowest number takes precedence. In this situation although the overach
 ## Other considerations
 
 I think this method ia good in terms of flexibility, but it is burdensome for a user to add a new specification, especially if we are adding a new `geography` config. I think we can split up this data structure better.
+
+## Other structure prototypes
+
+```yaml
+run_config:
+  geographies: ["city_tri", "north_tri"]
+  sales_to_write_filter:
+    column:
+    values:
+
+data_filters:
+  city_tri:
+    column: "triad_code"
+    values: ["1"]
+  north_tri:
+    column: "triad_code"
+    values: ["2"]
+  south_tri:
+    column: "triad_code"
+    values: ["3"]
+
+market_types:
+  res_single_family:
+    class_values: ["202", "203", "204", "205", "206", "207", "208", "209", "210", "218", "219", "234", "278", "295"]
+    iso_forest: "res"
+    bin_specifications:
+      sf: [1200, 2400]
+      age: [40]
+  res_multi_family:
+    class_values: ["211", "212"]
+    iso_forest: "res"
+    bin_specifications:
+      age: [20]
+  condos:
+    class_values: ["297", "299", "399"]
+    iso_forest: "condos"
+  all_res:
+    indicator_values: ["res"]
+    iso_forest: "res"
+
+geographies:
+  city_tri:
+    data_filter: ${data_filters.city_tri}
+    market_types:
+      - res_single_family
+      - res_multi_family
+      - condos
+  north_tri:
+    data_filter: ${data_filters.north_tri}
+    market_types:
+      - all_res
+      - condos
+  south_tri:
+    data_filter: ${data_filters.south_tri}
+    market_types:
+      - all_res
+      - condos
+
+stat_groups:
+  res_single_family:
+    columns: ["rolling_window", "geography_split", "bldg_age_bin", "char_bldg_sf_bin"]
+    data_filter:
+      column: "class"
+      values: ${market_types.res_single_family.class_values}
+  res_multi_family:
+    columns: ["rolling_window", "geography_split", "bldg_age_bin"]
+    data_filter:
+      column: "class"
+      values: ${market_types.res_multi_family.class_values}
+  condos:
+    columns: ["rolling_window", "geography_split"]
+    data_filter:
+      column: "class"
+      values: ${market_types.condos.class_values}
+  all_res:
+    columns: ["rolling_window", "township_code", "class"]
+    data_filter:
+      column: "indicator"
+      values: ${market_types.all_res.indicator_values}
+```
