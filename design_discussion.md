@@ -1,6 +1,6 @@
 # Design Discussion Document
 
-### Stat groups schema
+## Stat groups schema
 Here is an early prototype for a new config schema. I think there are ways to make this cleaner and more readable, but so far this is a functional example insofar as it [sets up data to be flagged](https://github.com/ccao-data/model-sales-val/blob/98-make-flagging-script-more-flexible-with-respect-to-geography/manual_flagging/flagging.py#L209-L245), even better than the current set-up loop on main. The only thing not incorporated into the set up loop is the binning features. The current config can be viewed in `manual_flagging/yaml/inputs.yaml` on this branch. The following structure holds an entire config at the level of the `geography` key. 
   
 Defining terms:
@@ -50,7 +50,7 @@ geography:
     rest_of_config
 
 ```
-### Run Config
+## Run Config
 To speficy a run configuration for we can use these data structures in the yaml file:
 
 ```yaml
@@ -68,9 +68,9 @@ sales_to_write_filter:
   values: "some_census_tract_value"
 ```
   
-### Oustanding engineering questions
+## Oustanding engineering questions
 
-#### Add yaml option for data read in
+### Add yaml option for data read in
 
 One thing I haven't yet taken care of is the integration of the external data. We currently have the neighborhood groupings defined for the city tri in the `data/` directory. One idea is that we could include the name of the excel/cvs file as a key value somewhere in the `stat_groups_map` schema. It could work similarly to the bin specification where if we see the value in the config, we act on it and join the data such that we get a new column that can be used for grouping. Maybe something like:
 
@@ -81,7 +81,7 @@ data_to_join:
 
 ```
 
-#### Define ranking for which method takes precedence
+### Define ranking for which method takes precedence
 
 Even with the entire configuration above we still run into an issue. This is the case of non-mutually exclusive geographies used for flagging. This is mostly a problem for the recurring script which will automatically flag any non-flagged sales on a schedule. If we have mutually exclusive grouping columns for every single sale/every single geography specification, then this is not a problem. However if there is overlap then it will be a problem. 
   
@@ -95,6 +95,6 @@ south_tri: 3
 
 where the lowest number takes precedence. 
 
-### Other considerations
+## Other considerations
 
 I think this method ia good in terms of flexibility, but it is burdensome for a user to add a new specification, especially if we are adding a new `geography` config. I think we can split up this data structure better.
