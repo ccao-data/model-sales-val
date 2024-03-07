@@ -16,7 +16,7 @@ run_tri: [1, 2]
 # This config can be used in the potential situation where we need to only
 # update x amount of sales where x+n amount of sales are needed for the
 # statistical groupings. Should build this so that more than one column
-# filter can be used
+# filter can be used. The values here should be a list object.
 sales_to_write_filter:
   column:
   values:
@@ -27,7 +27,7 @@ stat_groups:
       columns:
         - "rolling_window"
         - "geography_split"
-        - column: "yrblt"
+        - column: "char_bldg_age"
           bins: [1200, 2400]
         - column: "char_bldg_sf"
           bins: [40]
