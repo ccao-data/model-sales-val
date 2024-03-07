@@ -19,7 +19,7 @@ run_tri: [1, 2]
 # filter can be used
 sales_to_write_filter:
   column:
-    values:
+  values:
 
 stat_groups:
   tri1:
@@ -27,15 +27,15 @@ stat_groups:
       columns:
         - "rolling_window"
         - "geography_split"
-        - colname: "bldg_age_bin"
+        - column: "bldg_age_bin"
           bins: [1200, 2400]
-        - colname: "char_bldg_sf_bin"
+        - column: "char_bldg_sf_bin"
           bins: [40]
     res_multi_family:
       columns:
         - "rolling_window"
         - "geography_split"
-        - colname: "bldg_age_bin"
+        - column: "bldg_age_bin"
           age_bin_specification: [20]
     condos:
       columns:
