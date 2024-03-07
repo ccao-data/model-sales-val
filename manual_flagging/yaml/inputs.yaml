@@ -27,9 +27,9 @@ stat_groups:
       columns:
         - "rolling_window"
         - "geography_split"
-        - column: "bldg_age_bin"
+        - column: "yrblt"
           bins: [1200, 2400]
-        - column: "char_bldg_sf_bin"
+        - column: "char_bldg_sf"
           bins: [40]
     res_multi_family:
       columns:
