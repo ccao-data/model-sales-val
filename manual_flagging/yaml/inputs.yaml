@@ -39,7 +39,7 @@ stat_groups:
       columns:
         - "rolling_window"
         - "geography_split"
-        - column: "bldg_age_bin"
+        - column: "char_bldg_age"
           age_bin_specification: [20]
     condos:
       columns:
