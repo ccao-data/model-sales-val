@@ -22,13 +22,21 @@ with open(os.path.join("yaml", "inputs.yaml"), "r") as stream:
 
 # Validate the input specification
 # Check housing_market_type
+# TODO: Add res_all and other res_type exclusivity check
 assert "housing_market_type" in inputs, "Missing key: 'housing_market_type'"
 assert set(inputs["housing_market_type"]).issubset(
-    {"res_single_family", "res_multi_family", "condos"}
-), "housing_market_type can only contain 'res_single_family', 'res_multi_family', 'condos'"
+    {"res_single_family", "res_multi_family", "condos", "res_all"}
+), "housing_market_type can only contain 'res_single_family', 'res_multi_family', 'condos', 'res_all'"
 assert len(inputs["housing_market_type"]) == len(
     set(inputs["housing_market_type"])
 ), "Duplicate values in 'housing_market_type'"
+
+# Check run_tri
+assert "run_tri" in inputs, "Missing key: 'run_tri'"
+assert set(inputs["run_tri"]).issubset({1, 2, 3}), "run_tri can only contain 1, 2, 3"
+assert len(inputs["run_tri"]) == len(
+    set(inputs["run_tri"])
+), "Duplicate values in 'run_tri'"
 
 # Connect to Athena
 conn = connect(
@@ -208,41 +216,60 @@ def create_bins_and_labels(input_list):
 
 dfs_to_rolling_window = {}  # Dictionary to store DataFrames
 
-for config in inputs["run_geography"]:
-    print(f"Building data dictionary for {config}")
-
-    # Filtering based on run_geography filters
-    filter_col = inputs["stat_groups_map"][config]["data_filter"]["column"]
-    filter_vals = inputs["stat_groups_map"][config]["data_filter"]["values"]
-    df_run_geography_filtered = df[df[filter_col].isin(filter_vals)]
-
-    for market in [
-        market
-        for market in inputs["stat_groups_map"][config]
-        if market != "data_filter"
+for tri in inputs["run_tri"]:
+    # Iterate over housing types defined in yaml
+    for housing_type in [
+        ht
+        for ht in inputs["housing_market_type"]
+        if ht in inputs["stat_groups"][f"tri{tri}"]
     ]:
-        key = f"df_{config}_{market}"
-        # Filtering based on market filters
-        filter_col = inputs["stat_groups_map"][config][market]["data_filter"]["column"]
-        filter_vals = inputs["stat_groups_map"][config][market]["data_filter"]["values"]
-        df_to_store = df_run_geography_filtered[
-            df_run_geography_filtered[filter_col].isin(filter_vals)
-        ]
-        # Store the filtered DataFrame
-        dfs_to_rolling_window[key] = {"df": df_to_store}
-        # Store the rest of the config information
-        dfs_to_rolling_window[key]["columns"] = inputs["stat_groups_map"][config][
-            market
-        ]["columns"]
-        dfs_to_rolling_window[key]["iso_forest_cols"] = inputs["iso_forest"][
-            inputs["stat_groups_map"][config][market]["iso_forest"]
-        ]
-        dfs_to_rolling_window[key]["condos_boolean"] = (
-            True
-            if inputs["stat_groups_map"][config][market]["iso_forest"] == "condos"
-            else False
+        # Assign the df a name
+        key = f"df_tri{tri}_{housing_type}"
+
+        # Perform filtering based on tri and housing market class codes
+        triad_code_filter = df["triad_code"] == str(tri)
+        market_filter = df["class"].isin(
+            inputs["housing_market_class_codes"][housing_type]
         )
-        dfs_to_rolling_window[key]["market"] = market
+
+        # Initialize the DataFrame for the current key
+        df_filtered = df[triad_code_filter & market_filter].copy()
+        dfs_to_rolling_window[key] = {"df": df_filtered}  # Store the filtered DataFrame
+
+        # Extract the specific housing type configuration
+        housing_type_config = inputs["stat_groups"][f"tri{tri}"][housing_type]
+
+        # Update market/tri configurations
+        dfs_to_rolling_window[key]["columns"] = housing_type_config["columns"]
+        dfs_to_rolling_window[key]["iso_forest_cols"] = inputs["iso_forest"][
+            "res" if "res" in housing_type else "condos"
+        ]
+        dfs_to_rolling_window[key]["condos_boolean"] = housing_type == "condos"
+        dfs_to_rolling_window[key]["market"] = housing_type
+
+        # Apply binning configurations if they exist
+        if "sf_bin_specification" in housing_type_config:
+            # Create and apply bins for square footage
+            sf_bins, sf_labels = create_bins_and_labels(
+                housing_type_config["sf_bin_specification"]
+            )
+            dfs_to_rolling_window[key]["df"]["char_bldg_sf_bin"] = pd.cut(
+                dfs_to_rolling_window[key]["df"]["char_bldg_sf"],
+                bins=sf_bins,
+                labels=sf_labels,
+            )
+
+        if "age_bin_specification" in housing_type_config:
+            # Create and apply bins for age
+            age_bins, age_labels = create_bins_and_labels(
+                housing_type_config["age_bin_specification"]
+            )
+            dfs_to_rolling_window[key]["df"]["bldg_age_bin"] = pd.cut(
+                dfs_to_rolling_window[key]["df"]["bldg_age"],
+                bins=age_bins,
+                labels=age_labels,
+            )
+
 
 # - - - - - -
 # Make rolling window

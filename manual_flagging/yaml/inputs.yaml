@@ -8,10 +8,14 @@
 # without flags, it assigns a version number of "1". The latest
 # version of each sale flag can be found in the "default"."vw_pin_sale" view.
 
-manual_update: true
+manual_update: false
 
-housing_market_type: ["res_single_family", "res_multi_family"]
+# TODO: List out attributes and map them to stat groups
+housing_market_type: ["res_single_family", "res_multi_family", "res_all"]
 run_tri: [1, 2]
+
+run_config:
+  tri:
 
 # This config can be used in the potential situation where we need to only
 # update x amount of sales where x+n amount of sales are needed for the
