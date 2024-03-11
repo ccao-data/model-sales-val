@@ -161,7 +161,7 @@ df["ptax_flag_original"].fillna(False, inplace=True)
 
 # Calculate the building's age for feature creation
 current_year = datetime.datetime.now().year
-df["bldg_age"] = current_year - df["yrblt"]
+df["char_bldg_age"] = current_year - df["yrblt"]
 
 """
 Ingest and join new geographic groups for current methodology.
@@ -239,36 +239,30 @@ for tri in inputs["run_tri"]:
         # Extract the specific housing type configuration
         housing_type_config = inputs["stat_groups"][f"tri{tri}"][housing_type]
 
-        # Update market/tri configurations
-        dfs_to_rolling_window[key]["columns"] = housing_type_config["columns"]
+        # Perform column transformations
+        columns = housing_type_config["columns"]
+        transformed_columns = []
+
+        for col in columns:
+            if isinstance(col, dict) and "column" in col:
+                if "bins" in col:
+                    bins, labels = create_bins_and_labels(col["bins"])
+                    new_col_name = f"{col['column']}_bin"
+                    df_filtered[new_col_name] = pd.cut(
+                        df_filtered[col["column"]], bins=bins, labels=labels
+                    )
+                    transformed_columns.append(new_col_name)
+            else:
+                transformed_columns.append(col)
+
+        dfs_to_rolling_window[key]["columns"] = transformed_columns
+
+        # Add rest of config information
         dfs_to_rolling_window[key]["iso_forest_cols"] = inputs["iso_forest"][
             "res" if "res" in housing_type else "condos"
         ]
         dfs_to_rolling_window[key]["condos_boolean"] = housing_type == "condos"
         dfs_to_rolling_window[key]["market"] = housing_type
-
-        # Apply binning configurations if they exist
-        if "sf_bin_specification" in housing_type_config:
-            # Create and apply bins for square footage
-            sf_bins, sf_labels = create_bins_and_labels(
-                housing_type_config["sf_bin_specification"]
-            )
-            dfs_to_rolling_window[key]["df"]["char_bldg_sf_bin"] = pd.cut(
-                dfs_to_rolling_window[key]["df"]["char_bldg_sf"],
-                bins=sf_bins,
-                labels=sf_labels,
-            )
-
-        if "age_bin_specification" in housing_type_config:
-            # Create and apply bins for age
-            age_bins, age_labels = create_bins_and_labels(
-                housing_type_config["age_bin_specification"]
-            )
-            dfs_to_rolling_window[key]["df"]["bldg_age_bin"] = pd.cut(
-                dfs_to_rolling_window[key]["df"]["bldg_age"],
-                bins=age_bins,
-                labels=age_labels,
-            )
 
 
 # - - - - - -
@@ -363,6 +357,7 @@ df_to_write, run_id, timestamp = flg.finish_flags(
     df=df_to_finalize,
     start_date=inputs["time_frame"]["start"],
     manual_update=inputs["manual_update"],
+    sales_to_write_filter=inputs["sales_to_write_filter"],
 )
 
 if inputs["manual_update"] == True:
@@ -381,14 +376,14 @@ run_filter = str(
     {"housing_market_type": inputs["housing_market_type"], "run_tri": inputs["run_tri"]}
 )
 
-# Get sale.parameter data
+# Get parameters df
 df_parameter = flg.get_parameter_df(
     df_to_write=df_to_write,
     df_ingest=df_ingest,
     run_filter=run_filter,
     iso_forest_cols=inputs["iso_forest"],
     stat_groups=inputs["stat_groups"],
-    tri_stat_groups=inputs["tri_stat_groups"],
+    sales_to_write_filter=inputs["sales_to_write_filter"],
     housing_market_class_codes=inputs["housing_market_class_codes"],
     dev_bounds=inputs["dev_bounds"],
     ptax_sd=inputs["ptax_sd"],
