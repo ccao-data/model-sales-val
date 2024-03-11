@@ -552,7 +552,7 @@ def modify_dtypes(df):
         "run_filter",
         "iso_forest_cols",
         "stat_groups",
-        "tri_stat_groups",
+        "sales_to_write_filter",
         "housing_market_class_codes",
     ]
     for col in string_columns:
