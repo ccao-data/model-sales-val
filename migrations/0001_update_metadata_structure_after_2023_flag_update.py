@@ -25,7 +25,7 @@ def write_dfs_to_s3(dfs, bucket, table):
     """
 
     for df_name, df in dfs.items():
-        file_path = f"{bucket}/new_prod_data/{table}/{df_name}.parquet"
+        file_path = f"{bucket}/{table}/{df_name}.parquet"
         wr.s3.to_parquet(df=df, path=file_path, index=False)
 
 
@@ -42,7 +42,7 @@ def read_parquets_to_dfs(table):
     """
     # List all parquet files in the specified S3 path
     parquet_files = wr.s3.list_objects(
-        os.path.join(os.getenv("AWS_BUCKET_SV"), "old_prod_data", table),
+        os.path.join(os.getenv("AWS_S3_WAREHOUSE_BUCKET"), "sale", table),
         suffix=".parquet",
     )
     # Initialize a dictionary to hold the dataframes
@@ -96,7 +96,7 @@ dfs_sale_flag["2024-02-01_12:24-nifty-tayun"]["group"] = (
     dfs_sale_flag["2024-02-01_12:24-nifty-tayun"]["group"] + "-condos"
 )
 
-write_dfs_to_s3(dfs_sale_flag, os.getenv("AWS_BUCKET_SV"), "flag")
+write_dfs_to_s3(dfs_sale_flag, os.getenv("AWS_TEST_ARCH_CHANGE_BUCKET"), "flag")
 
 # - - - - - -
 # Adjust parameter tables
@@ -110,7 +110,7 @@ dfs_sale_parameter["2024-01-19_18:46-clever-boni"].columns
 dfs_sale_parameter["2024-01-19_18:46-clever-boni"]["stat_groups"] = str(
     {
         "og_mansueto": {
-            "res": {"columns": ["rolling_window", "township_code", "class"]},
+            "res_all": {"columns": ["rolling_window", "township_code", "class"]},
             "condos": {"columns": ["township_code", "rolling_window"]},
         }
     }
@@ -141,13 +141,18 @@ dfs_sale_parameter["2024-01-19_18:46-clever-boni"]["iso_forest_cols"] = str(
 # Although this structure didn't exist when we ran the sales val program
 # it still can fit into the new structure (all tris/market types
 #  were ran with og_mansueto)
-dfs_sale_parameter["2024-01-19_18:46-clever-boni"]["tri_stat_groups"] = str(
-    {1: "og_mansueto", 2: "og_mansueto", 3: "og_mansueto"}
+dfs_sale_parameter["2024-01-19_18:46-clever-boni"]["sales_to_write_filter"] = str(
+    {"column": None, "values": None}
 )
 
 dfs_sale_parameter["2024-01-19_18:46-clever-boni"]["run_filter"] = str(
     {
-        "housing_market_type": ["res_single_family", "res_multi_family", "condos"],
+        "housing_market_type": [
+            "res_single_family",
+            "res_multi_family",
+            "condos",
+            "res_all",
+        ],
         "run_tri": [1, 2, 3],
     }
 )
@@ -167,7 +172,7 @@ dfs_sale_parameter["2024-01-19_18:46-clever-boni"] = dfs_sale_parameter[
         "run_filter",
         "iso_forest_cols",
         "stat_groups",
-        "tri_stat_groups",
+        "sales_to_write_filter",
         "dev_bounds",
         "ptax_sd",
         "rolling_window",
@@ -199,8 +204,8 @@ dfs_sale_parameter["2024-02-01_12:24-nifty-tayun"]["iso_forest_cols"] = str(
     }
 )
 
-dfs_sale_parameter["2024-02-01_12:24-nifty-tayun"]["tri_stat_groups"] = str(
-    {1: "current", 2: "og_mansueto", 3: "og_mansueto"}
+dfs_sale_parameter["2024-02-01_12:24-nifty-tayun"]["sales_to_write_filter"] = str(
+    {"column": None, "values": None}
 )
 
 dfs_sale_parameter["2024-02-01_12:24-nifty-tayun"]["run_filter"] = str(
@@ -221,7 +226,7 @@ dfs_sale_parameter["2024-02-01_12:24-nifty-tayun"] = dfs_sale_parameter[
         "run_filter",
         "iso_forest_cols",
         "stat_groups",
-        "tri_stat_groups",
+        "sales_to_write_filter",
         "dev_bounds",
         "ptax_sd",
         "rolling_window",
@@ -243,15 +248,18 @@ dfs_sale_parameter["2024-01-29_14:40-pensive-rina"]["stat_groups"] = str(
                 "columns": [
                     "rolling_window",
                     "geography_split",
+                    {"column": "char_bldg_age", "bins": [40]},
+                    {"column": "char_bldg_sf", "bins": [1200, 2400]},
                     "bldg_age_bin",
                     "char_bldg_sf_bin",
-                ],
-                "sf_bin_specification": [1200, 2400],
-                "age_bin_specification": [40],
+                ]
             },
             "multi_family": {
-                "columns": ["rolling_window", "geography_split", "bldg_age_bin"],
-                "age_bin_specification": [20],
+                "columns": [
+                    "rolling_window",
+                    "geography_split",
+                    {"column": "char_bldg_age", "bins": [20]},
+                ],
             },
         }
     }
@@ -271,8 +279,8 @@ dfs_sale_parameter["2024-01-29_14:40-pensive-rina"]["iso_forest_cols"] = str(
     }
 )
 
-dfs_sale_parameter["2024-01-29_14:40-pensive-rina"]["tri_stat_groups"] = str(
-    {1: "current", 2: "og_mansueto", 3: "og_mansueto"}
+dfs_sale_parameter["2024-01-29_14:40-pensive-rina"]["sales_to_write_filter"] = str(
+    {"column": None, "values": None}
 )
 
 dfs_sale_parameter["2024-01-29_14:40-pensive-rina"]["run_filter"] = str(
@@ -293,7 +301,7 @@ dfs_sale_parameter["2024-01-29_14:40-pensive-rina"] = dfs_sale_parameter[
         "run_filter",
         "iso_forest_cols",
         "stat_groups",
-        "tri_stat_groups",
+        "sales_to_write_filter",
         "dev_bounds",
         "ptax_sd",
         "rolling_window",
@@ -306,7 +314,9 @@ dfs_sale_parameter["2024-01-29_14:40-pensive-rina"] = dfs_sale_parameter[
 for key, value in dfs_sale_parameter.items():
     dfs_sale_parameter[key] = flg.modify_dtypes(dfs_sale_parameter[key])
 
-write_dfs_to_s3(dfs_sale_parameter, os.getenv("AWS_BUCKET_SV"), "parameter")
+write_dfs_to_s3(
+    dfs_sale_parameter, os.getenv("AWS_TEST_ARCH_CHANGE_BUCKET"), "parameter"
+)
 
 # - - -
 # Update sale.group_mean tables
@@ -350,7 +360,9 @@ dfs_sale_group_mean["2024-02-01_12:24-nifty-tayun"]["group"] = (
     dfs_sale_group_mean["2024-02-01_12:24-nifty-tayun"]["group"] + "-condos"
 )
 
-write_dfs_to_s3(dfs_sale_group_mean, os.getenv("AWS_BUCKET_SV"), "group_mean")
+write_dfs_to_s3(
+    dfs_sale_group_mean, os.getenv("AWS_TEST_ARCH_CHANGE_BUCKET"), "group_mean"
+)
 
 # - - -
 # Update sale.metadata tables
@@ -368,4 +380,4 @@ dfs_sale_metadata["2024-01-29_14:40-pensive-rina"] = pd.read_parquet(
     os.path.join(root, "manual_flagging/new_res_metadata/df_metadata.parquet")
 )
 
-write_dfs_to_s3(dfs_sale_metadata, os.getenv("AWS_BUCKET_SV"), "metadata")
+write_dfs_to_s3(dfs_sale_metadata, os.getenv("AWS_TEST_ARCH_CHANGE_BUCKET"), "metadata")
