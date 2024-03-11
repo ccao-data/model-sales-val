@@ -10,17 +10,18 @@
 
 manual_update: false
 
-# TODO: List out attributes and map them to stat groups
+# "housing_market_type" and "run_tri" configurations determine the
+# specificity of flagging. First, we retrieve the run tris, then run
+# the flags on those tris for each selected market type, but only if
+# the market type is present in the "stat groups" config under the
+# "tri$n" value.
 housing_market_type: ["res_single_family", "res_multi_family", "res_all"]
 run_tri: [1, 2]
 
-run_config:
-  tri:
-
-# This config can be used in the potential situation where we need to only
-# update x amount of sales where x+n amount of sales are needed for the
-# statistical groupings. Should build this so that more than one column
-# filter can be used. The values here should be a list object.
+# "sales_to_write" filter allows further specificity. Here we can decide
+# which flags we want to write at a more precise level than market type
+# and tri. For example, we could add "class" as the column value and
+# "["208"]" to the values value. Note: values must be a list
 sales_to_write_filter:
   column:
   values:
@@ -40,7 +41,7 @@ stat_groups:
         - "rolling_window"
         - "geography_split"
         - column: "char_bldg_age"
-          age_bin_specification: [20]
+          bins: [20]
     condos:
       columns:
         - "rolling_window"
