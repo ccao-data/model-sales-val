@@ -9,8 +9,8 @@ import subprocess as sp
 Migration to update the structure of the prod metadata following 2023 reassessment prod flag updates.
 This migration does not change any flags, but rather reads data from copied prod data,
 transforms it so that its metadata matches the most recent schema, and saves it to a new bucket where
-it can be QCed before being copied to the prod bucket. This migration was necessary in late
-Feb 2024 since prod flags for the 2023 reassessment were computed before the metadata schema
+it can be QCed before being copied to the prod bucket. This migration was necessary in
+March 2024 since prod flags for the 2023 reassessment were computed before the metadata schema
 was completely solidified.
 """
 
@@ -25,7 +25,7 @@ def write_dfs_to_s3(dfs, bucket, table):
     """
 
     for df_name, df in dfs.items():
-        file_path = f"{bucket}/{table}/{df_name}.parquet"
+        file_path = f"{bucket}/new_prod_data/{table}/{df_name}.parquet"
         wr.s3.to_parquet(df=df, path=file_path, index=False)
 
 
@@ -42,7 +42,7 @@ def read_parquets_to_dfs(table):
     """
     # List all parquet files in the specified S3 path
     parquet_files = wr.s3.list_objects(
-        os.path.join(os.getenv("AWS_S3_WAREHOUSE_BUCKET"), "sale", table),
+        os.path.join(os.getenv("AWS_BUCKET_SV"), "old_prod_data", table),
         suffix=".parquet",
     )
     # Initialize a dictionary to hold the dataframes
@@ -96,7 +96,7 @@ dfs_sale_flag["2024-02-01_12:24-nifty-tayun"]["group"] = (
     dfs_sale_flag["2024-02-01_12:24-nifty-tayun"]["group"] + "-condos"
 )
 
-write_dfs_to_s3(dfs_sale_flag, os.getenv("AWS_TEST_ARCH_CHANGE_BUCKET"), "flag")
+write_dfs_to_s3(dfs_sale_flag, os.getenv("AWS_BUCKET_SV"), "flag")
 
 # - - - - - -
 # Adjust parameter tables
@@ -148,8 +148,6 @@ dfs_sale_parameter["2024-01-19_18:46-clever-boni"]["sales_to_write_filter"] = st
 dfs_sale_parameter["2024-01-19_18:46-clever-boni"]["run_filter"] = str(
     {
         "housing_market_type": [
-            "res_single_family",
-            "res_multi_family",
             "condos",
             "res_all",
         ],
@@ -243,7 +241,7 @@ dfs_sale_parameter["2024-01-29_14:40-pensive-rina"] = pd.read_parquet(
 
 dfs_sale_parameter["2024-01-29_14:40-pensive-rina"]["stat_groups"] = str(
     {
-        "res": {
+        "tri1": {
             "single_family": {
                 "columns": [
                     "rolling_window",
@@ -284,7 +282,7 @@ dfs_sale_parameter["2024-01-29_14:40-pensive-rina"]["sales_to_write_filter"] = s
 )
 
 dfs_sale_parameter["2024-01-29_14:40-pensive-rina"]["run_filter"] = str(
-    {"housing_market_type": ["res"], "run_tri": [1]}
+    {"housing_market_type": ["res_single_family", "res_multi_family"], "run_tri": [1]}
 )
 
 # Class code structure in yaml wasn't present in this run
@@ -314,9 +312,7 @@ dfs_sale_parameter["2024-01-29_14:40-pensive-rina"] = dfs_sale_parameter[
 for key, value in dfs_sale_parameter.items():
     dfs_sale_parameter[key] = flg.modify_dtypes(dfs_sale_parameter[key])
 
-write_dfs_to_s3(
-    dfs_sale_parameter, os.getenv("AWS_TEST_ARCH_CHANGE_BUCKET"), "parameter"
-)
+write_dfs_to_s3(dfs_sale_parameter, os.getenv("AWS_BUCKET_SV"), "parameter")
 
 # - - -
 # Update sale.group_mean tables
@@ -360,9 +356,7 @@ dfs_sale_group_mean["2024-02-01_12:24-nifty-tayun"]["group"] = (
     dfs_sale_group_mean["2024-02-01_12:24-nifty-tayun"]["group"] + "-condos"
 )
 
-write_dfs_to_s3(
-    dfs_sale_group_mean, os.getenv("AWS_TEST_ARCH_CHANGE_BUCKET"), "group_mean"
-)
+write_dfs_to_s3(dfs_sale_group_mean, os.getenv("AWS_BUCKET_SV"), "group_mean")
 
 # - - -
 # Update sale.metadata tables
@@ -380,4 +374,4 @@ dfs_sale_metadata["2024-01-29_14:40-pensive-rina"] = pd.read_parquet(
     os.path.join(root, "manual_flagging/new_res_metadata/df_metadata.parquet")
 )
 
-write_dfs_to_s3(dfs_sale_metadata, os.getenv("AWS_TEST_ARCH_CHANGE_BUCKET"), "metadata")
+write_dfs_to_s3(dfs_sale_metadata, os.getenv("AWS_BUCKET_SV"), "metadata")
