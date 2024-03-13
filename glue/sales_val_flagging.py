@@ -208,6 +208,9 @@ def finish_flags(df, start_date, manual_update, sales_to_write_filter):
         start_date: a limit on how early we flag sales from
         manual_update: whether or not manual_update.py is using this script,
                        if True, adds a versioning capability.
+        sales_to_write_filter: this param specifies a specific set of sales that we
+            want to write. This input works with our sales_to_write_filter object in
+            the yaml config file
     Outputs:
         df: reduced data frame in format of sales.flag table
         run_id: unique run_id used for metadata. etc.
