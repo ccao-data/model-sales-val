@@ -22,10 +22,11 @@ with open(os.path.join("yaml", "inputs.yaml"), "r") as stream:
 
 # Validate the input specification
 # Check housing_market_type
+# TODO: Add res_all and other res_type exclusivity check
 assert "housing_market_type" in inputs, "Missing key: 'housing_market_type'"
 assert set(inputs["housing_market_type"]).issubset(
-    {"res_single_family", "res_multi_family", "condos"}
-), "housing_market_type can only contain 'res_single_family', 'res_multi_family', 'condos'"
+    {"res_single_family", "res_multi_family", "condos", "res_all"}
+), "housing_market_type can only contain 'res_single_family', 'res_multi_family', 'condos', 'res_all'"
 assert len(inputs["housing_market_type"]) == len(
     set(inputs["housing_market_type"])
 ), "Duplicate values in 'housing_market_type'"
@@ -158,16 +159,9 @@ conversion_dict = {
 df = df.astype(conversion_dict)
 df["ptax_flag_original"].fillna(False, inplace=True)
 
-# Filter to correct tris
-tri_stat_groups = {
-    tri: method
-    for tri, method in inputs["tri_stat_groups"].items()
-    if tri in inputs["run_tri"]
-}
-
 # Calculate the building's age for feature creation
 current_year = datetime.datetime.now().year
-df["bldg_age"] = current_year - df["yrblt"]
+df["char_bldg_age"] = current_year - df["yrblt"]
 
 """
 Ingest and join new geographic groups for current methodology.
@@ -222,14 +216,17 @@ def create_bins_and_labels(input_list):
 
 dfs_to_rolling_window = {}  # Dictionary to store DataFrames
 
-# Collect tris where our contemporary flagging methods are used
-current_tris = [tri for tri, method in tri_stat_groups.items() if method == "current"]
-
-for tri in current_tris:
+for tri in inputs["run_tri"]:
     # Iterate over housing types defined in yaml
     for housing_type in inputs["housing_market_type"]:
+        if housing_type not in inputs["stat_groups"][f"tri{tri}"]:
+            print(
+                f"Skipping flags for '{housing_type}' in tri {tri} since the market is not defined "
+                "as a stat group in the tri"
+            )
+            continue
         # Assign the df a name
-        key = f"df_tri{tri}_{housing_type}_current"
+        key = f"df_tri{tri}_{housing_type}"
 
         # Perform filtering based on tri and housing market class codes
         triad_code_filter = df["triad_code"] == str(tri)
@@ -242,73 +239,41 @@ for tri in current_tris:
         dfs_to_rolling_window[key] = {"df": df_filtered}  # Store the filtered DataFrame
 
         # Extract the specific housing type configuration
-        housing_type_config = inputs["stat_groups"]["current"][f"tri{tri}"][
-            housing_type
-        ]
+        housing_type_config = inputs["stat_groups"][f"tri{tri}"][housing_type]
 
-        # Update market/tri configurations
-        dfs_to_rolling_window[key]["columns"] = housing_type_config["columns"]
+        # Perform column transformations
+        columns = housing_type_config["columns"]
+        transformed_columns = []
+
+        for col in columns:
+            if isinstance(col, dict):
+                # Validate the structure of the column dictionary
+                for required_attr in ("column", "bins"):
+                    if required_attr not in col:
+                        raise ValueError(
+                            "stat_groups column dict is missing required "
+                            f"'{required_attr}' attribute: {col}"
+                        )
+
+                if "bins" in col:
+                    bins, labels = create_bins_and_labels(col["bins"])
+                    new_col_name = f"{col['column']}_bin"
+                    df_filtered[new_col_name] = pd.cut(
+                        df_filtered[col["column"]], bins=bins, labels=labels
+                    )
+                    transformed_columns.append(new_col_name)
+            else:
+                transformed_columns.append(col)
+
+        dfs_to_rolling_window[key]["columns"] = transformed_columns
+
+        # Add rest of config information
         dfs_to_rolling_window[key]["iso_forest_cols"] = inputs["iso_forest"][
             "res" if "res" in housing_type else "condos"
         ]
         dfs_to_rolling_window[key]["condos_boolean"] = housing_type == "condos"
         dfs_to_rolling_window[key]["market"] = housing_type
 
-        # Apply binning configurations if they exist
-        if "sf_bin_specification" in housing_type_config:
-            # Create and apply bins for square footage
-            sf_bins, sf_labels = create_bins_and_labels(
-                housing_type_config["sf_bin_specification"]
-            )
-            dfs_to_rolling_window[key]["df"]["char_bldg_sf_bin"] = pd.cut(
-                dfs_to_rolling_window[key]["df"]["char_bldg_sf"],
-                bins=sf_bins,
-                labels=sf_labels,
-            )
-
-        if "age_bin_specification" in housing_type_config:
-            # Create and apply bins for age
-            age_bins, age_labels = create_bins_and_labels(
-                housing_type_config["age_bin_specification"]
-            )
-            dfs_to_rolling_window[key]["df"]["bldg_age_bin"] = pd.cut(
-                dfs_to_rolling_window[key]["df"]["bldg_age"],
-                bins=age_bins,
-                labels=age_labels,
-            )
-
-# Collect tris that will be flagged for OG method
-og_mansueto_tris = [
-    tri for tri, method in tri_stat_groups.items() if method == "og_mansueto"
-]
-
-if og_mansueto_tris:
-    # Filter by triad code and market type
-    og_mansueto_filter = df["triad_code"].astype(int).isin(og_mansueto_tris)
-
-    df_res_og_mansueto = df[(df["indicator"] == "res") & og_mansueto_filter]
-    df_condo_og_mansueto = df[(df["indicator"] == "condo") & og_mansueto_filter]
-
-    # Append these DataFrames to the dictionary
-    key_res = (
-        f"df_tri{'&'.join(str(number) for number in og_mansueto_tris)}_res_og_mansueto"
-    )
-    key_condo = f"df_tri{'&'.join(str(number) for number in og_mansueto_tris)}_condos_og_mansueto"
-
-    dfs_to_rolling_window[key_res] = {
-        "df": df_res_og_mansueto,
-        "columns": inputs["stat_groups"]["og_mansueto"]["res_single_family"]["columns"],
-        "iso_forest_cols": inputs["iso_forest"]["res"],
-        "condos_boolean": False,
-        "market": "res_og_mansueto",
-    }
-    dfs_to_rolling_window[key_condo] = {
-        "df": df_condo_og_mansueto,
-        "columns": inputs["stat_groups"]["og_mansueto"]["condos"]["columns"],
-        "iso_forest_cols": inputs["iso_forest"]["condos"],
-        "condos_boolean": True,
-        "market": "condos_og_mansueto",
-    }
 
 # - - - - - -
 # Make rolling window
@@ -402,6 +367,7 @@ df_to_write, run_id, timestamp = flg.finish_flags(
     df=df_to_finalize,
     start_date=inputs["time_frame"]["start"],
     manual_update=inputs["manual_update"],
+    sales_to_write_filter=inputs["sales_to_write_filter"],
 )
 
 if inputs["manual_update"] == True:
@@ -420,14 +386,14 @@ run_filter = str(
     {"housing_market_type": inputs["housing_market_type"], "run_tri": inputs["run_tri"]}
 )
 
-# Get sale.parameter data
+# Get parameters df
 df_parameter = flg.get_parameter_df(
     df_to_write=df_to_write,
     df_ingest=df_ingest,
     run_filter=run_filter,
     iso_forest_cols=inputs["iso_forest"],
     stat_groups=inputs["stat_groups"],
-    tri_stat_groups=inputs["tri_stat_groups"],
+    sales_to_write_filter=inputs["sales_to_write_filter"],
     housing_market_class_codes=inputs["housing_market_class_codes"],
     dev_bounds=inputs["dev_bounds"],
     ptax_sd=inputs["ptax_sd"],
@@ -485,7 +451,7 @@ for table, df in tables_to_write.items():
     flg.write_to_table(
         df=df,
         table_name=table,
-        s3_warehouse_bucket_path=os.getenv("AWS_S3_WAREHOUSE_BUCKET"),
+        s3_warehouse_bucket_path=os.getenv("AWS_TEST_ARCH_CHANGE_BUCKET"),
         run_id=run_id,
     )
     print(f"{table} table successfully written")

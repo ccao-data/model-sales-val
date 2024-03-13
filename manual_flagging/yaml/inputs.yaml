@@ -10,66 +10,67 @@
 
 manual_update: true
 
-# The values in housing_market_type, run_tri, and tri_stat_groups will tell the
-# sales val script which properties will be updated. The housing_market_type
-# list supports 'res_single_family', 'res_multi_family', and/or 'condos'.
-# The run_tri van be 1, 2, and/or 3, and the values for the tri_stat_groups
-# can be "current" or "og_mansueto".
+# "housing_market_type" and "run_tri" configurations determine the
+# specificity of flagging. First, we retrieve the run tris, then run
+# the flags on those tris for each selected market type, but only if
+# the market type is present in the "stat groups" config under the
+# "tri$n" value.
+housing_market_type: [
+  "res_single_family",
+  "res_multi_family",
+  "res_all",
+  "condos"
+]
+run_tri: [1, 2, 3]
 
-# 'tri_stat_groups' specifies which flagging methodology will be used for
-# which tri
+# "sales_to_write" filter allows further specificity. Here we can decide
+# which flags we want to write at a more precise level than market type
+# and tri. For example, we could add "class" as the column value and
+# "["208"]" to the values value. Note: values must be a list
+sales_to_write_filter:
+  column:
+  values:
 
-# Note: If 'og_mansueto' is selected along with either 'res_single_family' or
-# 'res_multi_family', it will trigger an update for all residential property
-# types ('res_single_family' and 'res_multi_family'). This behavior is
-# intrinsic to the 'og_mansueto' script's functionality.
-
-housing_market_type: ["res_single_family", "res_multi_family"]
-run_tri: [1, 2]
-
-# tri_stat_groups maps the method to be used for each tri.
-tri_stat_groups:
-  # city
-  1: "current"
-  # north
-  2: "og_mansueto"
-  # south
-  3: "og_mansueto"
-
-# The stat groups data structure is split between a current methodology and
-# an og_mansueto methodology. Each of these methodologies can be used for a
-# given tri, specified in the "tri stat groups" dict in this file. In each
-# tri, stat groups can be assigned dynamically in different housing markets.
+# This config object defines the columns that are used to produce statistical
+# groupings for different housing market types in different tris. The choice to
+# define this config as a tri-based hierarchy (tri > housing market > columns)
+# is based on the assumption that the eographies we use for grouping columns
+# will be defined as neighborhoods, townships, or groups of
+# neighborhoods/townships, such that each statistical group nests neatly into a
+# tri and a housing market; if this assumption ever changes, we will need to
+# redesign this config to support it.
 stat_groups:
-  current:
-    tri1:
-      res_single_family:
-        columns:
-          - "rolling_window"
-          - "geography_split"
-          - "bldg_age_bin"
-          - "char_bldg_sf_bin"
-        sf_bin_specification: [1200, 2400]
-        age_bin_specification: [40]
-      res_multi_family:
-        columns:
-          - "rolling_window"
-          - "geography_split"
-          - "bldg_age_bin"
-        age_bin_specification: [20]
-      condos:
-        columns:
-          - "rolling_window"
-          - "geography_split"
-    tri2: "check"
-    tri3:
-  og_mansueto:
+  tri1:
     res_single_family:
+      columns:
+        - "rolling_window"
+        - "geography_split"
+        - column: "char_bldg_age"
+          bins: [40]
+        - column: "char_bldg_sf"
+          bins: [1200, 2400]
+    res_multi_family:
+      columns:
+        - "rolling_window"
+        - "geography_split"
+        - column: "char_bldg_age"
+          bins: [20]
+    condos:
+      columns:
+        - "rolling_window"
+        - "geography_split"
+  tri2:
+    res_all:
       columns:
         - "rolling_window"
         - "township_code"
         - "class"
-    res_multi_family:
+    condos:
+      columns:
+        - "rolling_window"
+        - "township_code"
+  tri3:
+    res_all:
       columns:
         - "rolling_window"
         - "township_code"
@@ -112,6 +113,24 @@ housing_market_class_codes:
   ]
   res_multi_family: ["211", "212"]
   condos: ["297", "299", "399"]
+  res_all: [
+    "202",
+    "203",
+    "204",
+    "205",
+    "206",
+    "207",
+    "208",
+    "209",
+    "210",
+    "211",
+    "212",
+    "218",
+    "219",
+    "234",
+    "278",
+    "295"
+  ]
 
 # These are the price standard deviation bounds that the sales must exceed
 # to be classified as an outlier
@@ -121,7 +140,7 @@ dev_bounds: [2, 2]
 # sale.flag table. Leave 'end' blank if we want to flag all sales
 # since the start date
 time_frame:
-  start: "2020-01-01"
+  start: "2014-01-01"
   end:
 
 # How many total months to include in the grouping methodology

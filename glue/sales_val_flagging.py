@@ -197,7 +197,7 @@ def group_size_adjustment(df, stat_groups: list, min_threshold, condos: bool):
     return df_flagged_updated
 
 
-def finish_flags(df, start_date, manual_update):
+def finish_flags(df, start_date, manual_update, sales_to_write_filter):
     """
     This functions
         -takes the flagged data from the mansueto code
@@ -208,6 +208,9 @@ def finish_flags(df, start_date, manual_update):
         start_date: a limit on how early we flag sales from
         manual_update: whether or not manual_update.py is using this script,
                        if True, adds a versioning capability.
+        sales_to_write_filter: this param specifies a specific set of sales that we
+            want to write. This input works with our sales_to_write_filter object in
+            the yaml config file
     Outputs:
         df: reduced data frame in format of sales.flag table
         run_id: unique run_id used for metadata. etc.
@@ -218,6 +221,11 @@ def finish_flags(df, start_date, manual_update):
     df = df[df["original_observation"]]
     # Discard pre-2014 data
     df = df[df["meta_sale_date"] >= start_date]
+
+    if sales_to_write_filter["column"]:
+        df = df[
+            df[sales_to_write_filter["column"]].isin(sales_to_write_filter["values"])
+        ]
 
     # Utilize PTAX-203, complete binary columns
     df = (
@@ -546,7 +554,7 @@ def modify_dtypes(df):
         "run_filter",
         "iso_forest_cols",
         "stat_groups",
-        "tri_stat_groups",
+        "sales_to_write_filter",
         "housing_market_class_codes",
     ]
     for col in string_columns:
@@ -562,7 +570,7 @@ def get_parameter_df(
     run_filter,
     iso_forest_cols,
     stat_groups,
-    tri_stat_groups,
+    sales_to_write_filter,
     housing_market_class_codes,
     dev_bounds,
     ptax_sd,
@@ -603,7 +611,7 @@ def get_parameter_df(
         "run_filter": [run_filter],
         "iso_forest_cols": [iso_forest_cols],
         "stat_groups": [stat_groups],
-        "tri_stat_groups": [tri_stat_groups],
+        "sales_to_write_filter": [sales_to_write_filter],
         "housing_market_class_codes": [housing_market_class_codes],
         "dev_bounds": [dev_bounds],
         "ptax_sd": [ptax_sd],
