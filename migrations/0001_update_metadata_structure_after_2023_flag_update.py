@@ -114,6 +114,10 @@ dfs_sale_parameter["2024-01-19_18:46-clever-boni"]["stat_groups"] = str(
     }
 )
 
+dfs_sale_parameter["2024-01-19_18:46-clever-boni"]["date_range"] = str(
+    {"start": "2014-01-01", "end": None}
+)
+
 dfs_sale_parameter["2024-01-19_18:46-clever-boni"]["iso_forest_cols"] = str(
     {
         "res": {
@@ -172,7 +176,7 @@ dfs_sale_parameter["2024-01-19_18:46-clever-boni"] = dfs_sale_parameter[
         "dev_bounds",
         "ptax_sd",
         "rolling_window",
-        "date_floor",
+        "date_range",
         "short_term_owner_threshold",
         "min_group_thresh",
     ]
@@ -198,6 +202,10 @@ dfs_sale_parameter["2024-02-01_12:24-nifty-tayun"]["iso_forest_cols"] = str(
             ]
         }
     }
+)
+
+dfs_sale_parameter["2024-02-01_12:24-nifty-tayun"]["date_range"] = str(
+    {"start": "2014-01-01", "end": None}
 )
 
 dfs_sale_parameter["2024-02-01_12:24-nifty-tayun"]["sales_to_write_filter"] = str(
@@ -226,7 +234,7 @@ dfs_sale_parameter["2024-02-01_12:24-nifty-tayun"] = dfs_sale_parameter[
         "dev_bounds",
         "ptax_sd",
         "rolling_window",
-        "date_floor",
+        "date_range",
         "short_term_owner_threshold",
         "min_group_thresh",
     ]
@@ -275,6 +283,10 @@ dfs_sale_parameter["2024-01-29_14:40-pensive-rina"]["iso_forest_cols"] = str(
     }
 )
 
+dfs_sale_parameter["2024-01-29_14:40-pensive-rina"]["date_range"] = str(
+    {"start": "2014-01-01", "end": None}
+)
+
 dfs_sale_parameter["2024-01-29_14:40-pensive-rina"]["sales_to_write_filter"] = str(
     {"column": None, "values": None}
 )
@@ -301,7 +313,7 @@ dfs_sale_parameter["2024-01-29_14:40-pensive-rina"] = dfs_sale_parameter[
         "dev_bounds",
         "ptax_sd",
         "rolling_window",
-        "date_floor",
+        "date_range",
         "short_term_owner_threshold",
         "min_group_thresh",
     ]
