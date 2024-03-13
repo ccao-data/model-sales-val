@@ -226,7 +226,6 @@ def finish_flags(df, start_date, manual_update, sales_to_write_filter):
         df = df[
             df[sales_to_write_filter["column"]].isin(sales_to_write_filter["values"])
         ]
-        print(df)
 
     # Utilize PTAX-203, complete binary columns
     df = (
