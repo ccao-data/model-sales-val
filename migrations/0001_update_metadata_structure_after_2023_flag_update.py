@@ -77,9 +77,9 @@ dfs_sale_flag = read_parquets_to_dfs("flag")
 dfs_sale_flag["2024-01-19_18:46-clever-boni"]["group"] = dfs_sale_flag[
     "2024-01-19_18:46-clever-boni"
 ]["group"].apply(
-    lambda value: value + "-res_og_mansueto"
+    lambda value: value + "-res_all"
     if value.count("_") == 2
-    else (value + "-condos_og_mansueto" if value.count("_") == 1 else value)
+    else (value + "-condos" if value.count("_") == 1 else value)
 )
 
 # Update res run
@@ -109,10 +109,8 @@ dfs_sale_parameter["2024-01-19_18:46-clever-boni"].columns
 
 dfs_sale_parameter["2024-01-19_18:46-clever-boni"]["stat_groups"] = str(
     {
-        "og_mansueto": {
-            "res_all": {"columns": ["rolling_window", "township_code", "class"]},
-            "condos": {"columns": ["township_code", "rolling_window"]},
-        }
+        "res_all": {"columns": ["rolling_window", "township_code", "class"]},
+        "condos": {"columns": ["township_code", "rolling_window"]},
     }
 )
 
@@ -337,9 +335,9 @@ dfs_sale_group_mean["2024-01-29_14:40-pensive-rina"] = pd.read_parquet(
 dfs_sale_group_mean["2024-01-19_18:46-clever-boni"]["group"] = dfs_sale_group_mean[
     "2024-01-19_18:46-clever-boni"
 ]["group"].apply(
-    lambda value: value + "-res_og_mansueto"
+    lambda value: value + "-res_all"
     if value.count("_") == 2
-    else (value + "-condos_og_mansueto" if value.count("_") == 1 else value)
+    else (value + "-condos" if value.count("_") == 1 else value)
 )
 
 # Update res run
