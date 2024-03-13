@@ -248,8 +248,6 @@ for tri in inputs["run_tri"]:
         for col in columns:
             if isinstance(col, dict):
                 # Validate the structure of the column dictionary
-                # Check if required attributes "column" and "bins" are present
-                # Raise a ValueError if any required attribute is missing
                 for required_attr in ("column", "bins"):
                     if required_attr not in col:
                         raise ValueError(
