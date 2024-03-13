@@ -246,7 +246,17 @@ for tri in inputs["run_tri"]:
         transformed_columns = []
 
         for col in columns:
-            if isinstance(col, dict) and "column" in col:
+            if isinstance(col, dict):
+                # Validate the structure of the column dictionary
+                # Check if required attributes "column" and "bins" are present
+                # Raise a ValueError if any required attribute is missing
+                for required_attr in ("column", "bins"):
+                    if required_attr not in col:
+                        raise ValueError(
+                            "stat_groups column dict is missing required "
+                            f"'{required_attr}' attribute: {col}"
+                        )
+
                 if "bins" in col:
                     bins, labels = create_bins_and_labels(col["bins"])
                     new_col_name = f"{col['column']}_bin"
