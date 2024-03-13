@@ -27,6 +27,10 @@ manual_update: true
 housing_market_type: ["res_single_family", "res_multi_family"]
 run_tri: [1, 2]
 
+# Set the date of the run (useful for reproducing flags that ran in the past).
+# When null, the script will use the current date.
+run_date:
+
 # tri_stat_groups maps the method to be used for each tri.
 tri_stat_groups:
   # city
