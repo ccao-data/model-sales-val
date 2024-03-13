@@ -391,7 +391,7 @@ run_filter = str(
     {
         "housing_market_type": inputs["housing_market_type"],
         "run_tri": inputs["run_tri"],
-        "run_date": run_date
+        "run_date": run_date,
     }
 )
 
