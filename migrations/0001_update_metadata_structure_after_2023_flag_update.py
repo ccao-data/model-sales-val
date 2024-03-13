@@ -9,8 +9,8 @@ import subprocess as sp
 Migration to update the structure of the prod metadata following 2023 reassessment prod flag updates.
 This migration does not change any flags, but rather reads data from copied prod data,
 transforms it so that its metadata matches the most recent schema, and saves it to a new bucket where
-it can be QCed before being copied to the prod bucket. This migration was necessary in late
-Feb 2024 since prod flags for the 2023 reassessment were computed before the metadata schema
+it can be QCed before being copied to the prod bucket. This migration was necessary in
+March 2024 since prod flags for the 2023 reassessment were computed before the metadata schema
 was completely solidified.
 """
 
@@ -77,9 +77,9 @@ dfs_sale_flag = read_parquets_to_dfs("flag")
 dfs_sale_flag["2024-01-19_18:46-clever-boni"]["group"] = dfs_sale_flag[
     "2024-01-19_18:46-clever-boni"
 ]["group"].apply(
-    lambda value: value + "-res_og_mansueto"
+    lambda value: value + "-res_all"
     if value.count("_") == 2
-    else (value + "-condos_og_mansueto" if value.count("_") == 1 else value)
+    else (value + "-condos" if value.count("_") == 1 else value)
 )
 
 # Update res run
@@ -109,10 +109,8 @@ dfs_sale_parameter["2024-01-19_18:46-clever-boni"].columns
 
 dfs_sale_parameter["2024-01-19_18:46-clever-boni"]["stat_groups"] = str(
     {
-        "og_mansueto": {
-            "res": {"columns": ["rolling_window", "township_code", "class"]},
-            "condos": {"columns": ["township_code", "rolling_window"]},
-        }
+        "res_all": {"columns": ["rolling_window", "township_code", "class"]},
+        "condos": {"columns": ["township_code", "rolling_window"]},
     }
 )
 
@@ -141,13 +139,16 @@ dfs_sale_parameter["2024-01-19_18:46-clever-boni"]["iso_forest_cols"] = str(
 # Although this structure didn't exist when we ran the sales val program
 # it still can fit into the new structure (all tris/market types
 #  were ran with og_mansueto)
-dfs_sale_parameter["2024-01-19_18:46-clever-boni"]["tri_stat_groups"] = str(
-    {1: "og_mansueto", 2: "og_mansueto", 3: "og_mansueto"}
+dfs_sale_parameter["2024-01-19_18:46-clever-boni"]["sales_to_write_filter"] = str(
+    {"column": None, "values": None}
 )
 
 dfs_sale_parameter["2024-01-19_18:46-clever-boni"]["run_filter"] = str(
     {
-        "housing_market_type": ["res_single_family", "res_multi_family", "condos"],
+        "housing_market_type": [
+            "condos",
+            "res_all",
+        ],
         "run_tri": [1, 2, 3],
     }
 )
@@ -167,7 +168,7 @@ dfs_sale_parameter["2024-01-19_18:46-clever-boni"] = dfs_sale_parameter[
         "run_filter",
         "iso_forest_cols",
         "stat_groups",
-        "tri_stat_groups",
+        "sales_to_write_filter",
         "dev_bounds",
         "ptax_sd",
         "rolling_window",
@@ -199,8 +200,8 @@ dfs_sale_parameter["2024-02-01_12:24-nifty-tayun"]["iso_forest_cols"] = str(
     }
 )
 
-dfs_sale_parameter["2024-02-01_12:24-nifty-tayun"]["tri_stat_groups"] = str(
-    {1: "current", 2: "og_mansueto", 3: "og_mansueto"}
+dfs_sale_parameter["2024-02-01_12:24-nifty-tayun"]["sales_to_write_filter"] = str(
+    {"column": None, "values": None}
 )
 
 dfs_sale_parameter["2024-02-01_12:24-nifty-tayun"]["run_filter"] = str(
@@ -221,7 +222,7 @@ dfs_sale_parameter["2024-02-01_12:24-nifty-tayun"] = dfs_sale_parameter[
         "run_filter",
         "iso_forest_cols",
         "stat_groups",
-        "tri_stat_groups",
+        "sales_to_write_filter",
         "dev_bounds",
         "ptax_sd",
         "rolling_window",
@@ -238,20 +239,23 @@ dfs_sale_parameter["2024-01-29_14:40-pensive-rina"] = pd.read_parquet(
 
 dfs_sale_parameter["2024-01-29_14:40-pensive-rina"]["stat_groups"] = str(
     {
-        "res": {
+        "tri1": {
             "single_family": {
                 "columns": [
                     "rolling_window",
                     "geography_split",
+                    {"column": "char_bldg_age", "bins": [40]},
+                    {"column": "char_bldg_sf", "bins": [1200, 2400]},
                     "bldg_age_bin",
                     "char_bldg_sf_bin",
-                ],
-                "sf_bin_specification": [1200, 2400],
-                "age_bin_specification": [40],
+                ]
             },
             "multi_family": {
-                "columns": ["rolling_window", "geography_split", "bldg_age_bin"],
-                "age_bin_specification": [20],
+                "columns": [
+                    "rolling_window",
+                    "geography_split",
+                    {"column": "char_bldg_age", "bins": [20]},
+                ],
             },
         }
     }
@@ -271,12 +275,12 @@ dfs_sale_parameter["2024-01-29_14:40-pensive-rina"]["iso_forest_cols"] = str(
     }
 )
 
-dfs_sale_parameter["2024-01-29_14:40-pensive-rina"]["tri_stat_groups"] = str(
-    {1: "current", 2: "og_mansueto", 3: "og_mansueto"}
+dfs_sale_parameter["2024-01-29_14:40-pensive-rina"]["sales_to_write_filter"] = str(
+    {"column": None, "values": None}
 )
 
 dfs_sale_parameter["2024-01-29_14:40-pensive-rina"]["run_filter"] = str(
-    {"housing_market_type": ["res"], "run_tri": [1]}
+    {"housing_market_type": ["res_single_family", "res_multi_family"], "run_tri": [1]}
 )
 
 # Class code structure in yaml wasn't present in this run
@@ -293,7 +297,7 @@ dfs_sale_parameter["2024-01-29_14:40-pensive-rina"] = dfs_sale_parameter[
         "run_filter",
         "iso_forest_cols",
         "stat_groups",
-        "tri_stat_groups",
+        "sales_to_write_filter",
         "dev_bounds",
         "ptax_sd",
         "rolling_window",
@@ -331,9 +335,9 @@ dfs_sale_group_mean["2024-01-29_14:40-pensive-rina"] = pd.read_parquet(
 dfs_sale_group_mean["2024-01-19_18:46-clever-boni"]["group"] = dfs_sale_group_mean[
     "2024-01-19_18:46-clever-boni"
 ]["group"].apply(
-    lambda value: value + "-res_og_mansueto"
+    lambda value: value + "-res_all"
     if value.count("_") == 2
-    else (value + "-condos_og_mansueto" if value.count("_") == 1 else value)
+    else (value + "-condos" if value.count("_") == 1 else value)
 )
 
 # Update res run
