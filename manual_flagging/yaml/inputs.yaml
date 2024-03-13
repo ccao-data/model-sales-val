@@ -31,6 +31,14 @@ sales_to_write_filter:
   column:
   values:
 
+# This config object defines the columns that are used to produce statistical
+# groupings for different housing market types in different tris. The choice to
+# define this config as a tri-based hierarchy (tri > housing market > columns)
+# is based on the assumption that the eographies we use for grouping columns
+# will be defined as neighborhoods, townships, or groups of
+# neighborhoods/townships, such that each statistical group nests neatly into a
+# tri and a housing market; if this assumption ever changes, we will need to
+# redesign this config to support it.
 stat_groups:
   tri1:
     res_single_family:
@@ -132,7 +140,7 @@ dev_bounds: [2, 2]
 # sale.flag table. Leave 'end' blank if we want to flag all sales
 # since the start date
 time_frame:
-  start: "2020-01-01"
+  start: "2014-01-01"
   end:
 
 # How many total months to include in the grouping methodology
