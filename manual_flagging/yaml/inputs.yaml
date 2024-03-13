@@ -1,6 +1,11 @@
 # This is a config file that is used for run specifications of the
 # local flagging script.
 ---
+# Note included with each run. Use this to summarize what changed about the run
+# or add context
+run_note: |
+  Update city tri data as we missed sales with a sql join for 2024 modeling
+
 # manual_update: A boolean setting to control flag updates. If set
 # to "false", it initializes a new set of flags with each assigned
 # a version number of "1". If set to "true", the script increments
