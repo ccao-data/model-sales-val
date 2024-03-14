@@ -31,10 +31,6 @@ sales_to_write_filter:
   column:
   values:
 
-# Set the date of the run (useful for reproducing flags that ran in the past).
-# When null, the script will use the current date.
-run_date:
-
 # This config object defines the columns that are used to produce statistical
 # groupings for different housing market types in different tris. The choice to
 # define this config as a tri-based hierarchy (tri > housing market > columns)

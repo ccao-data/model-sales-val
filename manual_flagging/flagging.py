@@ -57,15 +57,6 @@ else:
         BETWEEN DATE '{date_floor}'
         AND DATE '{inputs['time_frame']['end']}')"""
 
-# Parse run_date and make sure its format is correct
-date_fmt = "%Y-%m-%d"
-run_date = (
-    # Parse and reformat to ensure that the format is correct
-    datetime.strptime(inputs["run_date"], date_fmt).strftime(date_fmt)
-    if inputs["run_date"]
-    else datetime.datetime.now().date().strftime("%Y-%m-%d")
-)
-
 # Fetch sales and characteristics from Athena
 SQL_QUERY = f"""
 WITH CombinedData AS (
@@ -112,7 +103,6 @@ neighborhood_group AS (
     INNER JOIN (
         SELECT nbhd, MAX(version) AS version
         FROM location.neighborhood_group
-        WHERE updated_at <= '{run_date}'
         GROUP BY nbhd
     ) AS latest_group_version
         ON nbhd_group.nbhd = latest_group_version.nbhd
@@ -388,11 +378,7 @@ if inputs["manual_update"] == True:
     )
 
 run_filter = str(
-    {
-        "housing_market_type": inputs["housing_market_type"],
-        "run_tri": inputs["run_tri"],
-        "run_date": run_date,
-    }
+    {"housing_market_type": inputs["housing_market_type"], "run_tri": inputs["run_tri"]}
 )
 
 # Get parameters df
