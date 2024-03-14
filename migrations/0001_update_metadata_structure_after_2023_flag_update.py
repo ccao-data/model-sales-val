@@ -384,4 +384,20 @@ dfs_sale_metadata["2024-01-29_14:40-pensive-rina"] = pd.read_parquet(
     os.path.join(root, "manual_flagging/new_res_metadata/df_metadata.parquet")
 )
 
+dfs_sale_metadata = {
+    "2024-01-19_18:46-clever-boni": dfs_sale_metadata[
+        "2024-01-19_18:46-clever-boni"
+    ].assign(run_note="Initial flagging run"),
+    "2024-02-01_12:24-nifty-tayun": dfs_sale_metadata[
+        "2024-02-01_12:24-nifty-tayun"
+    ].assign(
+        run_note="Manual update on 2024-02-01. This was used to update city tri flags for condos with new neighborhood grouping created with the help of valuations."
+    ),
+    "2024-01-29_14:40-pensive-rina": dfs_sale_metadata[
+        "2024-01-29_14:40-pensive-rina"
+    ].assign(
+        run_note="Manual update on 2024-01-29. This was used to update city tri flags for res sales with new neighborhood grouping created with the help of valuations."
+    ),
+}
+
 write_dfs_to_s3(dfs_sale_metadata, os.getenv("AWS_BUCKET_SV"), "metadata")
