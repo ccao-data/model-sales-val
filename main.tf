@@ -66,7 +66,7 @@ resource "aws_s3_bucket" "glue_assets" {
   count = terraform.workspace == "prod" ? 0 : 1
   # Buckets can only be a max of 63 characters long:
   # https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html
-  bucket        = "ccao-z-ci-${substr(terraform.workspace, 0, 31)}-glue-assets-us-east-1"
+  bucket        = "z-ci-ccao-${substr(terraform.workspace, 0, 31)}-glue-assets-us-east-1"
   force_destroy = true
 }
 
@@ -91,7 +91,7 @@ resource "aws_s3_bucket_versioning" "glue_assets" {
 
 resource "aws_s3_bucket" "data_warehouse" {
   count         = terraform.workspace == "prod" ? 0 : 1
-  bucket        = "ccao-z-ci-${substr(terraform.workspace, 0, 28)}-data-warehouse-us-east-1"
+  bucket        = "z-ci-ccao-${substr(terraform.workspace, 0, 28)}-data-warehouse-us-east-1"
   force_destroy = true
 }
 
