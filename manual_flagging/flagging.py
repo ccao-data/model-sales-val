@@ -452,7 +452,7 @@ for table, df in tables_to_write.items():
     flg.write_to_table(
         df=df,
         table_name=table,
-        s3_warehouse_bucket_path=os.getenv("AWS_TEST_ARCH_CHANGE_BUCKET"),
+        s3_warehouse_bucket_path=os.getenv("AWS_S3_WAREHOUSE_BUCKET"),
         run_id=run_id,
     )
     print(f"{table} table successfully written")
