@@ -554,7 +554,7 @@ def modify_dtypes(df):
         "run_filter",
         "iso_forest_cols",
         "stat_groups",
-        "date_range",
+        "time_frame",
         "sales_to_write_filter",
         "housing_market_class_codes",
     ]
@@ -576,7 +576,7 @@ def get_parameter_df(
     dev_bounds,
     ptax_sd,
     rolling_window,
-    date_range,
+    time_frame,
     short_term_thresh,
     min_group_thresh,
     run_id,
@@ -617,7 +617,7 @@ def get_parameter_df(
         "dev_bounds": [dev_bounds],
         "ptax_sd": [ptax_sd],
         "rolling_window": [rolling_window],
-        "date_range": [date_range],
+        "time__frame": [time_frame],
         "short_term_owner_threshold": [short_term_thresh],
         "min_group_thresh": [min_group_thresh],
     }
