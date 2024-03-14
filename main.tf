@@ -24,8 +24,8 @@ locals {
   s3_prefix                = "scripts/sales-val"
   s3_bucket_data_warehouse = terraform.workspace == "prod" ? "ccao-data-warehouse-us-east-1" : aws_s3_bucket.data_warehouse[0].id
   s3_bucket_glue_assets    = terraform.workspace == "prod" ? "ccao-glue-assets-us-east-1" : aws_s3_bucket.glue_assets[0].id
-  glue_job_name            = terraform.workspace == "prod" ? "sales_val_flagging" : "ci_${terraform.workspace}_sales_val_flagging"
-  glue_crawler_name        = terraform.workspace == "prod" ? "ccao-data-warehouse-sale-crawler" : "ci_${terraform.workspace}_ccao-data-warehouse-sale-crawler"
+  glue_job_name            = terraform.workspace == "prod" ? "sales_val_flagging" : "z_ci_${terraform.workspace}_sales_val_flagging"
+  glue_crawler_name        = terraform.workspace == "prod" ? "ccao-data-warehouse-sale-crawler" : "z_ci_${terraform.workspace}_ccao-data-warehouse-sale-crawler"
   glue_table_sale_flag_parameters = {
     CrawlerSchemaDeserializerVersion = "1.0"
     CrawlerSchemaSerializerVersion   = "1.0"
@@ -42,7 +42,7 @@ locals {
   # (Note that this is not always true -- notably, dbt-athena is able to
   # create Athena tables with hyphens -- but it's a rule that Terraform
   # enforces, so we follow it here)
-  athena_database_name = terraform.workspace == "prod" ? "sale" : "ci_model_sales_val_${replace(terraform.workspace, "-", "_")}_sale"
+  athena_database_name = terraform.workspace == "prod" ? "sale" : "z_ci_model_sales_val_${replace(terraform.workspace, "-", "_")}_sale"
 }
 
 variable "iam_role_arn" {
@@ -66,7 +66,7 @@ resource "aws_s3_bucket" "glue_assets" {
   count = terraform.workspace == "prod" ? 0 : 1
   # Buckets can only be a max of 63 characters long:
   # https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html
-  bucket        = "ccao-ci-${substr(terraform.workspace, 0, 33)}-glue-assets-us-east-1"
+  bucket        = "ccao-z-ci-${substr(terraform.workspace, 0, 33)}-glue-assets-us-east-1"
   force_destroy = true
 }
 
@@ -91,7 +91,7 @@ resource "aws_s3_bucket_versioning" "glue_assets" {
 
 resource "aws_s3_bucket" "data_warehouse" {
   count         = terraform.workspace == "prod" ? 0 : 1
-  bucket        = "ccao-ci-${substr(terraform.workspace, 0, 30)}-data-warehouse-us-east-1"
+  bucket        = "ccao-z-ci-${substr(terraform.workspace, 0, 30)}-data-warehouse-us-east-1"
   force_destroy = true
 }
 
