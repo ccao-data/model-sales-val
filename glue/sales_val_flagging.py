@@ -617,7 +617,7 @@ def get_parameter_df(
         "dev_bounds": [dev_bounds],
         "ptax_sd": [ptax_sd],
         "rolling_window": [rolling_window],
-        "time__frame": [time_frame],
+        "time_frame": [time_frame],
         "short_term_owner_threshold": [short_term_thresh],
         "min_group_thresh": [min_group_thresh],
     }
