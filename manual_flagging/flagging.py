@@ -135,7 +135,7 @@ INNER JOIN default.vw_pin_universe universe
     ON universe.pin = data.pin
     AND universe.year = data.year
 LEFT JOIN neighborhood_group nbhd_group
-    ON res.nbhd = nbhd_group.nbhd
+    ON sale.nbhd = nbhd_group.nbhd
 WHERE {sql_time_frame}
 AND NOT sale.sale_filter_same_sale_within_365
 AND NOT sale.sale_filter_less_than_10k
