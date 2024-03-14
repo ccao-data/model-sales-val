@@ -554,6 +554,7 @@ def modify_dtypes(df):
         "run_filter",
         "iso_forest_cols",
         "stat_groups",
+        "time_frame",
         "sales_to_write_filter",
         "housing_market_class_codes",
     ]
@@ -575,7 +576,7 @@ def get_parameter_df(
     dev_bounds,
     ptax_sd,
     rolling_window,
-    date_floor,
+    time_frame,
     short_term_thresh,
     min_group_thresh,
     run_id,
@@ -616,7 +617,7 @@ def get_parameter_df(
         "dev_bounds": [dev_bounds],
         "ptax_sd": [ptax_sd],
         "rolling_window": [rolling_window],
-        "date_floor": [date_floor],
+        "time_frame": [time_frame],
         "short_term_owner_threshold": [short_term_thresh],
         "min_group_thresh": [min_group_thresh],
     }
@@ -626,7 +627,7 @@ def get_parameter_df(
     return df_parameters
 
 
-def get_metadata_df(run_id, timestamp, run_type, commit_sha):
+def get_metadata_df(run_id, timestamp, run_type, commit_sha, run_note):
     """
     Function creates a table to be written to s3 with a unique set of
     metadata for the flagging run
@@ -646,6 +647,7 @@ def get_metadata_df(run_id, timestamp, run_type, commit_sha):
         "short_commit_sha": commit_sha[0:8],
         "run_timestamp": timestamp,
         "run_type": run_type,
+        "run_note": run_note,
     }
 
     df_metadata = pd.DataFrame(metadata_dict_to_df)

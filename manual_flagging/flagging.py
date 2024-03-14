@@ -398,7 +398,7 @@ df_parameter = flg.get_parameter_df(
     dev_bounds=inputs["dev_bounds"],
     ptax_sd=inputs["ptax_sd"],
     rolling_window=inputs["rolling_window_months"],
-    date_floor=inputs["time_frame"]["start"],
+    time_frame=inputs["time_frame"],
     short_term_thresh=flg_model.SHORT_TERM_OWNER_THRESHOLD,
     min_group_thresh=inputs["min_groups_threshold"],
     run_id=run_id,
@@ -434,6 +434,7 @@ df_metadata = flg.get_metadata_df(
     if inputs["manual_update"] == False
     else "manual_update",
     commit_sha=commit_sha,
+    run_note=inputs["run_note"],
 )
 
 # - - - -
@@ -451,7 +452,7 @@ for table, df in tables_to_write.items():
     flg.write_to_table(
         df=df,
         table_name=table,
-        s3_warehouse_bucket_path=os.getenv("AWS_TEST_ARCH_CHANGE_BUCKET"),
+        s3_warehouse_bucket_path=os.getenv("AWS_S3_WAREHOUSE_BUCKET"),
         run_id=run_id,
     )
     print(f"{table} table successfully written")
