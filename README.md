@@ -148,11 +148,11 @@ ORDER BY
 
 |Outlier Type           |Percentage|
 |-----------------------|---------:|
-|PTAX-203 flag (Low)    |35.50%     |
+|PTAX-203 flag (Low)    |35.50%    |
 |Non-person sale (low)  |18.17%    |
 |Non-person sale (high) |10.29%    |
 |Anomaly (high)         |7.08%     |
-|High price (raw)       |6.2%      |
+|High price (raw)       |6.20%     |
 |Low price (raw)        |4.46%     |
 |Low price (raw & sqft) |4.02%     |
 |PTAX-203 flag (High)   |2.98%     |
@@ -165,7 +165,7 @@ ORDER BY
 |Family sale (low)      |0.64%     |
 |Family sale (high)     |0.06%     |
 |High price swing       |0.01%     |
-|Low price swing        |0.0%      |
+|Low price swing        |0.00%     |
 
 
 *These outliers are flagged if the relevant price columns (log10 transformed and normalized) are 2 standard deviations below or above the mean within a given group*
