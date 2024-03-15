@@ -116,7 +116,7 @@ FROM
     TotalRecords, OutlierCount;
 -->
 
-As of 2024-02-28, around **6.9%** of the total sales have some sort of outlier classification. Within that 6.9%, the proportion of each outlier type is:
+As of 2024-03-15, around **6.9%** of the total sales have some sort of outlier classification. Within that 6.9%, the proportion of each outlier type is:
 
 <!--
 /*
@@ -148,24 +148,24 @@ ORDER BY
 
 |Outlier Type           |Percentage|
 |-----------------------|---------:|
-|PTAX-203 flag (Low)    |35.4%     |
-|Non-person sale (low)  |18.07%    |
-|Non-person sale (high) |10.27%    |
-|High price (raw)       |6.67%     |
-|Anomaly (high)         |6.43%     |
-|Low price (raw)        |4.55%     |
-|Low price (raw & sqft) |4.09%     |
-|PTAX-203 flag (High)   |3.07%     |
-|Home flip sale (high)  |2.26%     |
-|High price (sqft)      |2.03%     |
-|Low price (sqft)       |1.99%     |
-|Anomaly (low)          |1.65%     |
-|High price (raw & sqft)|1.63%     |
-|Home flip sale (low)   |1.15%     |
-|Family sale (low)      |0.65%     |
+|PTAX-203 flag (Low)    |35.50%     |
+|Non-person sale (low)  |18.17%    |
+|Non-person sale (high) |10.29%    |
+|Anomaly (high)         |7.08%     |
+|High price (raw)       |6.2%      |
+|Low price (raw)        |4.46%     |
+|Low price (raw & sqft) |4.02%     |
+|PTAX-203 flag (High)   |2.98%     |
+|Home flip sale (high)  |2.31%     |
+|Low price (sqft)       |1.95%     |
+|High price (sqft)      |1.88%     |
+|Anomaly (low)          |1.76%     |
+|High price (raw & sqft)|1.44%     |
+|Home flip sale (low)   |1.26%     |
+|Family sale (low)      |0.64%     |
 |Family sale (high)     |0.06%     |
-|High price swing       |0.02%     |
-|Low price swing        |0.01%     |
+|High price swing       |0.01%     |
+|Low price swing        |0.0%      |
 
 
 *These outliers are flagged if the relevant price columns (log10 transformed and normalized) are 2 standard deviations below or above the mean within a given group*
@@ -275,6 +275,7 @@ erDiagram
         string short_commit_sha
         string run_timestamp
         string run_type
+        string run_note 
     }
 
     parameter {
@@ -282,25 +283,26 @@ erDiagram
         bigint sales_flagged
         timestamp earliest_data_ingest
         timestamp latest_data_ingest
-        arraystring iso_forest_cols
-        arraystring res_stat_groups
-        arraystring condo_stat_groups
-        arraybigint dev_bounds
-        arraybigint ptax_sd
+        string run_filter
+        string iso_forest_cols
+        string stat_groups
+        string sales_to_write_filter
+        arraydouble dev_bounds
+        arraydouble ptax_sd
         bigint rolling_window
-        string date_floor
+        string time_frame
         bigint short_term_owner_threshold
-        bigint min_group_thresh
+        bigint min_group_threshold
     }
 
     group_mean {
-        string group
+        string group PK
         double group_mean
         double group_std
         double group_sqft_std
         double group_sqft_mean
         bigint group_size
-        string run_id
+        string run_id PK
     }
 ```
 
