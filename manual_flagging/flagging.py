@@ -94,6 +94,19 @@ WITH CombinedData AS (
     WHERE condo.class IN ('297', '299', '399')
     AND NOT condo.is_parking_space
     AND NOT condo.is_common_area
+),
+
+-- Select neighborhood groups and filter for most recent versions
+neighborhood_group AS (
+    SELECT nbhd_group.nbhd, nbhd_group.group_name
+    FROM location.neighborhood_group AS nbhd_group
+    INNER JOIN (
+        SELECT nbhd, MAX(version) AS version
+        FROM location.neighborhood_group
+        GROUP BY nbhd
+    ) AS latest_group_version
+        ON nbhd_group.nbhd = latest_group_version.nbhd
+        AND nbhd_group.version = latest_group_version.version
 )
 
 -- Now, join with sale table and filters
@@ -104,6 +117,7 @@ SELECT
     sale.seller_name AS meta_sale_seller_name,
     sale.buyer_name AS meta_sale_buyer_name,
     sale.nbhd as nbhd,
+    nbhd_group.group_name as geography_split,
     sale.sale_filter_ptax_flag AS ptax_flag_original,
     data.class,
     data.township_code,
@@ -120,6 +134,8 @@ INNER JOIN default.vw_pin_sale sale
 INNER JOIN default.vw_pin_universe universe 
     ON universe.pin = data.pin
     AND universe.year = data.year
+LEFT JOIN neighborhood_group nbhd_group
+    ON sale.nbhd = nbhd_group.nbhd
 WHERE {sql_time_frame}
 AND NOT sale.sale_filter_same_sale_within_365
 AND NOT sale.sale_filter_less_than_10k
@@ -162,27 +178,6 @@ df["ptax_flag_original"].fillna(False, inplace=True)
 # Calculate the building's age for feature creation
 current_year = datetime.datetime.now().year
 df["char_bldg_age"] = current_year - df["yrblt"]
-
-"""
-Ingest and join new geographic groups for current methodology.
-
-To update our methodology with new geographic classifications, we currently
-utilize the 'geography_split' column, which is effective for uniform groupings
-across all market types, as observed in the city tri(1). For
-subsequent tris, if new classifications are consistent across markets,
-they can be appended to the 'geo_geography_split' column. However, for
-market-specific variations (e.g., condos vs. single-family homes),
-we should introduce an additional column or use a conditional join to
-ensure accurate integration of these diverse groupings.
-"""
-
-df_new_groups_tri1 = pd.read_excel(
-    os.path.join(root, "data", "res_condos_nbhd_groups_2024.xlsx"),
-    usecols=["Town Nbhd", "Town Grp 1"],
-).rename(columns={"Town Nbhd": "nbhd", "Town Grp 1": "geography_split"})
-
-df["nbhd"] = df["nbhd"].astype(int)
-df = pd.merge(df, df_new_groups_tri1, on="nbhd", how="left")
 
 
 def create_bins_and_labels(input_list):
