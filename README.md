@@ -275,6 +275,7 @@ erDiagram
         string short_commit_sha
         string run_timestamp
         string run_type
+        string run_note 
     }
 
     parameter {
@@ -282,15 +283,16 @@ erDiagram
         bigint sales_flagged
         timestamp earliest_data_ingest
         timestamp latest_data_ingest
-        arraystring iso_forest_cols
-        arraystring res_stat_groups
-        arraystring condo_stat_groups
-        arraybigint dev_bounds
-        arraybigint ptax_sd
+        string run_filter
+        string iso_forest_cols
+        string stat_groups
+        string sales_to_write_filter
+        array<double> dev_bounds
+        array<double> ptax_sd
         bigint rolling_window
-        string date_floor
+        string time_frame
         bigint short_term_owner_threshold
-        bigint min_group_thresh
+        bigint min_group_threshold
     }
 
     group_mean {
