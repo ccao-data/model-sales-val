@@ -296,13 +296,13 @@ erDiagram
     }
 
     group_mean {
-        string group
+        string group PK
         double group_mean
         double group_std
         double group_sqft_std
         double group_sqft_mean
         bigint group_size
-        string run_id
+        string run_id PK
     }
 ```
 
