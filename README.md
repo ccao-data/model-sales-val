@@ -287,8 +287,8 @@ erDiagram
         string iso_forest_cols
         string stat_groups
         string sales_to_write_filter
-        array<double> dev_bounds
-        array<double> ptax_sd
+        arraydouble dev_bounds
+        arraydouble ptax_sd
         bigint rolling_window
         string time_frame
         bigint short_term_owner_threshold
