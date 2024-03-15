@@ -148,7 +148,7 @@ ORDER BY
 
 |Outlier Type           |Percentage|
 |-----------------------|---------:|
-|PTAX-203 flag (Low)    |35.5%     |
+|PTAX-203 flag (Low)    |35.50%     |
 |Non-person sale (low)  |18.17%    |
 |Non-person sale (high) |10.29%    |
 |Anomaly (high)         |7.08%     |
