@@ -11,7 +11,6 @@ jobs:
     steps:
       - name: Pre-Commit Action
         uses: |
-          ccao-data/actions/.github/actions/pre-commit.yaml\
-          @create-composite-pre-commit-action
+          ccao-data/actions/.github/actions/pre-commit.yaml@create-composite-pre-commit-action
         with:
           python-version: '3.10.12'
