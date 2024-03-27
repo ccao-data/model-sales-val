@@ -66,6 +66,14 @@ if __name__ == "__main__":
         GROUP BY meta_sale_document_num
     """
 
+    logger.info("Querying the count of active flags")
+
+    cursor = conn.cursor()
+    cursor.execute(f"SELECT COUNT(*) FROM ({FLAG_LATEST_VERSION_QUERY}) flags")
+    expected_num_flags = cursor.fetchall()[0][0]
+
+    logger.info(f"Got {expected_num_flags} active flags")
+
     FLAG_QUERY = f"""
     SELECT
         sale.pin AS {PIN_FIELD},
@@ -88,22 +96,13 @@ if __name__ == "__main__":
         ON flag.meta_sale_document_num = sale.doc_no
     """
 
-    logger.info("Querying sales")
+    logger.info("Querying sales with flags")
 
-    cursor = conn.cursor()
     cursor.execute(FLAG_QUERY)
     flag_df = pyathena.pandas.util.as_pandas(cursor)
 
     num_flags = len(flag_df.index)
-    logger.info(f"Got {num_flags} sales")
-
-    logger.info("Querying the latest version of sales for comparison")
-
-    cursor.execute(FLAG_LATEST_VERSION_QUERY)
-    flag_latest_version_df = pyathena.pandas.util.as_pandas(cursor)
-
-    expected_num_flags = len(flag_latest_version_df.index)
-    logger.info(f"Got {expected_num_flags} sales with latest versions")
+    logger.info(f"Got {num_flags} sales with flags")
 
     logger.info("Transforming columns")
 
@@ -131,8 +130,6 @@ if __name__ == "__main__":
         (flag_df[IS_OUTLIER_FIELD] == "N") & (~flag_df[OUTLIER_TYPE_FIELD].isna())
     ].empty, f"{OUTLIER_TYPE_FIELD} must be null when {IS_OUTLIER_FIELD} is N"
 
-    num_flags = len(flag_df.index)
-    expected_num_flags = len(flag_latest_version_df.index)
     assert (
         num_flags == expected_num_flags
     ), f"Expected {expected_num_flags} flagged sales, got {num_flags}"
