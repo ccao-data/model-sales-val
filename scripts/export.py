@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-# Export sales val flags to a CSV for upload to iasworld. Outputs to stdout.
+# Export sales val flags to a CSV for upload to iasworld. Outputs the CSV
+# to stdout.
 #
 # Example usage:
 #
 #   python3 scripts/export.py > export.csv
+#
+import logging
 import os
 import sys
 
@@ -42,6 +45,14 @@ OUTLIER_TYPE_CODES = {
 }
 
 if __name__ == "__main__":
+    # Setup a logger that logs to stderr so it does not get captured as part
+    # of the script's data output
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+    logger.addHandler(logging.StreamHandler(sys.stderr))
+
+    logger.info("Connecting to Athena")
+
     conn = pyathena.connect(
         s3_staging_dir=os.getenv(
             "AWS_ATHENA_S3_STAGING_DIR", "s3://ccao-athena-results-us-east-1/"
@@ -49,7 +60,13 @@ if __name__ == "__main__":
         region_name=os.getenv("AWS_REGION", "us-east-1"),
     )
 
-    SQL_QUERY = f"""
+    FLAG_LATEST_VERSION_QUERY = """
+        SELECT meta_sale_document_num, MAX(version) AS version
+        FROM sale.flag
+        GROUP BY meta_sale_document_num
+    """
+
+    FLAG_QUERY = f"""
     SELECT
         sale.pin AS {PIN_FIELD},
         sale.sale_key AS {SALE_KEY_FIELD},
@@ -64,40 +81,62 @@ if __name__ == "__main__":
         NULL AS {ANALYST_REVIEW_DATE_FIELD}
     FROM sale.flag AS flag
     -- Filter flags for the most recent version
-    INNER JOIN (
-        SELECT meta_sale_document_num, MAX(version) AS version
-        FROM sale.flag
-        GROUP BY meta_sale_document_num
-    ) AS flag_latest_version
+    INNER JOIN ({FLAG_LATEST_VERSION_QUERY}) AS flag_latest_version
         ON flag.meta_sale_document_num = flag_latest_version.meta_sale_document_num
         AND flag.version = flag_latest_version.version
     INNER JOIN default.vw_pin_sale AS sale
         ON flag.meta_sale_document_num = sale.doc_no
     """
 
-    cursor = conn.cursor()
-    cursor.execute(SQL_QUERY)
+    logger.info("Querying sales")
 
-    df = pyathena.pandas.util.as_pandas(cursor)
+    cursor = conn.cursor()
+    cursor.execute(FLAG_QUERY)
+    flag_df = pyathena.pandas.util.as_pandas(cursor)
+
+    num_flags = len(flag_df.index)
+    logger.info(f"Got {num_flags} sales")
+
+    logger.info("Querying the latest version of sales for comparison")
+
+    cursor.execute(FLAG_LATEST_VERSION_QUERY)
+    flag_latest_version_df = pyathena.pandas.util.as_pandas(cursor)
+
+    expected_num_flags = len(flag_latest_version_df.index)
+    logger.info(f"Got {expected_num_flags} sales with latest versions")
+
+    logger.info("Transforming columns")
 
     # Transform outlier type column from string to code
-    df[OUTLIER_TYPE_FIELD] = df[OUTLIER_TYPE_FIELD].replace(OUTLIER_TYPE_CODES)
+    flag_df[OUTLIER_TYPE_FIELD] = flag_df[OUTLIER_TYPE_FIELD].replace(
+        OUTLIER_TYPE_CODES
+    )
+
+    logger.info("Running data integrity checks")
 
     # Run some data integrity checks
     not_null_fields = [PIN_FIELD, SALE_KEY_FIELD, RUN_ID_FIELD]
     for field in not_null_fields:
-        assert df[df[field].isnull()].empty, f"{field} contains nulls"
+        assert flag_df[flag_df[field].isnull()].empty, f"{field} contains nulls"
 
-    assert df[
-        ~df[OUTLIER_TYPE_FIELD].isin(OUTLIER_TYPE_CODES.values())
+    assert flag_df[
+        ~flag_df[OUTLIER_TYPE_FIELD].isin(OUTLIER_TYPE_CODES.values())
     ].empty, f"{OUTLIER_TYPE_FIELD} contains invalid codes"
 
-    assert df[
-        (df[IS_OUTLIER_FIELD] == "Y") & (df[OUTLIER_TYPE_FIELD].isna())
+    assert flag_df[
+        (flag_df[IS_OUTLIER_FIELD] == "Y") & (flag_df[OUTLIER_TYPE_FIELD].isna())
     ].empty, f"{OUTLIER_TYPE_FIELD} cannot be null when {IS_OUTLIER_FIELD} is Y"
 
-    assert df[
-        (df[IS_OUTLIER_FIELD] == "N") & (~df[OUTLIER_TYPE_FIELD].isna())
+    assert flag_df[
+        (flag_df[IS_OUTLIER_FIELD] == "N") & (~flag_df[OUTLIER_TYPE_FIELD].isna())
     ].empty, f"{OUTLIER_TYPE_FIELD} must be null when {IS_OUTLIER_FIELD} is N"
 
-    df.to_csv(sys.stdout, index=False, chunksize=10000)
+    num_flags = len(flag_df.index)
+    expected_num_flags = len(flag_latest_version_df.index)
+    assert (
+        num_flags == expected_num_flags
+    ), f"Expected {expected_num_flags} flagged sales, got {num_flags}"
+
+    logger.info("Writing CSV to stdout")
+
+    flag_df.to_csv(sys.stdout, index=False, chunksize=10000)
