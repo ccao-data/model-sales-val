@@ -19,10 +19,9 @@ SALE_KEY_FIELD = "SALEKEY"
 IS_OUTLIER_FIELD = "USER26"
 OUTLIER_TYPE_FIELD = "USER27"
 RUN_ID_FIELD = "USER28"
-ANALYST_DETERMINATION_FIELD = "USER29"
-ANALYST_REVIEW_DATE_FIELD = "UDATE1"
 
 OUTLIER_TYPE_CODES = {
+    "Not outlier": "0",
     "Anomaly (high)": "1",
     "Anomaly (low)": "2",
     "Family sale (high)": "3",
@@ -40,8 +39,7 @@ OUTLIER_TYPE_CODES = {
     "Non-person sale (high)": "15",
     "Non-person sale (low)": "16",
     "PTAX-203 flag (High)": "17",
-    "PTAX-203 flag (Low)": "17",
-    "Not outlier": pandas.NA,
+    "PTAX-203 flag (Low)": "18",
 }
 
 if __name__ == "__main__":
@@ -84,9 +82,7 @@ if __name__ == "__main__":
             ELSE 'N'
         END AS {IS_OUTLIER_FIELD},
         flag.sv_outlier_type AS {OUTLIER_TYPE_FIELD},
-        flag.run_id AS {RUN_ID_FIELD},
-        'N' AS {ANALYST_DETERMINATION_FIELD},
-        NULL AS {ANALYST_REVIEW_DATE_FIELD}
+        flag.run_id AS {RUN_ID_FIELD}
     FROM sale.flag AS flag
     -- Filter flags for the most recent version
     INNER JOIN ({FLAG_LATEST_VERSION_QUERY}) AS flag_latest_version
@@ -123,16 +119,24 @@ if __name__ == "__main__":
     ].empty, f"{OUTLIER_TYPE_FIELD} contains invalid codes"
 
     assert flag_df[
-        (flag_df[IS_OUTLIER_FIELD] == "Y") & (flag_df[OUTLIER_TYPE_FIELD].isna())
-    ].empty, f"{OUTLIER_TYPE_FIELD} cannot be null when {IS_OUTLIER_FIELD} is Y"
+        (flag_df[IS_OUTLIER_FIELD] == "Y")
+        & (flag_df[OUTLIER_TYPE_FIELD] == OUTLIER_TYPE_CODES["Not outlier"])
+    ].empty, (
+        f"{OUTLIER_TYPE_FIELD} cannot be {OUTLIER_TYPE_CODES['Not outlier']} "
+        f"when {IS_OUTLIER_FIELD} is Y"
+    )
 
     assert flag_df[
-        (flag_df[IS_OUTLIER_FIELD] == "N") & (~flag_df[OUTLIER_TYPE_FIELD].isna())
-    ].empty, f"{OUTLIER_TYPE_FIELD} must be null when {IS_OUTLIER_FIELD} is N"
+        (flag_df[IS_OUTLIER_FIELD] == "N")
+        & (flag_df[OUTLIER_TYPE_FIELD] != OUTLIER_TYPE_CODES["Not outlier"])
+    ].empty, (
+        f"{OUTLIER_TYPE_FIELD} must be {OUTLIER_TYPE_CODES['Not outlier']} "
+        f"when {IS_OUTLIER_FIELD} is N"
+    )
 
     assert (
         num_flags == expected_num_flags
-    ), f"Expected {expected_num_flags} flagged sales, got {num_flags}"
+    ), f"Expected {expected_num_flags} total sales, got {num_flags}"
 
     logger.info("Writing CSV to stdout")
 
