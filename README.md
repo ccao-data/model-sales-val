@@ -339,12 +339,12 @@ The Glue job and its flagging script are written in Python, while the job detail
 
 ## Exporting Flags to iasWorld
 
-Use the `scripts/export.py` script to generate a CSV that can be uploaded to iasWorld to incorporate new flags.
+Use the `scripts/export.py` script to generate a CSV that can be uploaded to iasWorld to save new flags.
 
 Example use:
 
 ```
-python3 scripts/export.py > export.csv
+python3 scripts/export.py > sales_val_flags.csv
 ```
 
-The `example.csv` file can then be sent over for upload to iasWorld.
+The `sales_val_flags.csv` file can then be sent over for upload to iasWorld.
