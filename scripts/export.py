@@ -93,13 +93,11 @@ if __name__ == "__main__":
     ].empty, f"{OUTLIER_TYPE_FIELD} contains invalid codes"
 
     assert df[
-        (df[IS_OUTLIER_FIELD] == 'Y') &
-        (df[OUTLIER_TYPE_FIELD].isna())
+        (df[IS_OUTLIER_FIELD] == "Y") & (df[OUTLIER_TYPE_FIELD].isna())
     ].empty, f"{OUTLIER_TYPE_FIELD} cannot be null when {IS_OUTLIER_FIELD} is Y"
 
     assert df[
-        (df[IS_OUTLIER_FIELD] == 'N') &
-        (~df[OUTLIER_TYPE_FIELD].isna())
+        (df[IS_OUTLIER_FIELD] == "N") & (~df[OUTLIER_TYPE_FIELD].isna())
     ].empty, f"{OUTLIER_TYPE_FIELD} must be null when {IS_OUTLIER_FIELD} is N"
 
     df.to_csv(sys.stdout, index=False, chunksize=10000)
