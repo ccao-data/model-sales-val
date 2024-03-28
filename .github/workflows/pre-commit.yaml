@@ -10,7 +10,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Pre-Commit Action
-        uses: |
-          ccao-data/actions/pre-commit@create-composite-pre-commit-action
+        uses: ccao-data/actions/pre-commit@create-composite-pre-commit-action
         with:
           python-version: '3.10.12'
