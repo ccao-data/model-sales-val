@@ -7,6 +7,7 @@ Table of Contents
 - [Flagging Details](#flagging-details)
 - [Structure of Data](#structure-of-data)
 - [AWS Glue Job Documentation](#aws-glue-job-documentation)
+- [Exporting Flags to iasWorld](#exporting-flags-to-iasworld)
 
 ## Model Overview
 
@@ -335,3 +336,15 @@ The Glue job and its flagging script are written in Python, while the job detail
     - If you need to make further changes, push commits to your branch and GitHub Actions will deploy the changes to the staging job and its associated resources.
     - Once you're happy with your changes, request review on your PR.
     - Once your PR is approved, merge it into `main`. A GitHub Actions workflow called `cleanup-terraform` will delete the staging resources that were created for your branch, while a separate `deploy-terraform` run will deploy your changes to the production job and its associated resources.
+
+## Exporting Flags to iasWorld
+
+Use the `scripts/export.py` script to generate a CSV that can be uploaded to iasWorld to save new flags.
+
+Example use:
+
+```
+python3 scripts/export.py > sales_val_flags.csv
+```
+
+The `sales_val_flags.csv` file can then be sent over for upload to iasWorld.
