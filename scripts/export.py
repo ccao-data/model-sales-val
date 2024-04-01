@@ -20,6 +20,9 @@ IS_OUTLIER_FIELD = "USER26"
 OUTLIER_TYPE_FIELD = "USER27"
 RUN_ID_FIELD = "USER28"
 
+IS_OUTLIER_INDICATOR = "N: Non arms-length"
+NON_OUTLIER_INDICATOR = "Y: Is arms-length"
+
 OUTLIER_TYPE_CODES = {
     "Not outlier": "0",
     "Anomaly (high)": "1",
@@ -78,8 +81,8 @@ if __name__ == "__main__":
         sale.sale_key AS {SALE_KEY_FIELD},
         CASE
             WHEN flag.sv_is_outlier = TRUE
-            THEN 'Y'
-            ELSE 'N'
+            THEN '{IS_OUTLIER_INDICATOR}'
+            ELSE '{NON_OUTLIER_INDICATOR}'
         END AS {IS_OUTLIER_FIELD},
         flag.sv_outlier_type AS {OUTLIER_TYPE_FIELD},
         flag.run_id AS {RUN_ID_FIELD}
@@ -119,19 +122,19 @@ if __name__ == "__main__":
     ].empty, f"{OUTLIER_TYPE_FIELD} contains invalid codes"
 
     assert flag_df[
-        (flag_df[IS_OUTLIER_FIELD] == "Y")
+        (flag_df[IS_OUTLIER_FIELD] == IS_OUTLIER_INDICATOR)
         & (flag_df[OUTLIER_TYPE_FIELD] == OUTLIER_TYPE_CODES["Not outlier"])
     ].empty, (
-        f"{OUTLIER_TYPE_FIELD} cannot be {OUTLIER_TYPE_CODES['Not outlier']} "
-        f"when {IS_OUTLIER_FIELD} is Y"
+        f"{OUTLIER_TYPE_FIELD} cannot be '{OUTLIER_TYPE_CODES['Not outlier']}' "
+        f"when {IS_OUTLIER_FIELD} is '{IS_OUTLIER_INDICATOR}'"
     )
 
     assert flag_df[
-        (flag_df[IS_OUTLIER_FIELD] == "N")
+        (flag_df[IS_OUTLIER_FIELD] == NON_OUTLIER_INDICATOR)
         & (flag_df[OUTLIER_TYPE_FIELD] != OUTLIER_TYPE_CODES["Not outlier"])
     ].empty, (
-        f"{OUTLIER_TYPE_FIELD} must be {OUTLIER_TYPE_CODES['Not outlier']} "
-        f"when {IS_OUTLIER_FIELD} is N"
+        f"{OUTLIER_TYPE_FIELD} must be '{OUTLIER_TYPE_CODES['Not outlier']}' "
+        f"when {IS_OUTLIER_FIELD} is '{NON_OUTLIER_INDICATOR}'"
     )
 
     assert (
