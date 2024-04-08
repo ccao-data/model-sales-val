@@ -20,7 +20,7 @@ jobs:
           ref: create-composite-pre-commit-action
 
       - name: Pre-Commit Action
-        uses: ./actions/pre-commit/pre-commit
+        uses: ./actions/pre-commit
         with:
           hooks: "shellcheck, yamllint, black"
           python-version: '3.10.12'
