@@ -9,8 +9,18 @@ jobs:
   pre-commit:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout main code
+        uses: actions/checkout@v2
+
+      - name: Checkout composite actions repository
+        uses: actions/checkout@v2
+        with:
+          repository: ccao-data/actions
+          path: actions
+          ref: create-composite-pre-commit-action
+
       - name: Pre-Commit Action
-        uses: ccao-data/actions/pre-commit@create-composite-pre-commit-action
+        uses: ./actions/pre-commit/pre-commit@create-composite-pre-commit-action
         with:
           hooks: "shellcheck, yamllint, black"
           python-version: '3.10.12'
