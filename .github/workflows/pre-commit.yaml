@@ -12,18 +12,8 @@ jobs:
       - name: Checkout main code
         uses: actions/checkout@v2
 
-      - name: Checkout composite actions repository
-        uses: actions/checkout@v2
-        with:
-          repository: ccao-data/actions
-          path: actions
-          ref: create-composite-pre-commit-action
-
-      - name: List directory structure of checked-out composite actions repo
-        run: ls -R ./actions/pre-commit/
-
       - name: Pre-Commit Action
-        uses: ./actions/pre-commit/action.yaml
+        uses: ccao-data/actions/pre-commit@create-composite-pre-commit-action
         with:
           hooks: "shellcheck, yamllint, black"
           python-version: '3.10.12'
