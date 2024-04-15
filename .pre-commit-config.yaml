@@ -1,14 +1,16 @@
 ---
 repos:
   - repo: https://github.com/adrienverge/yamllint
-    rev: v1.26.3  # Adjust to the latest tag if needed
+    rev: v1.26.3
     hooks:
       - id: yamllint
         files: '.*\.yaml$'
+
   - repo: https://github.com/syntaqx/git-hooks
     rev: v0.0.18
     hooks:
       - id: shellcheck
+
   - repo: https://github.com/psf/black
     rev: 23.7.0
     hooks:
