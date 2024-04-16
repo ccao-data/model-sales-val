@@ -16,7 +16,6 @@ from pyathena.pandas.util import as_pandas
 root = sp.getoutput("git rev-parse --show-toplevel")
 os.chdir(os.path.join(root, "manual_flagging"))
 
-print("--------------------------------------------------------------------------------------------------------------")
 # Use yaml as inputs
 with open(os.path.join("yaml", "inputs.yaml"), "r") as stream:
     inputs = yaml.safe_load(stream)
