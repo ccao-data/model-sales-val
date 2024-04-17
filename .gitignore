@@ -5,7 +5,6 @@ glue/schema/*.parquet
 .pre-commit-config.yaml
 *.csv
 
-
 # Terraform internals
 .terraform
 terraform.tfstate
