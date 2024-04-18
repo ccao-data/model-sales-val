@@ -4,7 +4,6 @@ ipynb_checkpoints
 glue/schema/*.parquet
 *.csv
 
-
 # Terraform internals
 .terraform
 terraform.tfstate
