@@ -12,5 +12,5 @@ jobs:
       - name: Checkout main code
         uses: actions/checkout@v4
 
-      - name: Pre-Commit Action
+      - name: Run pre-commit checks
         uses: ccao-data/actions/pre-commit@create-composite-pre-commit-action
