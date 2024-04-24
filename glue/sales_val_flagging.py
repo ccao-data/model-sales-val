@@ -427,6 +427,10 @@ def finish_flags(df, start_date, manual_update, sales_to_write_filter):
         "jean",
         "damon",
         "michael",
+        "matt",
+        "caroline",
+        "julia",
+        "megan"
     ]
 
     random_words = random.choice(left) + "-" + random.choice(right)
