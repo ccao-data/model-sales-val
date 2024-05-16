@@ -5,7 +5,6 @@ import numpy as np
 import os
 import pandas as pd
 import pytz
-import random
 import re
 import sys
 from pyathena import connect
@@ -271,173 +270,37 @@ def finish_flags(df, start_date, manual_update, sales_to_write_filter):
 
     # Create run_id
 
-    left = [
-        "activist",
-        "admiring",
-        "adoring",
-        "affectionate",
-        "agitated",
-        "amazing",
-        "angry",
-        "awesome",
-        "beautiful",
-        "blissful",
-        "bold",
-        "boring",
-        "brave",
-        "busy",
-        "charming",
-        "clever",
-        "cool",
-        "compassionate",
-        "competent",
-        "condescending",
-        "confident",
-        "cranky",
-        "crazy",
-        "dazzling",
-        "determined",
-        "distracted",
-        "dreamy",
-        "eager",
-        "ecstatic",
-        "elastic",
-        "elated",
-        "elegant",
-        "eloquent",
-        "epic",
-        "exciting",
-        "fancy-free",
-        "fervent",
-        "festive",
-        "flamboyant",
-        "focused",
-        "footloose",
-        "friendly",
-        "frosty",
-        "funny",
-        "gallant",
-        "gifted",
-        "goofy",
-        "gracious",
-        "great",
-        "happy",
-        "hardcore",
-        "heuristic",
-        "hopeful",
-        "hungry",
-        "infallible",
-        "inspiring",
-        "interesting",
-        "intelligent",
-        "jolly",
-        "jovial",
-        "keen",
-        "kind",
-        "laughing",
-        "loving",
-        "lucid",
-        "magical",
-        "malingering",
-        "mystifying",
-        "modest",
-        "musing",
-        "naughty",
-        "nervous",
-        "nice",
-        "nifty",
-        "nostalgic",
-        "objective",
-        "over-qualified",
-        "optimistic",
-        "peaceful",
-        "pedantic",
-        "pensive",
-        "practical",
-        "priceless",
-        "quirky",
-        "quizzical",
-        "rebellious",
-        "recursing",
-        "relaxed",
-        "reverent",
-        "romantic",
-        "sad",
-        "serene",
-        "sharp",
-        "silly",
-        "sleepy",
-        "stoic",
-        "strange",
-        "stupefied",
-        "suspicious",
-        "sweet",
-        "tender",
-        "thirsty",
-        "trusting",
-        "unruffled",
-        "upbeat",
-        "vibrant",
-        "vigilant",
-        "vigorous",
-        "wizardly",
-        "wonderful",
-        "xenodochial",
-        "youthful",
-        "zealous",
-        "zen",
-    ]
+    # Connect to Athena
+    conn = connect(
+        s3_staging_dir=os.getenv("AWS_ATHENA_S3_STAGING_DIR"),
+        region_name=os.getenv("AWS_REGION"),
+    )
 
-    # Honorary list of Data Department employees, interns, and fellows
-    right = [
-        "billy",
-        "sam",
-        "nicole",
-        "dan",
-        "manasi",
-        "gabe",
-        "patrick",
-        "carly",
-        "jacob",
-        "nathan",
-        "tristan",
-        "eric",
-        "tayun",
-        "kyra",
-        "mike",
-        "antonia",
-        "ida",
-        "ethan",
-        "sean",
-        "matt",
-        "liz",
-        "takuya",
-        "boni",
-        "maya",
-        "damani",
-        "iris",
-        "bowen",
-        "yuxin",
-        "christian",
-        "rina",
-        "rob",
-        "sam",
-        "irene",
-        "claire",
-        "jean",
-        "damon",
-        "michael",
-        "matt",
-        "caroline",
-        "julia",
-        "megan",
-    ]
+    # Execute query and return as pandas df
+    cursor = conn.cursor()
 
-    random_words = random.choice(left) + "-" + random.choice(right)
+    LEFT_QUERY = """
+    SELECT adjective FROM "ccao"."adjective"
+    ORDER BY rand()
+    LIMIT 1;
+    """
+
+    RIGHT_QUERY = """
+    SELECT person FROM "ccao"."person"
+    ORDER BY rand()
+    LIMIT 1;
+    """
+
+    cursor.execute(LEFT_QUERY)
+    left = as_pandas(cursor).iloc[0, 0]
+    cursor.execute(RIGHT_QUERY)
+    right = as_pandas(cursor).iloc[0, 0]
+
+    adj_name_combo = left + "_" + right
     timestamp = datetime.datetime.now(pytz.timezone("America/Chicago")).strftime(
         "%Y-%m-%d_%H:%M"
     )
-    run_id = timestamp + "-" + random_words
+    run_id = timestamp + "-" + adj_name_combo
 
     # Control flow for incorporating versioning
     dynamic_assignment = {
