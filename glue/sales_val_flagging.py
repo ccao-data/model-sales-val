@@ -269,34 +269,16 @@ def finish_flags(df, start_date, manual_update, sales_to_write_filter):
     ]
 
     # Create run_id
-
-    # Connect to Athena
-    conn = connect(
-        s3_staging_dir=os.getenv("AWS_ATHENA_S3_STAGING_DIR"),
-        region_name=os.getenv("AWS_REGION"),
+    left = pd.read_csv(
+        "https://raw.githubusercontent.com/ccao-data/data-architecture/master/dbt/seeds/ccao/ccao.adjective.csv"
+    )
+    right = pd.read_csv(
+        "https://raw.githubusercontent.com/ccao-data/data-architecture/master/dbt/seeds/ccao/ccao.person.csv"
     )
 
-    # Execute query and return as pandas df
-    cursor = conn.cursor()
-
-    LEFT_QUERY = """
-    SELECT adjective FROM "ccao"."adjective"
-    ORDER BY rand()
-    LIMIT 1;
-    """
-
-    RIGHT_QUERY = """
-    SELECT person FROM "ccao"."person"
-    ORDER BY rand()
-    LIMIT 1;
-    """
-
-    cursor.execute(LEFT_QUERY)
-    left = as_pandas(cursor).iloc[0, 0]
-    cursor.execute(RIGHT_QUERY)
-    right = as_pandas(cursor).iloc[0, 0]
-
-    adj_name_combo = left + "-" + right
+    adj_name_combo = (
+        np.random.choice(left["adjective"]) + "-" + np.random.choice(right["person"])
+    )
     timestamp = datetime.datetime.now(pytz.timezone("America/Chicago")).strftime(
         "%Y-%m-%d_%H:%M"
     )
