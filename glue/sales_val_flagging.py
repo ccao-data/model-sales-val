@@ -296,7 +296,7 @@ def finish_flags(df, start_date, manual_update, sales_to_write_filter):
     cursor.execute(RIGHT_QUERY)
     right = as_pandas(cursor).iloc[0, 0]
 
-    adj_name_combo = left + "_" + right
+    adj_name_combo = left + "-" + right
     timestamp = datetime.datetime.now(pytz.timezone("America/Chicago")).strftime(
         "%Y-%m-%d_%H:%M"
     )
