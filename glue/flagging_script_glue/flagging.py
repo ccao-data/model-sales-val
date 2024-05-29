@@ -804,16 +804,16 @@ def outlier_type(df: pd.DataFrame, condos: bool) -> pd.DataFrame:
         ]
 
         labels = [
-            "Home flip sale (high)",
+            "Short-term owner (high)",
             "Family sale (high)",
             "Non-person sale (high)",
-            "Anomaly (high)",
+            "Statistical Anomaly (high)",
             "High price swing",
             "High price (raw)",
-            "Home flip sale (low)",
+            "Short-term owner (low)",
             "Family sale (low)",
             "Non-person sale (low)",
-            "Anomaly (low)",
+            "Statistical Anomaly (low)",
             "Low price swing",
             "Low price (raw)",
         ]
@@ -856,18 +856,18 @@ def outlier_type(df: pd.DataFrame, condos: bool) -> pd.DataFrame:
         ]
 
         labels = [
-            "Home flip sale (high)",
+            "Short-term owner (high)",
             "Family sale (high)",
             "Non-person sale (high)",
-            "Anomaly (high)",
+            "Statistical anomaly (high)",
             "High price swing",
             "High price (raw & sqft)",
             "High price (raw)",
             "High price (sqft)",
-            "Home flip sale (low)",
+            "Short-term owner sale (low)",
             "Family sale (low)",
             "Non-person sale (low)",
-            "Anomaly (low)",
+            "Statistical anomaly (low)",
             "Low price swing",
             "Low price (raw & sqft)",
             "Low price (raw)",

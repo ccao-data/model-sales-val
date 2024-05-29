@@ -239,7 +239,7 @@ def finish_flags(df, start_date, manual_update, sales_to_write_filter):
                     (df["ptax_flag_w_deviation"]) & (df["ptax_direction"] == "High"),
                     (df["ptax_flag_w_deviation"]) & (df["ptax_direction"] == "Low"),
                 ],
-                ["PTAX-203 flag (High)", "PTAX-203 flag (Low)"],
+                ["PTAX-203 Exclusion (High)", "PTAX-203 Exclusion (Low)"],
                 default=df["sv_outlier_type"],
             ),
         )
@@ -247,7 +247,7 @@ def finish_flags(df, start_date, manual_update, sales_to_write_filter):
             # Change sv_is_outlier to binary
             sv_is_outlier=lambda df: df["sv_outlier_type"] != "Not outlier",
             # PTAX-203 binary
-            sv_is_ptax_outlier=lambda df: df["sv_outlier_type"] == "PTAX-203 flag",
+            sv_is_ptax_outlier=lambda df: "PTAX-203 Exclusion" in df["sv_outlier_type"],
             # Heuristics flagging binary column
             sv_is_heuristic_outlier=lambda df: (
                 df["sv_outlier_type"] != "PTAX-203 flag"
