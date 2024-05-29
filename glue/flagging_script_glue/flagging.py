@@ -767,114 +767,107 @@ def z_normalize_groupby(s: pd.Series):
 
 def outlier_type(df: pd.DataFrame, condos: bool) -> pd.DataFrame:
     """
-    Runs np.select that creates an outlier taxonomy.
+    Enhances the dataframe by adding two columns for outlier reasons:
+    - sv_char_outlier_reason: Reasons based on characteristics including price swings.
+    - sv_char_price_reason: Reasons based on high or low pricing levels.
+
     Inputs:
-        df (pd.DataFrame): dataframe with necessary columns created from previous functions.
+        df (pd.DataFrame): Dataframe with necessary columns created from previous functions.
     Outputs:
-        df (pd.DataFrame): dataframe with 'sv_outlier_type' column.
+        df (pd.DataFrame): Dataframe with 'sv_char_outlier_reason' and 'sv_char_price_reason' columns.
     """
-    if condos == True:
-        conditions = [
-            (df["sv_short_owner"] == "Short-term owner")
-            & (df["sv_pricing"].str.contains("High")),
-            (df["sv_name_match"] != "No match")
-            & (df["sv_pricing"].str.contains("High")),
-            (
-                df[["sv_buyer_category", "sv_seller_category"]]
-                .eq("legal_entity")
-                .any(axis=1)
-            )
-            & (df["sv_pricing"].str.contains("High")),
-            (df["sv_anomaly"] == "Outlier") & (df["sv_pricing"].str.contains("High")),
-            (df["sv_pricing"].str.contains("High price swing")),
-            (df["sv_pricing"].str.contains("High")),
-            (df["sv_short_owner"] == "Short-term owner")
-            & (df["sv_pricing"].str.contains("Low")),
-            (df["sv_name_match"] != "No match")
-            & (df["sv_pricing"].str.contains("Low")),
-            (
-                df[["sv_buyer_category", "sv_seller_category"]]
-                .eq("legal_entity")
-                .any(axis=1)
-            )
-            & (df["sv_pricing"].str.contains("Low")),
-            (df["sv_anomaly"] == "Outlier") & (df["sv_pricing"].str.contains("Low")),
-            (df["sv_pricing"].str.contains("Low price swing")),
-            (df["sv_pricing"].str.contains("Low")),
+    if condos:
+        # Define conditions for characteristic-based reasons
+        char_conditions = [
+            df["sv_short_owner"] == "Short-term owner",
+            df["sv_name_match"] != "No match",
+            df[["sv_buyer_category", "sv_seller_category"]]
+            .eq("legal_entity")
+            .any(axis=1),
+            df["sv_anomaly"] == "Outlier",
+            df["sv_pricing"].str.contains("High price swing"),
+            df["sv_pricing"].str.contains("Low price swing"),
         ]
 
-        labels = [
-            "Short-term owner (high)",
-            "Family sale (high)",
-            "Non-person sale (high)",
-            "Statistical Anomaly (high)",
+        # Define labels for characteristic-based reasons
+        char_labels = [
+            "Short-term owner",
+            "Family sale",
+            "Non-person sale",
+            "Statistical anomaly",
             "High price swing",
-            "High price (raw)",
-            "Short-term owner (low)",
-            "Family sale (low)",
-            "Non-person sale (low)",
-            "Statistical Anomaly (low)",
             "Low price swing",
-            "Low price (raw)",
         ]
+
+        # Define conditions for price-based reasons
+        price_conditions = [
+            df["sv_pricing"].str.contains("High"),
+            df["sv_pricing"].str.contains("Low"),
+            (df["sv_pricing"].str.contains("High")) & (df["sv_which_price"] == "(raw)"),
+            (df["sv_pricing"].str.contains("Low")) & (df["sv_which_price"] == "(raw)"),
+        ]
+
+        # Define labels for price-based reasons
+        price_labels = [
+            "High price",
+            "Low price",
+        ]
+
+        # Apply np.select to create the new columns
+        df["sv_char_outlier_reason"] = np.select(
+            char_conditions, char_labels, default="Not outlier"
+        )
+        df["sv_char_price_reason"] = np.select(
+            price_conditions, price_labels, default="Not outlier"
+        )
 
     else:
-        conditions = [
-            (df["sv_short_owner"] == "Short-term owner")
-            & (df["sv_pricing"].str.contains("High")),
-            (df["sv_name_match"] != "No match")
-            & (df["sv_pricing"].str.contains("High")),
-            (
-                df[["sv_buyer_category", "sv_seller_category"]]
-                .eq("legal_entity")
-                .any(axis=1)
-            )
-            & (df["sv_pricing"].str.contains("High")),
-            (df["sv_anomaly"] == "Outlier") & (df["sv_pricing"].str.contains("High")),
-            (df["sv_pricing"].str.contains("High price swing")),
-            (df["sv_pricing"].str.contains("High"))
-            & (df["sv_which_price"] == "(raw & sqft)"),
-            (df["sv_pricing"].str.contains("High")) & (df["sv_which_price"] == "(raw)"),
+        # Define conditions for characteristic-based reasons
+        char_conditions = [
+            df["sv_short_owner"] == "Short-term owner",
+            df["sv_name_match"] != "No match",
+            df[["sv_buyer_category", "sv_seller_category"]]
+            .eq("legal_entity")
+            .any(axis=1),
+            df["sv_anomaly"] == "Outlier",
+            df["sv_pricing"].str.contains("High price swing"),
+            df["sv_pricing"].str.contains("Low price swing"),
+        ]
+
+        # Define labels for characteristic-based reasons
+        char_labels = [
+            "Short-term owner",
+            "Family sale",
+            "Non-person sale",
+            "Statistical anomaly",
+            "High price swing",
+            "Low price swing",
+        ]
+
+        # Define conditions for price-based reasons
+        price_conditions = [
+            (df["sv_pricing"].str.contains("High") & (df["sv_which_price"] == "(raw)")),
+            (df["sv_pricing"].str.contains("Low") & (df["sv_which_price"] == "(raw)")),
             (df["sv_pricing"].str.contains("High"))
             & (df["sv_which_price"] == "(sqft)"),
-            (df["sv_short_owner"] == "Short-term owner")
-            & (df["sv_pricing"].str.contains("Low")),
-            (df["sv_name_match"] != "No match")
-            & (df["sv_pricing"].str.contains("Low")),
-            (
-                df[["sv_buyer_category", "sv_seller_category"]]
-                .eq("legal_entity")
-                .any(axis=1)
-            )
-            & (df["sv_pricing"].str.contains("Low")),
-            (df["sv_anomaly"] == "Outlier") & (df["sv_pricing"].str.contains("Low")),
-            (df["sv_pricing"].str.contains("Low price swing")),
-            (df["sv_pricing"].str.contains("Low"))
-            & (df["sv_which_price"] == "(raw & sqft)"),
-            (df["sv_pricing"].str.contains("Low")) & (df["sv_which_price"] == "(raw)"),
             (df["sv_pricing"].str.contains("Low")) & (df["sv_which_price"] == "(sqft)"),
         ]
 
-        labels = [
-            "Short-term owner (high)",
-            "Family sale (high)",
-            "Non-person sale (high)",
-            "Statistical anomaly (high)",
-            "High price swing",
-            "High price (raw & sqft)",
+        # Define labels for price-based reasons
+        price_labels = [
             "High price (raw)",
-            "High price (sqft)",
-            "Short-term owner sale (low)",
-            "Family sale (low)",
-            "Non-person sale (low)",
-            "Statistical anomaly (low)",
-            "Low price swing",
-            "Low price (raw & sqft)",
             "Low price (raw)",
+            "High price (sqft)",
             "Low price (sqft)",
         ]
 
-    df["sv_outlier_type"] = np.select(conditions, labels, default="Not outlier")
+        # Apply np.select to create the new columns
+        df["sv_outlier_reason1"] = np.select(
+            price_conditions, price_labels, default="Not outlier"
+        )
+        df["sv_outlier_reason2"] = np.select(
+            char_conditions, char_labels, default="Not outlier"
+        )
 
     return df
 
