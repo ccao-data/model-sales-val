@@ -598,11 +598,11 @@ def get_sale_counts(dups: pd.DataFrame) -> pd.DataFrame:
     v_counts = (
         dups.pin.value_counts()
         .reset_index()
-        .rename(columns={"index": "pin", "pin": "sv_sale_dup_counts"})
+        .rename(columns={"count": "sv_sale_dup_counts"})
     )
 
     # Explicitly specify the merging columns
-    dups = pd.merge(dups, v_counts, on="pin")
+    dups = pd.merge(dups, v_counts)
 
     return dups
 
@@ -803,8 +803,6 @@ def outlier_type(df: pd.DataFrame, condos: bool) -> pd.DataFrame:
         price_conditions = [
             df["sv_pricing"].str.contains("High"),
             df["sv_pricing"].str.contains("Low"),
-            (df["sv_pricing"].str.contains("High")) & (df["sv_which_price"] == "(raw)"),
-            (df["sv_pricing"].str.contains("Low")) & (df["sv_which_price"] == "(raw)"),
         ]
 
         # Define labels for price-based reasons
@@ -855,19 +853,39 @@ def outlier_type(df: pd.DataFrame, condos: bool) -> pd.DataFrame:
 
         # Define labels for price-based reasons
         price_labels = [
-            "High price (raw)",
-            "Low price (raw)",
+            "High price",
+            "Low price",
             "High price (sqft)",
             "Low price (sqft)",
         ]
 
-        # Apply np.select to create the new columns
-        df["sv_outlier_reason1"] = np.select(
-            price_conditions, price_labels, default="Not outlier"
-        )
-        df["sv_outlier_reason2"] = np.select(
-            char_conditions, char_labels, default="Not outlier"
-        )
+    # Combined conditions and labels for reason1 with fallback to character conditions if no price condition is met
+    combined_conditions = price_conditions + char_conditions
+    combined_labels = price_labels + char_labels
+
+    df["sv_outlier_reason1"] = np.select(
+        combined_conditions, combined_labels, default="Not outlier"
+    )
+
+    # Adjust for reason2 based on remaining price conditions and char conditions not used in reason1
+    remaining_conditions = [
+        (cond & (df["sv_outlier_reason1"] != label))
+        for cond, label in zip(combined_conditions, combined_labels)
+    ]
+    df["sv_outlier_reason2"] = np.select(
+        remaining_conditions, combined_labels, default="Not outlier"
+    )
+
+    def find_next_unused_char(row, df):
+        used_labels = {row["sv_outlier_reason1"], row["sv_outlier_reason2"]}
+        for cond, label in zip(char_conditions, char_labels):
+            # Evaluate the condition directly for the current row
+            if label not in used_labels and cond[row.name]:
+                return label
+        return "Not outlier"
+
+    # Now we apply this function row-wise correctly by also passing the DataFrame reference:
+    df["sv_outlier_reason3"] = df.apply(find_next_unused_char, df=df, axis=1)
 
     return df
 
@@ -882,8 +900,19 @@ def outlier_flag(df: pd.DataFrame) -> pd.DataFrame:
         df (pd.DataFrame): dataframe with 'is_outlier' column
     """
 
+    options = ["High price", "Low price", "High price (sqft)", "Low price (sqft)"]
+    pattern = (
+        r"\b(?:" + "|".join(map(re.escape, options)) + r")\b"
+    )  # Creates a pattern with word boundaries
+
     df["sv_is_outlier"] = np.select(
-        [(df["sv_outlier_type"] == "Not outlier")], [0], default=1
+        [
+            df["sv_outlier_reason1"].str.contains(
+                pattern, case=False, na=False, regex=True
+            )
+        ],
+        [1],
+        default=0,
     )
 
     return df
