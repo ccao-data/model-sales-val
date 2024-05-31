@@ -138,7 +138,7 @@ def ptax_adjustment(df, groups, ptax_sd, condos: bool):
         | df["ptax_flag_w_deviation"],
     )
 
-    # First, calculate the new values for sv_outlier_reason1 based on ptax conditions
+    # Calculate the new values for sv_outlier_reason1 based on ptax conditions
     new_sv_outlier_reason1 = np.select(
         [
             (df["ptax_flag_w_deviation"]) & (df["ptax_direction"] == "High"),
@@ -148,27 +148,19 @@ def ptax_adjustment(df, groups, ptax_sd, condos: bool):
         default=df["sv_outlier_reason1"],
     )
 
-    # Then use these new values to update sv_outlier_reason1, and conditionally shift sv_outlier_reason2 and sv_outlier_reason3
+    # Conditionally shift sv_outlier_reason2 and sv_outlier_reason3
     df = df.assign(
         sv_outlier_reason2=lambda df: np.where(
             (new_sv_outlier_reason1 != df["sv_outlier_reason1"])
             & (df["sv_outlier_reason1"] != "Not outlier"),
-            df[
-                "sv_outlier_reason1"
-            ],  # This will now shift the old sv_outlier_reason1 to sv_outlier_reason2
-            df[
-                "sv_outlier_reason2"
-            ],  # Keep the current sv_outlier_reason2 if no shift is needed
+            df["sv_outlier_reason1"],
+            df["sv_outlier_reason2"],
         ),
         sv_outlier_reason3=lambda df: np.where(
             (new_sv_outlier_reason1 != df["sv_outlier_reason1"])
             & (df["sv_outlier_reason1"] != "Not outlier"),
-            df[
-                "sv_outlier_reason2"
-            ],  # This will shift the old sv_outlier_reason2 to sv_outlier_reason3
-            df[
-                "sv_outlier_reason3"
-            ],  # Keep the current sv_outlier_reason3 if no shift is needed
+            df["sv_outlier_reason2"],
+            df["sv_outlier_reason3"],
         ),
     ).assign(
         sv_outlier_reason1=new_sv_outlier_reason1  # Finally update sv_outlier_reason1 with the new values
