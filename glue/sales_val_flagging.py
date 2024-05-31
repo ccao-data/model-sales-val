@@ -200,16 +200,11 @@ def finish_flags(df, start_date, manual_update, sales_to_write_filter):
         run_id: unique run_id used for metadata. etc.
         timestamp: unique timestamp for metadata
     """
-    print("0th check")
-    print(df.sv_is_outlier.value_counts())
 
     # Remove duplicate rows
     df = df[df["original_observation"]]
     # Discard pre-2014 data
     df = df[df["meta_sale_date"] >= start_date]
-
-    print("0.5th check")
-    print(df.sv_is_outlier.value_counts())
 
     if sales_to_write_filter["column"]:
         df = df[
@@ -222,9 +217,6 @@ def finish_flags(df, start_date, manual_update, sales_to_write_filter):
         sv_is_outlier=lambda df: df["sv_is_autoval_outlier"]
         | df["ptax_flag_w_deviation"],
     )
-
-    print("First check")
-    print(df.sv_is_outlier.value_counts())
 
     # First, calculate the new values for sv_outlier_reason1 based on ptax conditions
     new_sv_outlier_reason1 = np.select(
@@ -262,9 +254,6 @@ def finish_flags(df, start_date, manual_update, sales_to_write_filter):
         sv_outlier_reason1=new_sv_outlier_reason1  # Finally update sv_outlier_reason1 with the new values
     )
 
-    print("Second check")
-    print(df.sv_is_outlier.value_counts())
-
     df = df.assign(
         # PTAX-203 binary
         sv_is_ptax_outlier=lambda df: df["sv_outlier_reason1"].str.contains(
@@ -277,8 +266,6 @@ def finish_flags(df, start_date, manual_update, sales_to_write_filter):
         & (df["sv_is_outlier"] == 1),
         sv_is_outlier=lambda df: df["sv_is_outlier"].astype(int),
     )
-    print("Third check")
-    print(df.sv_is_outlier.value_counts())
 
     cols_to_write = [
         "meta_sale_document_num",
