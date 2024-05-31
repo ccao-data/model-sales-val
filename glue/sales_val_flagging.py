@@ -160,29 +160,14 @@ def group_size_adjustment(df, stat_groups: list, min_threshold, condos: bool):
         df, filtered_groups[stat_groups], on=stat_groups, how="left", indicator=True
     )
 
-    # List of sv_outlier_type values to check
-    if condos == False:
-        outlier_types_to_check = [
-            "Low price (raw & sqft)",
-            "Low price (raw)",
-            "Low price (sqft)",
-            "High price (raw & sqft)",
-            "High price (raw)",
-            "High price (sqft)",
-        ]
-    else:
-        outlier_types_to_check = [
-            "Low price (raw)",
-            "High price (raw)",
-        ]
-
     # Modify the .loc condition to include checking for sv_outlier_type values
-    condition = (merged_df["_merge"] == "both") & (
-        merged_df["sv_outlier_type"].isin(outlier_types_to_check)
-    )
+    condition = (merged_df["_merge"] == "both") & (merged_df["sv_is_outlier"] == 1)
 
     # Using .loc[] to set the desired values for rows meeting the condition
-    merged_df.loc[condition, "sv_outlier_type"] = "Not outlier"
+    # TODO: Explain the choice here
+    # merged_df.loc[condition, "sv_outlier_type"] = "Not outlier"
+    # merged_df.loc[condition, "sv_outlier_type"] = "Not outlier"
+    # merged_df.loc[condition, "sv_outlier_type"] = "Not outlier"
     merged_df.loc[condition, "sv_is_outlier"] = 0
 
     # Drop the _merge column
@@ -215,11 +200,16 @@ def finish_flags(df, start_date, manual_update, sales_to_write_filter):
         run_id: unique run_id used for metadata. etc.
         timestamp: unique timestamp for metadata
     """
+    print("0th check")
+    print(df.sv_is_outlier.value_counts())
 
     # Remove duplicate rows
     df = df[df["original_observation"]]
     # Discard pre-2014 data
     df = df[df["meta_sale_date"] >= start_date]
+
+    print("0.5th check")
+    print(df.sv_is_outlier.value_counts())
 
     if sales_to_write_filter["column"]:
         df = df[
@@ -227,44 +217,80 @@ def finish_flags(df, start_date, manual_update, sales_to_write_filter):
         ]
 
     # Utilize PTAX-203, complete binary columns
-    df = (
-        df.rename(columns={"sv_is_outlier": "sv_is_autoval_outlier"})
-        .assign(
-            sv_is_autoval_outlier=lambda df: df["sv_is_autoval_outlier"] == "Outlier",
-            sv_is_outlier=lambda df: df["sv_is_autoval_outlier"]
-            | df["ptax_flag_w_deviation"],
-            # Incorporate PTAX in sv_outlier_type
-            sv_outlier_type=lambda df: np.select(
-                [
-                    (df["ptax_flag_w_deviation"]) & (df["ptax_direction"] == "High"),
-                    (df["ptax_flag_w_deviation"]) & (df["ptax_direction"] == "Low"),
-                ],
-                ["PTAX-203 Exclusion (High)", "PTAX-203 Exclusion (Low)"],
-                default=df["sv_outlier_type"],
-            ),
-        )
-        .assign(
-            # Change sv_is_outlier to binary
-            sv_is_outlier=lambda df: df["sv_outlier_type"] != "Not outlier",
-            # PTAX-203 binary
-            sv_is_ptax_outlier=lambda df: "PTAX-203 Exclusion" in df["sv_outlier_type"],
-            # Heuristics flagging binary column
-            sv_is_heuristic_outlier=lambda df: (
-                df["sv_outlier_type"] != "PTAX-203 flag"
-            )
-            & (df["sv_is_outlier"] == 1),
-        )
+    df = df.rename(columns={"sv_is_outlier": "sv_is_autoval_outlier"}).assign(
+        sv_is_autoval_outlier=lambda df: df["sv_is_autoval_outlier"] == 1,
+        sv_is_outlier=lambda df: df["sv_is_autoval_outlier"]
+        | df["ptax_flag_w_deviation"],
     )
+
+    print("First check")
+    print(df.sv_is_outlier.value_counts())
+
+    # First, calculate the new values for sv_outlier_reason1 based on ptax conditions
+    new_sv_outlier_reason1 = np.select(
+        [
+            (df["ptax_flag_w_deviation"]) & (df["ptax_direction"] == "High"),
+            (df["ptax_flag_w_deviation"]) & (df["ptax_direction"] == "Low"),
+        ],
+        ["PTAX-203 Exclusion (High)", "PTAX-203 Exclusion (Low)"],
+        default=df["sv_outlier_reason1"],
+    )
+
+    # Then use these new values to update sv_outlier_reason1, and conditionally shift sv_outlier_reason2 and sv_outlier_reason3
+    df = df.assign(
+        sv_outlier_reason2=lambda df: np.where(
+            (new_sv_outlier_reason1 != df["sv_outlier_reason1"])
+            & (df["sv_outlier_reason1"] != "Not outlier"),
+            df[
+                "sv_outlier_reason1"
+            ],  # This will now shift the old sv_outlier_reason1 to sv_outlier_reason2
+            df[
+                "sv_outlier_reason2"
+            ],  # Keep the current sv_outlier_reason2 if no shift is needed
+        ),
+        sv_outlier_reason3=lambda df: np.where(
+            (new_sv_outlier_reason1 != df["sv_outlier_reason1"])
+            & (df["sv_outlier_reason1"] != "Not outlier"),
+            df[
+                "sv_outlier_reason2"
+            ],  # This will shift the old sv_outlier_reason2 to sv_outlier_reason3
+            df[
+                "sv_outlier_reason3"
+            ],  # Keep the current sv_outlier_reason3 if no shift is needed
+        ),
+    ).assign(
+        sv_outlier_reason1=new_sv_outlier_reason1  # Finally update sv_outlier_reason1 with the new values
+    )
+
+    print("Second check")
+    print(df.sv_is_outlier.value_counts())
+
+    df = df.assign(
+        # PTAX-203 binary
+        sv_is_ptax_outlier=lambda df: df["sv_outlier_reason1"].str.contains(
+            "PTAX-203", na=False
+        ),
+        # Heuristics flagging binary column
+        sv_is_heuristic_outlier=lambda df: (
+            ~df["sv_outlier_reason1"].str.contains("PTAX-203", na=False)
+        )
+        & (df["sv_is_outlier"] == 1),
+        sv_is_outlier=lambda df: df["sv_is_outlier"].astype(int),
+    )
+    print("Third check")
+    print(df.sv_is_outlier.value_counts())
 
     cols_to_write = [
         "meta_sale_document_num",
         "meta_sale_price_original",
         "rolling_window",
         "sv_is_outlier",
+        "sv_outlier_reason1",
+        "sv_outlier_reason2",
+        "sv_outlier_reason3",
         "sv_is_ptax_outlier",
         "ptax_flag_original",
         "sv_is_heuristic_outlier",
-        "sv_outlier_type",
         "group",
     ]
 
