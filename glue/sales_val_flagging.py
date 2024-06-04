@@ -88,7 +88,11 @@ def ptax_adjustment(df, groups, ptax_sd, condos: bool):
     This function manually applies a ptax adjustment, keeping only
     ptax flags that are outside of a certain standard deviation
     range in terms of raw price or price per sqft. It creates the
-    new column and preserves the old ptax column
+    new column and preserves the old ptax column.
+
+    We add the ptax information by overwriting sv_outlier_reason1
+    and shift the existing sv_outlier_reason1 to sv_outlier_reason2
+    and shift the existing sv_outlier_reason2 to sv_outlier_reason3.
 
     Inputs:
         df: dataframe after flagging has been done
@@ -137,35 +141,7 @@ def ptax_adjustment(df, groups, ptax_sd, condos: bool):
         sv_is_outlier=lambda df: df["sv_is_autoval_outlier"]
         | df["ptax_flag_w_deviation"],
     )
-    """
-    # Calculate the new values for sv_outlier_reason1 based on ptax conditions
-    new_sv_outlier_reason1 = np.select(
-        [
-            (df["ptax_flag_w_deviation"]) & (df["ptax_direction"] == "High"),
-            (df["ptax_flag_w_deviation"]) & (df["ptax_direction"] == "Low"),
-        ],
-        ["PTAX-203 Exclusion (High)", "PTAX-203 Exclusion (Low)"],
-        default=df["sv_outlier_reason1"],
-    )
 
-    # Conditionally shift sv_outlier_reason2 and sv_outlier_reason3
-    df = df.assign(
-        sv_outlier_reason2=lambda df: np.where(
-            (new_sv_outlier_reason1 != df["sv_outlier_reason1"])
-            & (df["sv_outlier_reason1"] != "Not outlier"),
-            df["sv_outlier_reason1"],
-            df["sv_outlier_reason2"],
-        ),
-        sv_outlier_reason3=lambda df: np.where(
-            (new_sv_outlier_reason1 != df["sv_outlier_reason1"])
-            & (df["sv_outlier_reason1"] != "Not outlier"),
-            df["sv_outlier_reason2"],
-            df["sv_outlier_reason3"],
-        ),
-    ).assign(
-        sv_outlier_reason1=new_sv_outlier_reason1  # Finally update sv_outlier_reason1 with the new values
-    )
-    """
     # Calculate the new values for sv_outlier_reason1 based on ptax conditions
     new_sv_outlier_reason1 = np.select(
         [
@@ -214,7 +190,7 @@ def ptax_adjustment(df, groups, ptax_sd, condos: bool):
     return df
 
 
-def group_size_adjustment(df, stat_groups: list, min_threshold, condos: bool):
+def group_size_adjustment(df, stat_groups: list, min_threshold):
     """
     Within the groups of sales we are looking at to flag outliers, some
     are very small, with a large portion of groups with even 1 total sale.
