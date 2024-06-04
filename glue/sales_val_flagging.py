@@ -137,7 +137,7 @@ def ptax_adjustment(df, groups, ptax_sd, condos: bool):
         sv_is_outlier=lambda df: df["sv_is_autoval_outlier"]
         | df["ptax_flag_w_deviation"],
     )
-
+    """
     # Calculate the new values for sv_outlier_reason1 based on ptax conditions
     new_sv_outlier_reason1 = np.select(
         [
@@ -165,6 +165,38 @@ def ptax_adjustment(df, groups, ptax_sd, condos: bool):
     ).assign(
         sv_outlier_reason1=new_sv_outlier_reason1  # Finally update sv_outlier_reason1 with the new values
     )
+    """
+    # Calculate the new values for sv_outlier_reason1 based on ptax conditions
+    new_sv_outlier_reason1 = np.select(
+        [
+            (df["ptax_flag_w_deviation"]) & (df["ptax_direction"] == "High"),
+            (df["ptax_flag_w_deviation"]) & (df["ptax_direction"] == "Low"),
+        ],
+        ["PTAX-203 Exclusion (High)", "PTAX-203 Exclusion (Low)"],
+        default=df["sv_outlier_reason1"],
+    )
+
+    # Store the original values of sv_outlier_reason2 before they are updated
+    original_sv_outlier_reason2 = df["sv_outlier_reason2"].copy()
+
+    # Conditionally shift sv_outlier_reason2
+    df["sv_outlier_reason2"] = np.where(
+        (new_sv_outlier_reason1 != df["sv_outlier_reason1"])
+        & (df["sv_outlier_reason1"] != "Not outlier"),
+        df["sv_outlier_reason1"],
+        df["sv_outlier_reason2"],
+    )
+
+    # Conditionally shift sv_outlier_reason3 using the original sv_outlier_reason2
+    df["sv_outlier_reason3"] = np.where(
+        (new_sv_outlier_reason1 != df["sv_outlier_reason1"])
+        & (df["sv_outlier_reason1"] != "Not outlier"),
+        original_sv_outlier_reason2,
+        df["sv_outlier_reason3"],
+    )
+
+    # Finally update sv_outlier_reason1 with the new values
+    df["sv_outlier_reason1"] = new_sv_outlier_reason1
 
     df = df.assign(
         # PTAX-203 binary

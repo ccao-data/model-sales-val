@@ -776,6 +776,7 @@ def outlier_type(df: pd.DataFrame, condos: bool) -> pd.DataFrame:
     Outputs:
         df (pd.DataFrame): Dataframe with 'sv_char_outlier_reason' and 'sv_char_price_reason' columns.
     """
+
     if condos:
         # Define conditions for characteristic-based reasons
         char_conditions = [
@@ -844,6 +845,10 @@ def outlier_type(df: pd.DataFrame, condos: bool) -> pd.DataFrame:
 
         # Define conditions for price-based reasons
         price_conditions = [
+            (df["sv_pricing"].str.contains("High"))
+            & (df["sv_which_price"] == "(raw & sqft)"),
+            (df["sv_pricing"].str.contains("Low"))
+            & (df["sv_which_price"] == "(raw & sqft)"),
             (df["sv_pricing"].str.contains("High") & (df["sv_which_price"] == "(raw)")),
             (df["sv_pricing"].str.contains("Low") & (df["sv_which_price"] == "(raw)")),
             (df["sv_pricing"].str.contains("High"))
@@ -853,6 +858,8 @@ def outlier_type(df: pd.DataFrame, condos: bool) -> pd.DataFrame:
 
         # Define labels for price-based reasons
         price_labels = [
+            "High price (raw & sqft)",
+            "Low price (raw & sqft)",
             "High price",
             "Low price",
             "High price (sqft)",
@@ -887,6 +894,30 @@ def outlier_type(df: pd.DataFrame, condos: bool) -> pd.DataFrame:
     # Now we apply this function row-wise correctly by also passing the DataFrame reference:
     df["sv_outlier_reason3"] = df.apply(find_next_unused_char, df=df, axis=1)
 
+    def transform_row(row):
+        if row["sv_outlier_reason1"] in [
+            "Low price (raw & sqft)",
+            "High price (raw & sqft)",
+        ]:
+            # Determine price type based on the value in sv_outlier_reason1
+            price_type = (
+                "Low price" if "Low" in row["sv_outlier_reason1"] else "High price"
+            )
+
+            # Update sv_outlier_reason1 to just 'Low price' or 'High price'
+            row["sv_outlier_reason1"] = price_type
+
+            # Move the current sv_outlier_reason2 to sv_outlier_reason3
+            row["sv_outlier_reason3"] = row["sv_outlier_reason2"]
+
+            # Update sv_outlier_reason2 to the new value '(sqft)'
+            row["sv_outlier_reason2"] = f"{price_type} (sqft)"
+
+        return row
+
+    # Apply the transformation
+    df = df.apply(transform_row, axis=1)
+
     return df
 
 
@@ -901,9 +932,7 @@ def outlier_flag(df: pd.DataFrame) -> pd.DataFrame:
     """
 
     options = ["High price", "Low price", "High price (sqft)", "Low price (sqft)"]
-    pattern = (
-        r"\b(?:" + "|".join(map(re.escape, options)) + r")\b"
-    )  # Creates a pattern with word boundaries
+    pattern = r"\b(?:" + "|".join(map(re.escape, options)) + r")\b"
 
     df["sv_is_outlier"] = np.select(
         [
