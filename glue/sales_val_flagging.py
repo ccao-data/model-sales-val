@@ -244,10 +244,6 @@ def group_size_adjustment(df, stat_groups: list, min_threshold, condos: bool):
     condition = (merged_df["_merge"] == "both") & (merged_df["sv_is_outlier"] == 1)
 
     # Using .loc[] to set the desired values for rows meeting the condition
-    # TODO: Explain the choice here
-    # merged_df.loc[condition, "sv_outlier_type"] = "Not outlier"
-    # merged_df.loc[condition, "sv_outlier_type"] = "Not outlier"
-    # merged_df.loc[condition, "sv_outlier_type"] = "Not outlier"
     merged_df.loc[condition, "sv_is_outlier"] = 0
 
     # Drop the _merge column
