@@ -160,26 +160,8 @@ def group_size_adjustment(df, stat_groups: list, min_threshold, condos: bool):
         df, filtered_groups[stat_groups], on=stat_groups, how="left", indicator=True
     )
 
-    # List of sv_outlier_type values to check
-    if condos == False:
-        outlier_types_to_check = [
-            "Low price (raw & sqft)",
-            "Low price (raw)",
-            "Low price (sqft)",
-            "High price (raw & sqft)",
-            "High price (raw)",
-            "High price (sqft)",
-        ]
-    else:
-        outlier_types_to_check = [
-            "Low price (raw)",
-            "High price (raw)",
-        ]
-
     # Modify the .loc condition to include checking for sv_outlier_type values
-    condition = (merged_df["_merge"] == "both") & (
-        merged_df["sv_outlier_type"].isin(outlier_types_to_check)
-    )
+    condition = (merged_df["_merge"] == "both") & (merged_df["sv_is_outlier"] == 1)
 
     # Using .loc[] to set the desired values for rows meeting the condition
     merged_df.loc[condition, "sv_outlier_type"] = "Not outlier"
