@@ -320,7 +320,6 @@ for df_name, df_info in dfs_flagged.items():
         df=df_copy,
         stat_groups=df_info["columns"],
         min_threshold=inputs["min_groups_threshold"],
-        condos=df_info["condos_boolean"],
     )
 
     df_copy = flg.ptax_adjustment(
