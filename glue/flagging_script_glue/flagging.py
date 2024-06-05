@@ -601,7 +601,6 @@ def get_sale_counts(dups: pd.DataFrame) -> pd.DataFrame:
         .rename(columns={"count": "sv_sale_dup_counts"})
     )
 
-    # Explicitly specify the merging columns
     dups = pd.merge(dups, v_counts)
 
     return dups
