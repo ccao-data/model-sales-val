@@ -786,8 +786,8 @@ def outlier_type(df: pd.DataFrame, condos: bool) -> pd.DataFrame:
             .eq("legal_entity")
             .any(axis=1),
             df["sv_anomaly"] == "Outlier",
-            df["sv_pricing"].str.contains("High price swing"),
-            df["sv_pricing"].str.contains("Low price swing"),
+            df["sv_pricing"].str.contains("High price swing")
+            | df["sv_pricing"].str.contains("Low price swing"),
         ]
 
         # Define labels for characteristic-based reasons
@@ -796,8 +796,7 @@ def outlier_type(df: pd.DataFrame, condos: bool) -> pd.DataFrame:
             "Family sale",
             "Non-person sale",
             "Statistical anomaly",
-            "High price swing",
-            "Low price swing",
+            "Price Swing / Home flip",
         ]
 
         # Define conditions for price-based reasons
@@ -830,7 +829,9 @@ def outlier_type(df: pd.DataFrame, condos: bool) -> pd.DataFrame:
             .any(axis=1),
             df["sv_anomaly"] == "Outlier",
             df["sv_pricing"].str.contains("High price swing"),
-            df["sv_pricing"].str.contains("Low price swing"),
+            df["sv_anomaly"] == "Outlier",
+            df["sv_pricing"].str.contains("High price swing")
+            | df["sv_pricing"].str.contains("Low price swing"),
         ]
 
         # Define labels for characteristic-based reasons
@@ -839,8 +840,7 @@ def outlier_type(df: pd.DataFrame, condos: bool) -> pd.DataFrame:
             "Family sale",
             "Non-person sale",
             "Statistical anomaly",
-            "High price swing",
-            "Low price swing",
+            "Price Swing / Home flip",
         ]
 
         # Define conditions for price-based reasons
