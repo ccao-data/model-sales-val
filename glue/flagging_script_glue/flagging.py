@@ -828,8 +828,6 @@ def outlier_type(df: pd.DataFrame, condos: bool) -> pd.DataFrame:
             .eq("legal_entity")
             .any(axis=1),
             df["sv_anomaly"] == "Outlier",
-            df["sv_pricing"].str.contains("High price swing"),
-            df["sv_anomaly"] == "Outlier",
             df["sv_pricing"].str.contains("High price swing")
             | df["sv_pricing"].str.contains("Low price swing"),
         ]
