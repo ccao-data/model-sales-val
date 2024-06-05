@@ -143,9 +143,6 @@ def group_size_adjustment(df, stat_groups: list, min_threshold):
 
     """
 
-    # - - -
-    #
-    # - - -
     group_counts = df.groupby(stat_groups).size().reset_index(name="count")
     filtered_groups = group_counts[group_counts["count"] <= min_threshold]
 
