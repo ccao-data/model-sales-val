@@ -106,86 +106,20 @@ def ptax_adjustment(df, groups, ptax_sd, condos: bool):
     group_string = "_".join(groups)
 
     if not condos:
-        df["ptax_flag_w_deviation"] = df["ptax_flag_original"] & (
+        df["sv_ind_ptax_flag_w_deviation"] = df["ptax_flag_original"] & (
             (df[f"sv_price_deviation_{group_string}"] >= ptax_sd[1])
             | (df[f"sv_price_deviation_{group_string}"] <= -ptax_sd[0])
             | (df[f"sv_price_per_sqft_deviation_{group_string}"] >= ptax_sd[1])
             | (df[f"sv_price_per_sqft_deviation_{group_string}"] <= -ptax_sd[0])
         )
 
-        # Determine the ptax direction
-        conditions = [
-            (df[f"sv_price_deviation_{group_string}"] >= ptax_sd[1])
-            | (df[f"sv_price_per_sqft_deviation_{group_string}"] >= ptax_sd[1]),
-            (df[f"sv_price_deviation_{group_string}"] <= -ptax_sd[0])
-            | (df[f"sv_price_per_sqft_deviation_{group_string}"] <= -ptax_sd[0]),
-        ]
     else:
-        df["ptax_flag_w_deviation"] = df["ptax_flag_original"] & (
+        df["sv_ind_ptax_flag_w_deviation"] = df["ptax_flag_original"] & (
             (df[f"sv_price_deviation_{group_string}"] >= ptax_sd[1])
             | (df[f"sv_price_deviation_{group_string}"] <= -ptax_sd[0])
         )
 
-        # Determine the ptax direction
-        conditions = [
-            (df[f"sv_price_deviation_{group_string}"] >= ptax_sd[1]),
-            (df[f"sv_price_deviation_{group_string}"] <= -ptax_sd[0]),
-        ]
-
-    directions = ["High", "Low"]
-    df["ptax_direction"] = np.select(conditions, directions, default=np.nan)
-
-    # Utilize PTAX-203, complete binary columns
-    df = df.rename(columns={"sv_is_outlier": "sv_is_autoval_outlier"}).assign(
-        sv_is_autoval_outlier=lambda df: df["sv_is_autoval_outlier"] == 1,
-        sv_is_outlier=lambda df: df["sv_is_autoval_outlier"]
-        | df["ptax_flag_w_deviation"],
-    )
-
-    # Calculate the new values for sv_outlier_reason1 based on ptax conditions
-    new_sv_outlier_reason1 = np.select(
-        [
-            (df["ptax_flag_w_deviation"]) & (df["ptax_direction"] == "High"),
-            (df["ptax_flag_w_deviation"]) & (df["ptax_direction"] == "Low"),
-        ],
-        ["PTAX-203 Exclusion (High)", "PTAX-203 Exclusion (Low)"],
-        default=df["sv_outlier_reason1"],
-    )
-
-    # Store the original values of sv_outlier_reason2 before they are updated
-    original_sv_outlier_reason2 = df["sv_outlier_reason2"].copy()
-
-    # Conditionally shift sv_outlier_reason2
-    df["sv_outlier_reason2"] = np.where(
-        (new_sv_outlier_reason1 != df["sv_outlier_reason1"])
-        & (df["sv_outlier_reason1"] != "Not outlier"),
-        df["sv_outlier_reason1"],
-        df["sv_outlier_reason2"],
-    )
-
-    # Conditionally shift sv_outlier_reason3 using the original sv_outlier_reason2
-    df["sv_outlier_reason3"] = np.where(
-        (new_sv_outlier_reason1 != df["sv_outlier_reason1"])
-        & (df["sv_outlier_reason1"] != "Not outlier"),
-        original_sv_outlier_reason2,
-        df["sv_outlier_reason3"],
-    )
-
-    # Finally update sv_outlier_reason1 with the new values
-    df["sv_outlier_reason1"] = new_sv_outlier_reason1
-
-    df = df.assign(
-        # PTAX-203 binary
-        sv_is_ptax_outlier=lambda df: df["sv_outlier_reason1"].str.contains(
-            "PTAX-203", na=False
-        ),
-        # Heuristics flagging binary column
-        sv_is_heuristic_outlier=lambda df: (
-            ~df["sv_outlier_reason1"].str.contains("PTAX-203", na=False)
-        )
-        & (df["sv_is_outlier"] == 1),
-        sv_is_outlier=lambda df: df["sv_is_outlier"].astype(int),
-    )
+    df["sv_ind_ptax_flag_w_deviation"] = df["sv_ind_ptax_flag_w_deviation"].astype(int)
 
     return df
 
@@ -208,6 +142,10 @@ def group_size_adjustment(df, stat_groups: list, min_threshold):
         df: dataframe with newly manually adjusted outlier values.
 
     """
+
+    # - - -
+    #
+    # - - -
     group_counts = df.groupby(stat_groups).size().reset_index(name="count")
     filtered_groups = group_counts[group_counts["count"] <= min_threshold]
 
@@ -229,6 +167,19 @@ def group_size_adjustment(df, stat_groups: list, min_threshold):
     df_flagged_updated["group"] = df_flagged_updated.apply(
         lambda row: "_".join([str(row[col]) for col in stat_groups]), axis=1
     )
+
+    """
+        df = df.assign(
+        # PTAX-203 binary
+        sv_is_ptax_outlier=lambda df: df["sv_ind_ptax_flag_w_deviation"].astype(int), na=False,
+        # Heuristics flagging binary column
+        sv_is_heuristic_outlier=lambda df: (
+            ~df["sv_outlier_reason1"].str.contains("PTAX-203", na=False)
+        )
+        & (df["sv_is_outlier"] == 1),
+        sv_is_outlier=lambda df: df["sv_is_outlier"].astype(int),
+    )
+    """
 
     return df_flagged_updated
 
