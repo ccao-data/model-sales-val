@@ -129,7 +129,7 @@ def ptax_adjustment(df, groups, ptax_sd, condos: bool):
     return df
 
 
-def group_size_adjustment(df, stat_groups: list, min_threshold):
+def classify_outliers(df, stat_groups: list, min_threshold):
     """
     Within the groups of sales we are looking at to flag outliers, some
     are very small, with a large portion of groups with even 1 total sale.
@@ -148,15 +148,10 @@ def group_size_adjustment(df, stat_groups: list, min_threshold):
 
     """
 
-    # - - -
     # Assign sv_outlier_reasons
-    # - - -
-
     df["sv_outlier_reason1"] = "Null"
     df["sv_outlier_reason2"] = "Null"
     df["sv_outlier_reason3"] = "Null"
-
-    # df.loc[df['sv_ind_ptax_flag_w_deviation'] == 1, 'sv_outlier_reason1'] = 'sv_ind_ptax_flag_w_deviation'
 
     cols_to_iterate = [col for col in df.columns if col.startswith("sv_ind")]
 
@@ -179,15 +174,39 @@ def group_size_adjustment(df, stat_groups: list, min_threshold):
 
         return row
 
-    # Apply the function row-wise
     df = df.apply(fill_outlier_reasons, axis=1)
+
+    outlier_type_crosswalk = {
+        "sv_ind_ptax_flag_w_deviation": "PTAX-203 Exclusion",
+        "sv_ind_price_high_price": "High price",
+        "sv_ind_price_low_price": "Low price",
+        "sv_ind_price_high_price_sqft": "High price per square foot",
+        "sv_ind_price_low_price_sqft": "Low price per square foot",
+        "sv_ind_char_short_term_owner": "Short-term owner",
+        "sv_ind_char_family_sale": "Family Sale",
+        "sv_ind_char_non_person_sale": "Non-person sale",
+        "sv_ind_char_statistical_anomaly": "Statistical Anomaly",
+        "sv_ind_char_price_swing_homeflip": "Price swing / Home flip",
+    }
+
+    for column in ["sv_outlier_reason1", "sv_outlier_reason2", "sv_outlier_reason3"]:
+        df[column] = df[column].replace(outlier_type_crosswalk)
+
+    # Assign outlier status
+    values_to_check = {
+        "PTAX-203 Exclusion",
+        "High price",
+        "High price",
+        "High price per square foot",
+        "Low price per square foot",
+    }
+    df["sv_is_outlier"] = np.where(df["sv_outlier_reason1"].isin(values_to_check), 1, 0)
 
     # - - -
     # Handle group threshold adjustment
-    # TODO: Explain choice of outlier reasons
+    # TODO: Explain choice of sv_outlier_reason$n
     # - - -
 
-    """
     group_counts = df.groupby(stat_groups).size().reset_index(name="count")
     filtered_groups = group_counts[group_counts["count"] <= min_threshold]
 
@@ -209,20 +228,17 @@ def group_size_adjustment(df, stat_groups: list, min_threshold):
     df_flagged_updated["group"] = df_flagged_updated.apply(
         lambda row: "_".join([str(row[col]) for col in stat_groups]), axis=1
     )
-    """
 
-    """
-        df = df.assign(
+    df = df_flagged_updated.assign(
         # PTAX-203 binary
-        sv_is_ptax_outlier=lambda df: df["sv_ind_ptax_flag_w_deviation"].astype(int), na=False,
-        # Heuristics flagging binary column
+        sv_is_ptax_outlier=lambda df: df["sv_ind_ptax_flag_w_deviation"],
+        na=False,
         sv_is_heuristic_outlier=lambda df: (
             ~df["sv_outlier_reason1"].str.contains("PTAX-203", na=False)
         )
         & (df["sv_is_outlier"] == 1),
         sv_is_outlier=lambda df: df["sv_is_outlier"].astype(int),
     )
-    """
 
     return df
 
