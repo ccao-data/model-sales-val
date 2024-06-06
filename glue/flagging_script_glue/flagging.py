@@ -842,6 +842,25 @@ def outlier_type(df: pd.DataFrame, condos: bool) -> pd.DataFrame:
     for label, condition in outlier_type_dict.items():
         df[label] = condition.astype(int)
 
+    # Apply the conditions
+    df.loc[
+        df["sv_ind_price_high_price_raw_and_sqft"] == 1,
+        ["sv_ind_price_high_price_sqft", "sv_ind_price_high_price"],
+    ] = 1
+    df.loc[
+        df["sv_ind_price_low_price_raw_and_sqft"] == 1,
+        ["sv_ind_price_low_price_sqft", "sv_ind_price_low_price"],
+    ] = 1
+
+    # Drop the combined raw_and_sqft columns
+    df.drop(
+        columns=[
+            "sv_ind_price_high_price_raw_and_sqft",
+            "sv_ind_price_low_price_raw_and_sqft",
+        ],
+        inplace=True,
+    )
+
     return df
 
 

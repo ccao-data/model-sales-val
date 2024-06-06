@@ -121,6 +121,11 @@ def ptax_adjustment(df, groups, ptax_sd, condos: bool):
 
     df["sv_ind_ptax_flag_w_deviation"] = df["sv_ind_ptax_flag_w_deviation"].astype(int)
 
+    # Adjust order to make _____ function smoother
+    ptax_col = df.pop("sv_ind_ptax_flag_w_deviation")
+    target_index = df.columns.get_loc("sv_ind_price_high_price")
+    df.insert(target_index, "sv_ind_ptax_flag_w_deviation", ptax_col)
+
     return df
 
 
@@ -143,6 +148,46 @@ def group_size_adjustment(df, stat_groups: list, min_threshold):
 
     """
 
+    # - - -
+    # Assign sv_outlier_reasons
+    # - - -
+
+    df["sv_outlier_reason1"] = "Null"
+    df["sv_outlier_reason2"] = "Null"
+    df["sv_outlier_reason3"] = "Null"
+
+    # df.loc[df['sv_ind_ptax_flag_w_deviation'] == 1, 'sv_outlier_reason1'] = 'sv_ind_ptax_flag_w_deviation'
+
+    cols_to_iterate = [col for col in df.columns if col.startswith("sv_ind")]
+
+    # - - -
+    # TODO: try numba speed up here
+    # - - -
+    def fill_outlier_reasons(row):
+        reasons = [
+            row[f"sv_outlier_reason{i}"] for i in range(1, 4)
+        ]  # Collect current reasons
+
+        for col in cols_to_iterate:
+            if row[col]:  # If the condition is True
+                reason = col  # Use column name as reason
+                # Check if reason is not already recorded and there's a 'Null' slot to fill
+                if reason not in reasons and "Null" in reasons:
+                    next_index = reasons.index("Null") + 1  # Find the next 'Null' index
+                    row[f"sv_outlier_reason{next_index}"] = reason
+                    reasons[next_index - 1] = reason  # Update reasons list
+
+        return row
+
+    # Apply the function row-wise
+    df = df.apply(fill_outlier_reasons, axis=1)
+
+    # - - -
+    # Handle group threshold adjustment
+    # TODO: Explain choice of outlier reasons
+    # - - -
+
+    """
     group_counts = df.groupby(stat_groups).size().reset_index(name="count")
     filtered_groups = group_counts[group_counts["count"] <= min_threshold]
 
@@ -164,6 +209,7 @@ def group_size_adjustment(df, stat_groups: list, min_threshold):
     df_flagged_updated["group"] = df_flagged_updated.apply(
         lambda row: "_".join([str(row[col]) for col in stat_groups]), axis=1
     )
+    """
 
     """
         df = df.assign(
@@ -178,7 +224,7 @@ def group_size_adjustment(df, stat_groups: list, min_threshold):
     )
     """
 
-    return df_flagged_updated
+    return df
 
 
 def finish_flags(df, start_date, manual_update, sales_to_write_filter):
