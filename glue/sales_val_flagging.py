@@ -90,10 +90,6 @@ def ptax_adjustment(df, groups, ptax_sd, condos: bool):
     range in terms of raw price or price per sqft. It creates the
     new column and preserves the old ptax column.
 
-    We add the ptax information by overwriting sv_outlier_reason1
-    and shift the existing sv_outlier_reason1 to sv_outlier_reason2
-    and shift the existing sv_outlier_reason2 to sv_outlier_reason3.
-
     Inputs:
         df: dataframe after flagging has been done
         groups: stat groups used for outlier classification
