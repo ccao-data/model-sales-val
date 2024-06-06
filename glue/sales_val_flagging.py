@@ -121,7 +121,7 @@ def ptax_adjustment(df, groups, ptax_sd, condos: bool):
 
     df["sv_ind_ptax_flag_w_deviation"] = df["sv_ind_ptax_flag_w_deviation"].astype(int)
 
-    # Adjust order to make _____ function smoother
+    # Adjust order to make classify_outliers function smoother
     ptax_col = df.pop("sv_ind_ptax_flag_w_deviation")
     target_index = df.columns.get_loc("sv_ind_price_high_price")
     df.insert(target_index, "sv_ind_ptax_flag_w_deviation", ptax_col)
