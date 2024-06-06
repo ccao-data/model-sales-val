@@ -316,17 +316,17 @@ for df_name, df_info in dfs_flagged.items():
     print(f"\n Enacting group threshold and creating ptax data for {df_name}")
     df_copy = df_info["df"].copy()
 
-    # df_copy = flg.classify_outliers(
-    #    df=df_copy,
-    #    stat_groups=df_info["columns"],
-    #    min_threshold=inputs["min_groups_threshold"],
-    # )
-
     df_copy = flg.ptax_adjustment(
         df=df_copy,
         groups=df_info["columns"],
         ptax_sd=inputs["ptax_sd"],
         condos=df_info["condos_boolean"],
+    )
+
+    df_copy = flg.classify_outliers(
+        df=df_copy,
+        stat_groups=df_info["columns"],
+        min_threshold=inputs["min_groups_threshold"],
     )
 
     # TODO: need to add the classification function

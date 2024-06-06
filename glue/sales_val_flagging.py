@@ -204,7 +204,7 @@ def classify_outliers(df, stat_groups: list, min_threshold):
 
     # - - -
     # Handle group threshold adjustment
-    # TODO: Explain choice of sv_outlier_reason$n
+    # TODO: Explain choice of sv_outlier_reason$n, do we set all reasons to 0 as well?
     # - - -
 
     group_counts = df.groupby(stat_groups).size().reset_index(name="count")
