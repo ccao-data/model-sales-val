@@ -83,12 +83,8 @@ def outlier_taxonomy(df: pd.DataFrame, permut: tuple, groups: tuple, condos: boo
     """
 
     df = check_days(df, SHORT_TERM_OWNER_THRESHOLD)
-
     df = pricing_info(df, permut, groups, condos=condos)
-
     df = outlier_type(df, condos=condos)
-    # df = outlier_flag(df)
-    # df = special_flag(df)
 
     return df
 
@@ -266,26 +262,6 @@ def pricing_info(
 
     if not condos:
         df["sv_which_price"] = df.apply(which_price, args=(holds, groups), axis=1)
-
-    return df
-
-
-def special_flag(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Creates column that checks whether there is a special flag for this record.
-    Inputs:
-        df (pd.DataFrame): dataframe to add flags onto
-    Outputs:
-        df (pd.DataFrame): dataframe with 'special_flags' column
-    """
-    cond = [
-        (df["sv_name_match"] != "No match"),
-        (df["sv_short_owner"] == "Short-term owner"),
-        (df["sv_transaction_type"] == "legal_entity-legal_entity"),
-    ]
-    labels = ["Family sale", "Home flip sale", "Non-person sale"]
-
-    df["sv_special_flags"] = np.select(cond, labels, default="Not special")
 
     return df
 
