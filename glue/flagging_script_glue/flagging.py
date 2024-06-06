@@ -863,34 +863,6 @@ def outlier_type(df: pd.DataFrame, condos: bool) -> pd.DataFrame:
     return df
 
 
-"""
-def outlier_flag(df: pd.DataFrame) -> pd.DataFrame:
-
-    Creates a flag that shows whether the record is an
-    outlier (a special flag) according to our outlier taxonomy.
-    Inputs:
-        df (pd.DataFrame): dataframe to create outlier flag
-    Outputs:
-        df (pd.DataFrame): dataframe with 'is_outlier' column
-
-
-    options = ["High price", "Low price", "High price (sqft)", "Low price (sqft)"]
-    pattern = r"\b(?:" + "|".join(map(re.escape, options)) + r")\b"
-
-    df["sv_is_outlier"] = np.select(
-        [
-            df["sv_outlier_reason1"].str.contains(
-                pattern, case=False, na=False, regex=True
-            )
-        ],
-        [1],
-        default=0,
-    )
-
-    return df
-"""
-
-
 # STRING CLEANUP
 
 """
