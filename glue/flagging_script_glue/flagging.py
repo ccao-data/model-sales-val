@@ -746,9 +746,9 @@ def outlier_type(df: pd.DataFrame, condos: bool) -> pd.DataFrame:
     and characteristic outliers. These columns are prefixed with 'sv_ind_'.
 
     Inputs:
-        df (pd.DataFrame): Dataframe with necessary columns created from previous functions.
+        df (pd.DataFrame): Dataframe
     Outputs:
-        df (pd.DataFrame): Dataframe with 'sv_char_outlier_reason' and 'sv_char_price_reason' columns.
+        df (pd.DataFrame): Dataframe with indicator columns for each flag type
     """
 
     char_conditions = [
