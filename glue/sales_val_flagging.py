@@ -192,7 +192,7 @@ def classify_outliers(df, stat_groups: list, min_threshold):
     values_to_check = {
         "PTAX-203 Exclusion",
         "High price",
-        "High price",
+        "Low price",
         "High price per square foot",
         "Low price per square foot",
     }
