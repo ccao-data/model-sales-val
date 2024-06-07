@@ -157,9 +157,6 @@ def classify_outliers(df, stat_groups: list, min_threshold):
 
     cols_to_iterate = [col for col in df.columns if col.startswith("sv_ind")]
 
-    # - - -
-    # TODO: try numba speed up here
-    # - - -
     def fill_outlier_reasons(row):
         reasons = [
             row[f"sv_outlier_reason{i}"] for i in range(1, 4)
