@@ -742,9 +742,8 @@ def z_normalize_groupby(s: pd.Series):
 
 def outlier_type(df: pd.DataFrame, condos: bool) -> pd.DataFrame:
     """
-    Enhances the dataframe by adding two columns for outlier reasons:
-    - sv_char_outlier_reason: Reasons based on characteristics including price swings.
-    - sv_char_price_reason: Reasons based on high or low pricing levels.
+    This function create indicator columns for each distinct outlier type between price
+    and characteristic outliers. These columns are prefixed with 'sv_ind_'.
 
     Inputs:
         df (pd.DataFrame): Dataframe with necessary columns created from previous functions.

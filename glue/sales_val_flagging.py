@@ -127,11 +127,17 @@ def ptax_adjustment(df, groups, ptax_sd, condos: bool):
 
 def classify_outliers(df, stat_groups: list, min_threshold):
     """
-    Within the groups of sales we are looking at to flag outliers, some
-    are very small, with a large portion of groups with even 1 total sale.
+    This function does the following:
 
-    This function manually sets all sales to 'Not Outlier' if they belong
-    to a group that is under our 'min_threshold' argument.
+    1. We use all of the indicator columns created by outlier_type() in the
+    Mansueto flagging script to populate our sv_outlier_reason1, sv_outlier_reason2,
+    and sv_outlier_reason3 fields. We populate them first with ptax, then price, then char
+    reasons.
+
+    2. Implement our group threshold requirement. In the statistical flagging process, if
+    the group a sale belongs too is below N=30 then we want to manually set these flags to
+    non-outlier status, even if they were flagged in the mansueto script. This requirement
+    is bypasses for ptax outliers - we don't care about group threshold in this case.
 
     Inputs:
         df: The data right after we perform the flagging script (go()), when the exploded
@@ -211,8 +217,12 @@ def classify_outliers(df, stat_groups: list, min_threshold):
         df, filtered_groups[stat_groups], on=stat_groups, how="left", indicator=True
     )
 
-    # Modify the .loc condition to include checking for sv_outlier_type values
-    condition = (merged_df["_merge"] == "both") & (merged_df["sv_is_outlier"] == 1)
+    # Exclude ptax_flags since we decided we don't need a group threshold do flag these sales
+    condition = (
+        (merged_df["_merge"] == "both")
+        & (merged_df["sv_is_outlier"] == 1)
+        & (merged_df["sv_ind_ptax_flag_w_deviation"] == 0)
+    )
 
     # Using .loc[] to set the desired values for rows meeting the condition
     merged_df.loc[condition, "sv_is_outlier"] = 0
