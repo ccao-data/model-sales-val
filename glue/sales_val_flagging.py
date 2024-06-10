@@ -235,7 +235,6 @@ def classify_outliers(df, stat_groups: list, min_threshold):
     df = df_flagged_updated.assign(
         # PTAX-203 binary
         sv_is_ptax_outlier=lambda df: df["sv_ind_ptax_flag_w_deviation"],
-        na=False,
         sv_is_heuristic_outlier=lambda df: (
             ~df["sv_outlier_reason1"].str.contains("PTAX-203", na=False)
         )
