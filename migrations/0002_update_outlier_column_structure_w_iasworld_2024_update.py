@@ -68,3 +68,14 @@ Non-person sale
 Statistical Anomaly
 Price swing / Home Flip
 """
+
+recode_dict = {
+    "PTAX-203 flag (Low)": {
+        "sv_outlier_reason1": "PTAX-203 Exclusion",
+        "sv_outlier_reason2": "null",
+    },
+    "Non-person sale (low)": {
+        "sv_outlier_reason1": "Low Price",
+        "sv_outlier_reason2": "Non-person sale",
+    },
+}
