@@ -785,21 +785,22 @@ def outlier_type(df: pd.DataFrame, condos: bool) -> pd.DataFrame:
     else:
         # Define conditions for price-based reasons
         price_conditions = [
+            (
+                df["sv_pricing"].str.contains("High")
+                & (df["sv_which_price"].str.contains("raw"))
+            ),
+            (
+                df["sv_pricing"].str.contains("Low")
+                & (df["sv_which_price"].str.contains("raw"))
+            ),
             (df["sv_pricing"].str.contains("High"))
-            & (df["sv_which_price"] == "(raw & sqft)"),
+            & (df["sv_which_price"].str.contains("sqft")),
             (df["sv_pricing"].str.contains("Low"))
-            & (df["sv_which_price"] == "(raw & sqft)"),
-            (df["sv_pricing"].str.contains("High") & (df["sv_which_price"] == "(raw)")),
-            (df["sv_pricing"].str.contains("Low") & (df["sv_which_price"] == "(raw)")),
-            (df["sv_pricing"].str.contains("High"))
-            & (df["sv_which_price"] == "(sqft)"),
-            (df["sv_pricing"].str.contains("Low")) & (df["sv_which_price"] == "(sqft)"),
+            & (df["sv_which_price"].str.contains("sqft")),
         ]
 
         # Define labels for price-based reasons
         price_labels = [
-            "sv_ind_price_high_price_raw_and_sqft",
-            "sv_ind_price_low_price_raw_and_sqft",
             "sv_ind_price_high_price",
             "sv_ind_price_low_price",
             "sv_ind_price_high_price_sqft",
@@ -814,25 +815,6 @@ def outlier_type(df: pd.DataFrame, condos: bool) -> pd.DataFrame:
     # Create indicator columns for each flag type
     for label, condition in outlier_type_dict.items():
         df[label] = condition.astype(int)
-
-    if not condos:
-        # Separate out combined raw and sqft label to be discrete cols
-        df.loc[
-            df["sv_ind_price_high_price_raw_and_sqft"] == 1,
-            ["sv_ind_price_high_price_sqft", "sv_ind_price_high_price"],
-        ] = 1
-        df.loc[
-            df["sv_ind_price_low_price_raw_and_sqft"] == 1,
-            ["sv_ind_price_low_price_sqft", "sv_ind_price_low_price"],
-        ] = 1
-
-        df.drop(
-            columns=[
-                "sv_ind_price_high_price_raw_and_sqft",
-                "sv_ind_price_low_price_raw_and_sqft",
-            ],
-            inplace=True,
-        )
 
     return df
 
