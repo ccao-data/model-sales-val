@@ -151,25 +151,27 @@ def classify_outliers(df, stat_groups: list, min_threshold):
     """
 
     # Assign sv_outlier_reasons
-    df["sv_outlier_reason1"] = "Null"
-    df["sv_outlier_reason2"] = "Null"
-    df["sv_outlier_reason3"] = "Null"
+    df["sv_outlier_reason1"] = np.nan
+    df["sv_outlier_reason2"] = np.nan
+    df["sv_outlier_reason3"] = np.nan
 
     cols_to_iterate = [col for col in df.columns if col.startswith("sv_ind")]
 
     def fill_outlier_reasons(row):
-        reasons = [
-            row[f"sv_outlier_reason{i}"] for i in range(1, 4)
-        ]  # Collect current reasons
+        reasons = np.array(
+            [row[f"sv_outlier_reason{i}"] for i in range(1, 4)], dtype=object
+        )
 
         for col in cols_to_iterate:
             if row[col]:  # If the condition is True
                 reason = col  # Use column name as reason
-                # Check if reason is not already recorded and there's a 'Null' slot to fill
-                if reason not in reasons and "Null" in reasons:
-                    next_index = reasons.index("Null") + 1  # Find the next 'Null' index
-                    row[f"sv_outlier_reason{next_index}"] = reason
-                    reasons[next_index - 1] = reason  # Update reasons list
+                # Check if reason is not already recorded and there's a np.nan slot to fill
+                if reason not in reasons and pd.isna(reasons).any():
+                    next_index = pd.isna(
+                        reasons
+                    ).argmax()  # Find the index of the first True (NaN)
+                    row[f"sv_outlier_reason{next_index + 1}"] = reason
+                    reasons[next_index] = reason  # Update reasons array
 
         return row
 
