@@ -146,9 +146,8 @@ def classify_outliers(df, stat_groups: list, min_threshold):
     """
 
     # Assign sv_outlier_reasons
-    df["sv_outlier_reason1"] = np.nan
-    df["sv_outlier_reason2"] = np.nan
-    df["sv_outlier_reason3"] = np.nan
+    for idx in range(1, 4):
+        df[f"sv_outlier_reason{idx}"] = np.nan
 
     outlier_type_crosswalk = {
         "sv_ind_ptax_flag_w_deviation": "PTAX-203 Exclusion",
