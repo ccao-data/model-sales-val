@@ -117,11 +117,6 @@ def ptax_adjustment(df, groups, ptax_sd, condos: bool):
 
     df["sv_ind_ptax_flag_w_deviation"] = df["sv_ind_ptax_flag_w_deviation"].astype(int)
 
-    # Adjust order of indicator columns to make classify_outliers function smoother
-    ptax_col = df.pop("sv_ind_ptax_flag_w_deviation")
-    target_index = df.columns.get_loc("sv_ind_price_high_price")
-    df.insert(target_index, "sv_ind_ptax_flag_w_deviation", ptax_col)
-
     return df
 
 
@@ -155,14 +150,25 @@ def classify_outliers(df, stat_groups: list, min_threshold):
     df["sv_outlier_reason2"] = np.nan
     df["sv_outlier_reason3"] = np.nan
 
-    cols_to_iterate = [col for col in df.columns if col.startswith("sv_ind")]
+    outlier_type_crosswalk = {
+        "sv_ind_ptax_flag_w_deviation": "PTAX-203 Exclusion",
+        "sv_ind_price_high_price": "High price",
+        "sv_ind_price_low_price": "Low price",
+        "sv_ind_price_high_price_sqft": "High price per square foot",
+        "sv_ind_price_low_price_sqft": "Low price per square foot",
+        "sv_ind_char_short_term_owner": "Short-term owner",
+        "sv_ind_char_family_sale": "Family Sale",
+        "sv_ind_char_non_person_sale": "Non-person sale",
+        "sv_ind_char_statistical_anomaly": "Statistical Anomaly",
+        "sv_ind_char_price_swing_homeflip": "Price swing / Home flip",
+    }
 
     def fill_outlier_reasons(row):
         reasons = np.array(
             [row[f"sv_outlier_reason{i}"] for i in range(1, 4)], dtype=object
         )
 
-        for col in cols_to_iterate:
+        for col in outlier_type_crosswalk:
             if row[col]:  # If the condition is True
                 reason = col  # Use column name as reason
                 # Check if reason is not already recorded and there's a np.nan slot to fill
@@ -176,19 +182,6 @@ def classify_outliers(df, stat_groups: list, min_threshold):
         return row
 
     df = df.apply(fill_outlier_reasons, axis=1)
-
-    outlier_type_crosswalk = {
-        "sv_ind_ptax_flag_w_deviation": "PTAX-203 Exclusion",
-        "sv_ind_price_high_price": "High price",
-        "sv_ind_price_low_price": "Low price",
-        "sv_ind_price_high_price_sqft": "High price per square foot",
-        "sv_ind_price_low_price_sqft": "Low price per square foot",
-        "sv_ind_char_short_term_owner": "Short-term owner",
-        "sv_ind_char_family_sale": "Family Sale",
-        "sv_ind_char_non_person_sale": "Non-person sale",
-        "sv_ind_char_statistical_anomaly": "Statistical Anomaly",
-        "sv_ind_char_price_swing_homeflip": "Price swing / Home flip",
-    }
 
     for column in ["sv_outlier_reason1", "sv_outlier_reason2", "sv_outlier_reason3"]:
         df[column] = df[column].replace(outlier_type_crosswalk)
