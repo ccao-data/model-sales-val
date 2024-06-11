@@ -186,12 +186,13 @@ def classify_outliers(df, stat_groups: list, min_threshold):
         "High price per square foot",
         "Low price per square foot",
     }
+
     df["sv_is_outlier"] = np.where(
-        df[
-            ["sv_outlier_reason{idx}" for idx in range(1, 4)]
-        ].isin(values_to_check).any(axis=1), 
-        1, 
-        0
+        df[[f"sv_outlier_reason{idx}" for idx in range(1, 4)]]
+        .isin(values_to_check)
+        .any(axis=1),
+        1,
+        0,
     )
 
     # - - -
