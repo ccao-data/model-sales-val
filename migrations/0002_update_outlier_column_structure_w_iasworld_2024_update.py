@@ -2,6 +2,7 @@ import awswrangler as wr
 import boto3
 import os
 import subprocess as sp
+import numpy as np
 
 # Set working dir to manual_update, standardize yaml and src locations
 root = sp.getoutput("git rev-parse --show-toplevel")
@@ -51,31 +52,106 @@ dfs_flag = read_parquet_files_from_s3(
         "flag",
     )
 )
-
+"""
 for i in dfs_flag:
     print(i)
 
-
 dfs_flag["2024-01-19_18:46-clever-boni"].sv_outlier_type.value_counts()
-
-# "PTAX-203 Exclusion (High)", "PTAX-203 Exclusion (Low)"
-"""
-Characteristic reasons
-Short-term owner
-PTAX-203 Exclusion
-Family sale
-Non-person sale
-Statistical Anomaly
-Price swing / Home Flip
 """
 
 recode_dict = {
     "PTAX-203 flag (Low)": {
         "sv_outlier_reason1": "PTAX-203 Exclusion",
-        "sv_outlier_reason2": "null",
+        "sv_outlier_reason2": np.nan,
+    },
+    "PTAX-203 flag (High)": {
+        "sv_outlier_reason1": "PTAX-203 Exclusion",
+        "sv_outlier_reason2": np.nan,
     },
     "Non-person sale (low)": {
-        "sv_outlier_reason1": "Low Price",
+        "sv_outlier_reason1": "Low price",
         "sv_outlier_reason2": "Non-person sale",
     },
+    "Non-person sale (high)": {
+        "sv_outlier_reason1": "High price",
+        "sv_outlier_reason2": "Non-person sale",
+    },
+    "High price (raw)": {
+        "sv_outlier_reason1": "High price",
+        "sv_outlier_reason2": np.nan,
+    },
+    "Low price (raw)": {
+        "sv_outlier_reason1": "Low price",
+        "sv_outlier_reason2": np.nan,
+    },
+    "Anomaly (high)": {
+        "sv_outlier_reason1": "High price",
+        "sv_outlier_reason2": "Statistical Anomaly",
+    },
+    "Anomaly (low)": {
+        "sv_outlier_reason1": "Low price",
+        "sv_outlier_reason2": "Statistical Anomaly",
+    },
+    "Low Price (raw & sqft)": {
+        "sv_outlier_reason1": "Low price",
+        "sv_outlier_reason2": "Low price per square foot",
+    },
+    "High price (raw and sqft)": {
+        "sv_outlier_reason1": "High price",
+        "sv_outlier_reason2": "High price per square foot",
+    },
+    "High price (sqft)": {
+        "sv_outlier_reason1": "High price per square foot",
+        "sv_outlier_reason2": np.nan,
+    },
+    "Low price (sqft)": {
+        "sv_outlier_reason1": "Low price per square foot",
+        "sv_outlier_reason2": np.nan,
+    },
+    "Home flip sale (high)": {
+        "sv_outlier_reason1": "High price",
+        "sv_outlier_reason2": "Price swing / Home Flip",
+    },
+    "Home flipe sale (low)": {
+        "sv_outlier_reason1": "Low price",
+        "sv_outlier_reason2": "Price swing / Home Flip",
+    },
+    "Family sale (high)": {
+        "sv_outlier_reason1": "High price",
+        "sv_outlier_reason2": "Family Sale",
+    },
+    "Family sale (low)": {
+        "sv_outlier_reason1": "Low price",
+        "sv_outlier_reason2": "Family sale",
+    },
+    "High price swing": {
+        "sv_outlier_reason1": "High price",
+        "sv_outlier_reason2": "Price swing / Home flip",
+    },
+    "Low price swing": {
+        "sv_outlier_reason1": "Low price",
+        "sv_outlier_reason2": "Price swing / Home flip",
+    },
 }
+
+
+def process_dataframe(df, recode_dict):
+    # Insert new columns filled with NaN
+    pos = df.columns.get_loc("sv_outlier_type") + 1
+    for i in range(1, 4):
+        df.insert(pos, f"sv_outlier_reason{i}", np.nan)
+        pos += 1
+
+    # Use the dictionary to populate the new columns
+    for key, value in recode_dict.items():
+        mask = df["sv_outlier_type"] == key
+        for col, val in value.items():
+            df.loc[mask, col] = val
+
+    df = df.drop(columns=["sv_outlier_type"])
+
+    return df
+
+
+for key in dfs_flag:
+    dfs_flag[key] = process_dataframe(dfs_flag[key], recode_dict)
