@@ -810,10 +810,8 @@ def outlier_type(df: pd.DataFrame, condos: bool) -> pd.DataFrame:
     combined_conditions = price_conditions + char_conditions
     combined_labels = price_labels + char_labels
 
-    outlier_type_dict = dict(zip(combined_labels, combined_conditions))
-
     # Create indicator columns for each flag type
-    for label, condition in outlier_type_dict.items():
+    for label, condition in zip(combined_labels, combined_conditions):
         df[label] = condition.astype(int)
 
     return df
