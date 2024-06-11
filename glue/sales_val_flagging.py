@@ -163,20 +163,13 @@ def classify_outliers(df, stat_groups: list, min_threshold):
     }
 
     def fill_outlier_reasons(row):
-        reasons = np.array(
-            [row[f"sv_outlier_reason{i}"] for i in range(1, 4)], dtype=object
-        )
-
-        for col in outlier_type_crosswalk:
-            if row[col]:  # If the condition is True
-                reason = col  # Use column name as reason
-                # Check if reason is not already recorded and there's a np.nan slot to fill
-                if reason not in reasons and pd.isna(reasons).any():
-                    next_index = pd.isna(
-                        reasons
-                    ).argmax()  # Find the index of the first True (NaN)
-                    row[f"sv_outlier_reason{next_index + 1}"] = reason
-                    reasons[next_index] = reason  # Update reasons array
+        reason_idx = 1
+        for reason in outlier_type_crosswalk:
+            if row[reason]:  # If the condition is True
+                row[f"sv_outlier_reason{reason_idx}"] = reason
+                if reason_idx >= 3:
+                    break
+                reason_idx += 1
 
         return row
 
