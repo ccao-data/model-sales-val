@@ -3,6 +3,8 @@ import boto3
 import os
 import subprocess as sp
 import numpy as np
+from pyathena import connect
+from pyathena.pandas.util import as_pandas
 
 # Set working dir to manual_update, standardize yaml and src locations
 root = sp.getoutput("git rev-parse --show-toplevel")
@@ -43,6 +45,38 @@ def read_parquet_files_from_s3(input_path):
         dataframes[filename] = df
 
     return dataframes
+
+
+def process_dataframe(df, recode_dict):
+    """
+    Transforms old structure with sv_outlier_type
+    to new structure with 3 separate outlier reason columns
+    """
+    # Insert new columns filled with NaN
+    pos = df.columns.get_loc("sv_outlier_type") + 1
+    for i in range(1, 4):
+        df.insert(pos, f"sv_outlier_reason{i}", np.nan)
+        pos += 1
+
+    # Use the dictionary to populate the new columns
+    for key, value in recode_dict.items():
+        mask = df["sv_outlier_type"] == key
+        for col, val in value.items():
+            df.loc[mask, col] = val
+
+    df = df.drop(columns=["sv_outlier_type"])
+
+    return df
+
+
+def write_dfs_to_s3(dfs, bucket, table):
+    """
+    Writes dictionary of dfs to bucket
+    """
+
+    for df_name, df in dfs.items():
+        file_path = f"{bucket}/0002_update_outlier_column_structure_w_iasworld_2024_update/new_prod_data/{table}/{df_name}.parquet"
+        wr.s3.to_parquet(df=df, path=file_path, index=False)
 
 
 dfs_flag = read_parquet_files_from_s3(
@@ -110,15 +144,15 @@ recode_dict = {
     },
     "Home flip sale (high)": {
         "sv_outlier_reason1": "High price",
-        "sv_outlier_reason2": "Price swing / Home Flip",
+        "sv_outlier_reason2": "Price swing / Home flip",
     },
     "Home flipe sale (low)": {
         "sv_outlier_reason1": "Low price",
-        "sv_outlier_reason2": "Price swing / Home Flip",
+        "sv_outlier_reason2": "Price swing / Home flip",
     },
     "Family sale (high)": {
         "sv_outlier_reason1": "High price",
-        "sv_outlier_reason2": "Family Sale",
+        "sv_outlier_reason2": "Family sale",
     },
     "Family sale (low)": {
         "sv_outlier_reason1": "Low price",
@@ -134,24 +168,8 @@ recode_dict = {
     },
 }
 
-
-def process_dataframe(df, recode_dict):
-    # Insert new columns filled with NaN
-    pos = df.columns.get_loc("sv_outlier_type") + 1
-    for i in range(1, 4):
-        df.insert(pos, f"sv_outlier_reason{i}", np.nan)
-        pos += 1
-
-    # Use the dictionary to populate the new columns
-    for key, value in recode_dict.items():
-        mask = df["sv_outlier_type"] == key
-        for col, val in value.items():
-            df.loc[mask, col] = val
-
-    df = df.drop(columns=["sv_outlier_type"])
-
-    return df
-
-
 for key in dfs_flag:
     dfs_flag[key] = process_dataframe(dfs_flag[key], recode_dict)
+
+
+write_dfs_to_s3(dfs_flag, os.getenv("AWS_BUCKET_SV"), "flag")
