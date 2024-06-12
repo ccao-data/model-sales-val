@@ -175,10 +175,10 @@ def classify_outliers(df, stat_groups: list, min_threshold):
     }
 
     group_thresh_price_fix = [
-        "sv_ind_price_high_price"
-        "sv_ind_price_low_price"
-        "sv_ind_price_high_price_sqft"
-        "sv_ind_price_low_price_sqft"
+        "sv_ind_price_high_price",
+        "sv_ind_price_low_price",
+        "sv_ind_price_high_price_sqft",
+        "sv_ind_price_low_price_sqft",
     ]
 
     def fill_outlier_reasons(row):
@@ -194,6 +194,7 @@ def classify_outliers(df, stat_groups: list, min_threshold):
                 if reason_idx >= 3:
                     break
                 reason_idx += 1
+
         return row
 
     df = df.apply(fill_outlier_reasons, axis=1)
@@ -213,7 +214,6 @@ def classify_outliers(df, stat_groups: list, min_threshold):
         "Low price per square foot",
     }
 
-    # Create actual sv_is_outlier column
     df["sv_is_outlier"] = np.where(
         df[[f"sv_outlier_reason{idx}" for idx in range(1, 4)]]
         .isin(values_to_check)
