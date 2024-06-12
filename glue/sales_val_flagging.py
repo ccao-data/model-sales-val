@@ -145,6 +145,18 @@ def classify_outliers(df, stat_groups: list, min_threshold):
 
     """
 
+    # - - -
+    # Handle group threshold adjustment
+    # TODO: Explain choice of sv_outlier_reason$n, do we set all reasons to 0 as well?
+    # - - -
+    group_counts = df.groupby(stat_groups).size().reset_index(name="count")
+    filtered_groups = group_counts[group_counts["count"] <= min_threshold]
+
+    # Merge df_flagged with filtered_groups on the columns to get the matching rows
+    df = pd.merge(
+        df, filtered_groups[stat_groups], on=stat_groups, how="left", indicator=True
+    )
+
     # Assign sv_outlier_reasons
     for idx in range(1, 4):
         df[f"sv_outlier_reason{idx}"] = np.nan
@@ -162,21 +174,35 @@ def classify_outliers(df, stat_groups: list, min_threshold):
         "sv_ind_char_price_swing_homeflip": "Price swing / Home flip",
     }
 
+    group_thresh_price_fix = [
+        "sv_ind_price_high_price"
+        "sv_ind_price_low_price"
+        "sv_ind_price_high_price_sqft"
+        "sv_ind_price_low_price_sqft"
+    ]
+
     def fill_outlier_reasons(row):
         reason_idx = 1
         for reason in outlier_type_crosswalk:
-            if row[reason]:  # If the condition is True
-                row[f"sv_outlier_reason{reason_idx}"] = reason
+            # Add a check to ensure that only specific reasons are added if _merge is not 'both'
+            if (
+                reason in row
+                and row[reason]
+                and not (row["_merge"] == "both" and reason in group_thresh_price_fix)
+            ):
+                row[f"sv_outlier_reason{reason_idx}"] = outlier_type_crosswalk[reason]
                 if reason_idx >= 3:
                     break
                 reason_idx += 1
-
         return row
 
     df = df.apply(fill_outlier_reasons, axis=1)
 
-    for column in ["sv_outlier_reason1", "sv_outlier_reason2", "sv_outlier_reason3"]:
-        df[column] = df[column].replace(outlier_type_crosswalk)
+    # for column in ["sv_outlier_reason1", "sv_outlier_reason2", "sv_outlier_reason3"]:
+    #    df[column] = df[column].replace(outlier_type_crosswalk)
+
+    # Drop the _merge column
+    df = df.drop(columns=["_merge"])
 
     # Assign outlier status
     values_to_check = {
@@ -187,6 +213,7 @@ def classify_outliers(df, stat_groups: list, min_threshold):
         "Low price per square foot",
     }
 
+    # Create actual sv_is_outlier column
     df["sv_is_outlier"] = np.where(
         df[[f"sv_outlier_reason{idx}" for idx in range(1, 4)]]
         .isin(values_to_check)
@@ -195,38 +222,12 @@ def classify_outliers(df, stat_groups: list, min_threshold):
         0,
     )
 
-    # - - -
-    # Handle group threshold adjustment
-    # TODO: Explain choice of sv_outlier_reason$n, do we set all reasons to 0 as well?
-    # - - -
-
-    group_counts = df.groupby(stat_groups).size().reset_index(name="count")
-    filtered_groups = group_counts[group_counts["count"] <= min_threshold]
-
-    # Merge df_flagged with filtered_groups on the columns to get the matching rows
-    merged_df = pd.merge(
-        df, filtered_groups[stat_groups], on=stat_groups, how="left", indicator=True
-    )
-
-    # Exclude ptax_flags since we decided we don't need a group threshold do flag these sales
-    condition = (
-        (merged_df["_merge"] == "both")
-        & (merged_df["sv_is_outlier"] == 1)
-        & (merged_df["sv_ind_ptax_flag_w_deviation"] == 0)
-    )
-
-    # Using .loc[] to set the desired values for rows meeting the condition
-    merged_df.loc[condition, "sv_is_outlier"] = 0
-
-    # Drop the _merge column
-    df_flagged_updated = merged_df.drop(columns=["_merge"])
-
     # Add group column to eventually write to athena sale.flag table. Picked up in finish_flags()
-    df_flagged_updated["group"] = df_flagged_updated.apply(
+    df["group"] = df.apply(
         lambda row: "_".join([str(row[col]) for col in stat_groups]), axis=1
     )
 
-    df = df_flagged_updated.assign(
+    df = df.assign(
         # PTAX-203 binary
         sv_is_ptax_outlier=lambda df: df["sv_ind_ptax_flag_w_deviation"],
         sv_is_heuristic_outlier=lambda df: (~df["sv_ind_ptax_flag_w_deviation"] == 1)
