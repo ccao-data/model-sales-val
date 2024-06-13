@@ -58,11 +58,13 @@ def process_dataframe(df, recode_dict):
         df.insert(pos, f"sv_outlier_reason{i}", np.nan)
         pos += 1
 
+    print(df.dtypes)
     # Use the dictionary to populate the new columns
     for key, value in recode_dict.items():
         mask = df["sv_outlier_type"] == key
         for col, val in value.items():
             df.loc[mask, col] = val
+    print(df.dtypes)
 
     df = df.drop(columns=["sv_outlier_type"])
 
@@ -76,7 +78,9 @@ def write_dfs_to_s3(dfs, bucket, table):
 
     for df_name, df in dfs.items():
         file_path = f"{bucket}/0002_update_outlier_column_structure_w_iasworld_2024_update/new_prod_data/{table}/{df_name}.parquet"
-        wr.s3.to_parquet(df=df, path=file_path, index=False)
+        wr.s3.to_parquet(
+            df=df, path=file_path, index=False, dtype={"sv_outlier_reason3": "string"}
+        )
 
 
 dfs_flag = read_parquet_files_from_s3(
@@ -86,12 +90,6 @@ dfs_flag = read_parquet_files_from_s3(
         "flag",
     )
 )
-"""
-for i in dfs_flag:
-    print(i)
-
-dfs_flag["2024-01-19_18:46-clever-boni"].sv_outlier_type.value_counts()
-"""
 
 recode_dict = {
     "PTAX-203 flag (Low)": {
