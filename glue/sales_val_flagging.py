@@ -218,8 +218,8 @@ def classify_outliers(df, stat_groups: list, min_threshold):
         df[[f"sv_outlier_reason{idx}" for idx in range(1, 4)]]
         .isin(values_to_check)
         .any(axis=1),
-        1,
-        0,
+        True,
+        False,
     )
 
     # Add group column to eventually write to athena sale.flag table. Picked up in finish_flags()
@@ -229,10 +229,9 @@ def classify_outliers(df, stat_groups: list, min_threshold):
 
     df = df.assign(
         # PTAX-203 binary
-        sv_is_ptax_outlier=lambda df: df["sv_ind_ptax_flag_w_deviation"],
+        sv_is_ptax_outlier=lambda df: df["sv_ind_ptax_flag_w_deviation"] == 1,
         sv_is_heuristic_outlier=lambda df: (~df["sv_ind_ptax_flag_w_deviation"] == 1)
         & (df["sv_is_outlier"] == 1),
-        sv_is_outlier=lambda df: df["sv_is_outlier"].astype(int),
     )
 
     return df

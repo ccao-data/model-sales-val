@@ -13,7 +13,7 @@ run_note: |
 # without flags, it assigns a version number of "1". The latest
 # version of each sale flag can be found in the "default"."vw_pin_sale" view.
 
-manual_update: true
+manual_update: false
 
 # "housing_market_type" and "run_tri" configurations determine the
 # specificity of flagging. First, we retrieve the run tris, then run
@@ -22,11 +22,9 @@ manual_update: true
 # "tri$n" value.
 housing_market_type: [
   "res_single_family",
-  "res_multi_family",
-  "res_all",
-  "condos"
+
 ]
-run_tri: [1, 2, 3]
+run_tri: [1]
 
 # "sales_to_write" filter allows further specificity. Here we can decide
 # which flags we want to write at a more precise level than market type
@@ -145,7 +143,7 @@ dev_bounds: [2, 2]
 # sale.flag table. Leave 'end' blank if we want to flag all sales
 # since the start date
 time_frame:
-  start: "2014-01-01"
+  start: "2022-01-01"
   end:
 
 # How many total months to include in the grouping methodology
