@@ -327,7 +327,6 @@ for df_name, df_info in dfs_flagged.items():
         ptax_sd=inputs["ptax_sd"],
         condos=df_info["condos_boolean"],
     )
-
     """
     Modify the 'group' column by appending '-market_value', this is done
     to make sure that a two different groups with the same run_id won't
