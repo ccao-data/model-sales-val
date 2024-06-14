@@ -195,7 +195,7 @@ def classify_outliers(df, stat_groups: list, min_threshold):
     a sale's eligibility for outlier status if the number of sales in 
     the statistical grouping is below a certain threshold. The list - 
     `group_thresh_price_fix` along with the ['_merge'] column will allow
-    us to exlude these sales for the sv_is_outlier status.
+    us to exclude these sales for the sv_is_outlier status.
 
     Since the `sv_is_outlier` column requires a price value, we simply
     do not assign these price outlier flags if the group number is below a certain
