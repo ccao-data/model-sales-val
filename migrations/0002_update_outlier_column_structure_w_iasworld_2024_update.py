@@ -91,12 +91,12 @@ dfs_flag = read_parquet_files_from_s3(
 
 recode_dict = {
     "PTAX-203 flag (Low)": {
-        "sv_outlier_reason1": "PTAX-203 Exclusion",
-        "sv_outlier_reason2": np.nan,
+        "sv_outlier_reason1": "Low price",
+        "sv_outlier_reason2": "PTAX-203 Exclusion",
     },
     "PTAX-203 flag (High)": {
-        "sv_outlier_reason1": "PTAX-203 Exclusion",
-        "sv_outlier_reason2": np.nan,
+        "sv_outlier_reason1": "High price",
+        "sv_outlier_reason2": "PTAX-203 Exclusion",
     },
     "Non-person sale (low)": {
         "sv_outlier_reason1": "Low price",
