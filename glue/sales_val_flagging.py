@@ -190,6 +190,20 @@ def classify_outliers(df, stat_groups: list, min_threshold):
         "sv_ind_char_price_swing_homeflip": "Price swing / Home flip",
     }
 
+    """
+    During our statistical flagging process, we automatically discard
+    a sale's eligibility for outlier status if the number of sales in 
+    the statistical grouping is below a certain threshold. The list - 
+    `group_thresh_price_fix` along with the ['_merge'] column will allow
+    us to exlude these sales for the sv_is_outlier status.
+
+    Since the `sv_is_outlier` column requires a price value, we simply
+    do not assign these price outlier flags if the group number is below a certain
+    threshold
+
+    Note: This doesn't apply for sales that also have a ptax outlier status.
+          In this case, we still assign the price outlier status.
+    """
     group_thresh_price_fix = [
         "sv_ind_price_high_price",
         "sv_ind_price_low_price",
@@ -209,6 +223,7 @@ def classify_outliers(df, stat_groups: list, min_threshold):
                 and row[reason]
                 and current_reason
                 not in reasons_added  # Check if the reason is already added
+                # Apply group threshold logic
                 and not (row["_merge"] == "both" and reason in group_thresh_price_fix)
             ):
                 row[f"sv_outlier_reason{reason_idx}"] = current_reason
@@ -226,7 +241,6 @@ def classify_outliers(df, stat_groups: list, min_threshold):
 
     # Assign outlier status
     values_to_check = {
-        # "PTAX-203 Exclusion",
         "High price",
         "Low price",
         "High price per square foot",
