@@ -126,7 +126,7 @@ recode_dict = {
         "sv_outlier_reason1": "Low price",
         "sv_outlier_reason2": "Low price per square foot",
     },
-    "High price (raw and sqft)": {
+    "High price (raw & sqft)": {
         "sv_outlier_reason1": "High price",
         "sv_outlier_reason2": "High price per square foot",
     },
