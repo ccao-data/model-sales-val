@@ -58,13 +58,11 @@ def process_dataframe(df, recode_dict):
         df.insert(pos, f"sv_outlier_reason{i}", np.nan)
         pos += 1
 
-    print(df.dtypes)
     # Use the dictionary to populate the new columns
     for key, value in recode_dict.items():
         mask = df["sv_outlier_type"] == key
         for col, val in value.items():
             df.loc[mask, col] = val
-    print(df.dtypes)
 
     df = df.drop(columns=["sv_outlier_type"])
 
