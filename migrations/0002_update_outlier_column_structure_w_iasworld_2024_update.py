@@ -142,7 +142,7 @@ recode_dict = {
         "sv_outlier_reason1": "High price",
         "sv_outlier_reason2": "Price swing / Home flip",
     },
-    "Home flipe sale (low)": {
+    "Home flip sale (low)": {
         "sv_outlier_reason1": "Low price",
         "sv_outlier_reason2": "Price swing / Home flip",
     },
