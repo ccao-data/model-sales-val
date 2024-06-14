@@ -102,20 +102,32 @@ def ptax_adjustment(df, groups, ptax_sd, condos: bool):
     group_string = "_".join(groups)
 
     if not condos:
-        df["sv_ind_ptax_flag_w_deviation"] = df["ptax_flag_original"] & (
+        df["sv_ind_ptax_flag_w_high_price"] = df["ptax_flag_original"] & (
             (df[f"sv_price_deviation_{group_string}"] >= ptax_sd[1])
-            | (df[f"sv_price_deviation_{group_string}"] <= -ptax_sd[0])
-            | (df[f"sv_price_per_sqft_deviation_{group_string}"] >= ptax_sd[1])
-            | (df[f"sv_price_per_sqft_deviation_{group_string}"] <= -ptax_sd[0])
+        )
+
+        df["sv_ind_ptax_flag_w_high_price_sqft"] = df["ptax_flag_original"] & (
+            (df[f"sv_price_per_sqft_deviation_{group_string}"] >= ptax_sd[1])
+        )
+
+        df["sv_ind_ptax_flag_w_low_price"] = df["ptax_flag_original"] & (
+            (df[f"sv_price_per_sqft_deviation_{group_string}"] <= -ptax_sd[0])
+        )
+
+        df["sv_ind_ptax_flag_w_low_price_sqft"] = df["ptax_flag_original"] & (
+            (df[f"sv_price_per_sqft_deviation_{group_string}"] <= -ptax_sd[0])
         )
 
     else:
-        df["sv_ind_ptax_flag_w_deviation"] = df["ptax_flag_original"] & (
+        df["sv_ind_ptax_flag_w_high_price"] = df["ptax_flag_original"] & (
             (df[f"sv_price_deviation_{group_string}"] >= ptax_sd[1])
-            | (df[f"sv_price_deviation_{group_string}"] <= -ptax_sd[0])
         )
 
-    df["sv_ind_ptax_flag_w_deviation"] = df["sv_ind_ptax_flag_w_deviation"].astype(int)
+        df["sv_ind_ptax_flag_w_low_price"] = df["ptax_flag_original"] & (
+            (df[f"sv_price_deviation_{group_string}"] <= -ptax_sd[0])
+        )
+
+    df["sv_ind_ptax_flag"] = df["ptax_flag_original"].astype(int)
 
     return df
 
@@ -162,11 +174,15 @@ def classify_outliers(df, stat_groups: list, min_threshold):
         df[f"sv_outlier_reason{idx}"] = np.nan
 
     outlier_type_crosswalk = {
-        "sv_ind_ptax_flag_w_deviation": "PTAX-203 Exclusion",
         "sv_ind_price_high_price": "High price",
+        "sv_ind_ptax_flag_w_high_price": "High price",
         "sv_ind_price_low_price": "Low price",
+        "sv_ind_ptax_flag_w_low_price": "Low price",
         "sv_ind_price_high_price_sqft": "High price per square foot",
+        "sv_ind_ptax_flag_w_high_price_sqft": "High price per square foot",
         "sv_ind_price_low_price_sqft": "Low price per square foot",
+        "sv_ind_ptax_flag_w_low_price_sqft": "Low price per square foot",
+        "sv_ind_ptax_flag": "PTAX-203 Exclusion",
         "sv_ind_char_short_term_owner": "Short-term owner",
         "sv_ind_char_family_sale": "Family Sale",
         "sv_ind_char_non_person_sale": "Non-person sale",
@@ -183,14 +199,20 @@ def classify_outliers(df, stat_groups: list, min_threshold):
 
     def fill_outlier_reasons(row):
         reason_idx = 1
+        reasons_added = set()  # Set to track reasons already added
+
         for reason in outlier_type_crosswalk:
+            current_reason = outlier_type_crosswalk[reason]
             # Add a check to ensure that only specific reasons are added if _merge is not 'both'
             if (
                 reason in row
                 and row[reason]
+                and current_reason
+                not in reasons_added  # Check if the reason is already added
                 and not (row["_merge"] == "both" and reason in group_thresh_price_fix)
             ):
-                row[f"sv_outlier_reason{reason_idx}"] = outlier_type_crosswalk[reason]
+                row[f"sv_outlier_reason{reason_idx}"] = current_reason
+                reasons_added.add(current_reason)  # Add current reason to the set
                 if reason_idx >= 3:
                     break
                 reason_idx += 1
@@ -199,15 +221,12 @@ def classify_outliers(df, stat_groups: list, min_threshold):
 
     df = df.apply(fill_outlier_reasons, axis=1)
 
-    # for column in ["sv_outlier_reason1", "sv_outlier_reason2", "sv_outlier_reason3"]:
-    #    df[column] = df[column].replace(outlier_type_crosswalk)
-
     # Drop the _merge column
     df = df.drop(columns=["_merge"])
 
     # Assign outlier status
     values_to_check = {
-        "PTAX-203 Exclusion",
+        # "PTAX-203 Exclusion",
         "High price",
         "Low price",
         "High price per square foot",
@@ -229,9 +248,10 @@ def classify_outliers(df, stat_groups: list, min_threshold):
 
     df = df.assign(
         # PTAX-203 binary
-        sv_is_ptax_outlier=lambda df: df["sv_ind_ptax_flag_w_deviation"] == 1,
-        sv_is_heuristic_outlier=lambda df: (~df["sv_ind_ptax_flag_w_deviation"] == 1)
-        & (df["sv_is_outlier"] == 1),
+        sv_is_ptax_outlier=lambda df: (df["sv_is_outlier"] == True)
+        & (df["sv_ind_ptax_flag"] == 1),
+        sv_is_heuristic_outlier=lambda df: (~df["sv_ind_ptax_flag"] == 1)
+        & (df["sv_is_outlier"] == True),
     )
 
     return df
