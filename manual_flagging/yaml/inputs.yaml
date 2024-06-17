@@ -13,7 +13,7 @@ run_note: |
 # without flags, it assigns a version number of "1". The latest
 # version of each sale flag can be found in the "default"."vw_pin_sale" view.
 
-manual_update: false
+manual_update: true
 
 # "housing_market_type" and "run_tri" configurations determine the
 # specificity of flagging. First, we retrieve the run tris, then run
@@ -25,7 +25,6 @@ housing_market_type: [
   "res_multi_family",
   "res_all",
   "condos"
-
 ]
 run_tri: [1, 2, 3]
 
