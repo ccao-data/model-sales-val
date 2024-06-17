@@ -218,7 +218,9 @@ def classify_outliers(df, stat_groups: list, min_threshold):
                 and row[reason_ind_col]
                 and current_reason
                 not in reasons_added  # Check if the reason is already added
-                # Apply group threshold logic
+                # Apply group threshold logic: `row["_merge"]` will be `both` when the group threshold
+                # is not met, but only price indicators (`group_thresh_price_fix`) should use this threshold,
+                # since ptax indicators don't currently utilize group threshold logic
                 and not (
                     row["_merge"] == "both" and reason_ind_col in group_thresh_price_fix
                 )
