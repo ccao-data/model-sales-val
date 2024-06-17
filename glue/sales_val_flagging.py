@@ -208,25 +208,25 @@ def classify_outliers(df, stat_groups: list, min_threshold):
     ]
 
     def fill_outlier_reasons(row):
-        reason_idx = 1
         reasons_added = set()  # Set to track reasons already added
 
-        for reason in outlier_type_crosswalk:
-            current_reason = outlier_type_crosswalk[reason]
+        for reason_ind_col in outlier_type_crosswalk:
+            current_reason = outlier_type_crosswalk[reason_ind_col]
             # Add a check to ensure that only specific reasons are added if _merge is not 'both'
             if (
-                reason in row
-                and row[reason]
+                reason_ind_col in row
+                and row[reason_ind_col]
                 and current_reason
                 not in reasons_added  # Check if the reason is already added
                 # Apply group threshold logic
-                and not (row["_merge"] == "both" and reason in group_thresh_price_fix)
+                and not (
+                    row["_merge"] == "both" and reason_ind_col in group_thresh_price_fix
+                )
             ):
-                row[f"sv_outlier_reason{reason_idx}"] = current_reason
+                row[f"sv_outlier_reason{len(reasons_added) + 1}"] = current_reason
                 reasons_added.add(current_reason)  # Add current reason to the set
-                if reason_idx >= 3:
+                if len(reasons_added) >= 3:
                     break
-                reason_idx += 1
 
         return row
 
