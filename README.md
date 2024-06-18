@@ -54,11 +54,11 @@ Commercial, industrial, and land-only property sales are _not_ flagged by this m
 Outlier flags are broken out into 2 types: statistical outliers and heuristic outliers.
 
 - Statistical outliers are sales that are a set number of standard deviations (usually 2) away from the mean of a group of similar properties (e.g. within the same township, class, timeframe, etc.).
-- Heuristic outliers use some sort of existing flag or rule to identify potentially non-arms-length sales. Heuristic outliers are ***always combined with a statistical threshold***, i.e. a sale with a matching last name must _also_ be N standard deviations from a group mean in order to be flagged. Examples of heuristic outlier flags include:
-    - **PTAX flag**: The [PTAX-203](https://tax.illinois.gov/content/dam/soi/en/web/tax/localgovernments/property/documents/ptax-203.pdf) form is required by the Illinois Department of Revenue for most property transfers. Certain fields on this form are highly indicative of a non-arms-length transaction, i.e. Question 10 indicating a short sale.
-    - **Non-person sale**: Flagged keyword suggests the sale involves a non-person legal entity (industrial buyer, bank, real estate firm, construction, etc.).
-    - **Flip Sale**: Flagged when the owner of the home owned the property for less than 1 year
-    - **Anomaly**: Flagged via an unsupervised machine learning model (isolation forest).
+- Heuristic outliers use some sort of existing flag or rule to identify potentially non-arms-length sales. Heuristic outliers are _**always combined with a statistical threshold**_, i.e. a sale with a matching last name must _also_ be N standard deviations from a group mean in order to be flagged. Examples of heuristic outlier flags include:
+  - **PTAX flag**: The [PTAX-203](https://tax.illinois.gov/content/dam/soi/en/web/tax/localgovernments/property/documents/ptax-203.pdf) form is required by the Illinois Department of Revenue for most property transfers. Certain fields on this form are highly indicative of a non-arms-length transaction, i.e. Question 10 indicating a short sale.
+  - **Non-person sale**: Flagged keyword suggests the sale involves a non-person legal entity (industrial buyer, bank, real estate firm, construction, etc.).
+  - **Flip Sale**: Flagged when the owner of the home owned the property for less than 1 year
+  - **Anomaly**: Flagged via an unsupervised machine learning model (isolation forest).
 
 The following is a list of all current flag types:
 
@@ -97,24 +97,6 @@ The following is a list of all current flag types:
 This query is used to generate the total sales that have some sort of outlier classification
 /*
 
-WITH TotalRecords AS (
-    SELECT COUNT(*) as total_count
-    FROM default.vw_pin_sale
-    WHERE sv_is_outlier IS NOT null
-), OutlierCount AS (
-    SELECT COUNT(*) as outlier_count
-    FROM default.vw_pin_sale
-    WHERE sv_is_outlier IS NOT NULL
-    AND sv_outlier_type <> 'Not outlier'
-)
-
-SELECT
-    ROUND(
-        (outlier_count * 100.0) / total_count,
-        3
-    ) AS outlier_percentage
-FROM
-    TotalRecords, OutlierCount;
 -->
 
 As of 2024-03-15, around **6.9%** of the total sales have some sort of outlier classification. Within that 6.9%, the proportion of each outlier type is:
@@ -123,53 +105,7 @@ As of 2024-03-15, around **6.9%** of the total sales have some sort of outlier c
 /*
 This query is used to generate the proportion of different outlier types
 /*
-
-WITH TotalRecords AS (
-    SELECT COUNT(*) as total_count
-    FROM default.vw_pin_sale
-    WHERE sv_is_outlier IS NOT null
-    AND sv_outlier_type <> 'Not outlier'
-)
-
-SELECT
-    sv_outlier_type,
-    ROUND((COUNT(*) * 1.0 / total_count) * 100, 2) as proportion
-FROM
-    default.vw_pin_sale
-CROSS JOIN
-    TotalRecords
-WHERE
-    sv_is_outlier IS NOT null
-    AND sv_outlier_type <> 'Not outlier'
-GROUP BY
-    sv_outlier_type, total_count
-ORDER BY
-    proportion DESC;
 -->
-
-|Outlier Type           |Percentage|
-|-----------------------|---------:|
-|PTAX-203 flag (Low)    |35.50%    |
-|Non-person sale (low)  |18.17%    |
-|Non-person sale (high) |10.29%    |
-|Anomaly (high)         |7.08%     |
-|High price (raw)       |6.20%     |
-|Low price (raw)        |4.46%     |
-|Low price (raw & sqft) |4.02%     |
-|PTAX-203 flag (High)   |2.98%     |
-|Home flip sale (high)  |2.31%     |
-|Low price (sqft)       |1.95%     |
-|High price (sqft)      |1.88%     |
-|Anomaly (low)          |1.76%     |
-|High price (raw & sqft)|1.44%     |
-|Home flip sale (low)   |1.26%     |
-|Family sale (low)      |0.64%     |
-|Family sale (high)     |0.06%     |
-|High price swing       |0.01%     |
-|Low price swing        |0.00%     |
-
-
-*These outliers are flagged if the relevant price columns (log10 transformed and normalized) are 2 standard deviations below or above the mean within a given group*
 
 ## Flagging Details
 
@@ -264,7 +200,9 @@ erDiagram
         boolean sv_is_ptax_outlier
         boolean ptax_flag_original
         boolean sv_is_heuristic_outlier
-        string sv_outlier_type
+        string sv_outlier_reason1
+        string sv_outlier_reason2
+        string sv_outlier_reason3
         string group
         string run_id FK
         bigint version PK
