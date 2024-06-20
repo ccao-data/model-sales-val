@@ -12,6 +12,10 @@ import yaml
 from pyathena import connect
 from pyathena.pandas.util import as_pandas
 
+###########################
+# PARSE INPUTS
+###########################
+
 # Set working dir to manual_update, standardize yaml and src locations
 root = sp.getoutput("git rev-parse --show-toplevel")
 os.chdir(os.path.join(root, "manual_flagging"))
@@ -38,16 +42,25 @@ assert len(inputs["run_tri"]) == len(
     set(inputs["run_tri"])
 ), "Duplicate values in 'run_tri'"
 
+###########################
+# INGEST
+###########################
+
 # Connect to Athena
 conn = connect(
     s3_staging_dir=os.getenv("AWS_ATHENA_S3_STAGING_DIR"),
     region_name=os.getenv("AWS_REGION"),
 )
 
-date_floor = flg.months_back(
-    date_str=inputs["time_frame"]["start"],
-    num_months=inputs["rolling_window_months"] - 1,
+# Calculate the earliest date needed in order to satisfy the rolling window
+# before the configured start date
+start_date = datetime.datetime.strptime(
+    inputs["time_frame"]["start"], "%Y-%m-%d"
 )
+result_date = start_date - relativedelta(
+    months=inputs["rolling_window_months"] - 1
+)
+date_floor = result_date.replace(day=1).strftime("%Y-%m-%d")
 
 # Parse yaml to get which sales to flag
 if inputs["time_frame"]["end"] == None:
@@ -67,9 +80,9 @@ WITH CombinedData AS (
         res.class AS class,
         res.township_code AS township_code,
         res.year AS year,
-        res.char_yrblt as yrblt,
         res.pin AS pin,
         res.char_bldg_sf AS char_bldg_sf,
+        CAST(DATE_FORMAT(CURRENT_DATE, '%Y') AS INT) - res.char_yrblt AS char_bldg_age,
         res.pin_is_multicard
     FROM default.vw_card_res_char res
     WHERE res.class IN (
@@ -86,9 +99,9 @@ WITH CombinedData AS (
         condo.class AS class,
         condo.township_code AS township_code,
         condo.year AS year,
-        NULL AS yrblt,
         condo.pin AS pin,
         NULL AS char_bldg_sf,
+        NULL AS char_bldg_age,
         FALSE AS pin_is_multicard
     FROM default.vw_pin_condo_char condo
     WHERE condo.class IN ('297', '299', '399')
@@ -121,10 +134,10 @@ SELECT
     sale.sale_filter_ptax_flag AS ptax_flag_original,
     data.class,
     data.township_code,
-    data.yrblt,
     data.year,
     data.pin,
     data.char_bldg_sf,
+    data.char_bldg_age,
     data.indicator,
     universe.triad_code 
 FROM CombinedData data
@@ -154,19 +167,26 @@ cursor = conn.cursor()
 cursor.execute(SQL_QUERY)
 metadata = cursor.description
 
-df_ingest = as_pandas(cursor)
-df = df_ingest
+df = as_pandas(cursor)
+earliest_sale_ingest = df.meta_sale_date.min()
+latest_sale_ingest = df.meta_sale_date.max()
 
 if inputs["manual_update"] == True:
-    # TODO: sub this out for prod table before merging
     SQL_QUERY_SALES_VAL = """
     SELECT *
     FROM sale.flag
     """
     cursor.execute(SQL_QUERY_SALES_VAL)
     df_ingest_flag = as_pandas(cursor)
-    df_flag_table = df_ingest_flag
+    # Group the existing data by 'ID' and find the maximum 'version' for each sale
+    existing_max_version = (
+        df_ingest_flag.groupby("meta_sale_document_num")["version"]
+        .max()
+        .reset_index()
+        .rename(columns={"version": "existing_version"})
+    )
 
+# Convert data types
 conversion_dict = {
     col[0]: flg.sql_type_to_pd_type(col[1])
     for col in metadata
@@ -175,33 +195,10 @@ conversion_dict = {
 df = df.astype(conversion_dict)
 df["ptax_flag_original"].fillna(False, inplace=True)
 
-# Calculate the building's age for feature creation
-current_year = datetime.datetime.now().year
-df["char_bldg_age"] = current_year - df["yrblt"]
 
-
-def create_bins_and_labels(input_list):
-    """
-    Some of the groups used for flagging are partitions of
-    building size or age, this helper function returns the
-    bins and labels for the column creation based on input data
-    from our config file.
-    """
-
-    # Initialize bins with 0 and float("inf")
-    bins = [0] + input_list + [float("inf")]
-
-    # Generate labels based on bins
-    labels = []
-    for i in range(len(bins) - 1):
-        if i == 0:
-            labels.append(f"below-{bins[i+1]}")
-        elif i == len(bins) - 2:
-            labels.append(f"above-{bins[i]}")
-        else:
-            labels.append(f"{bins[i]}-to-{bins[i+1]}")
-
-    return bins, labels
+###############
+# PARTITION
+###############
 
 
 # - - - - - - -
@@ -231,7 +228,42 @@ for tri in inputs["run_tri"]:
 
         # Initialize the DataFrame for the current key
         df_filtered = df[triad_code_filter & market_filter].copy()
-        dfs_to_rolling_window[key] = {"df": df_filtered}  # Store the filtered DataFrame
+
+        # Assign rolling windows
+        max_date = df_filtered["meta_sale_date"].max()
+        df_filtered = (
+            # Creates dt column with 12 month dates
+            df_filtered.assign(
+                rolling_window=df["meta_sale_date"].apply(
+                    lambda x: pd.date_range(
+                        start=x,
+                        periods=inputs["rolling_window_months"],
+                        freq="M"
+                    )
+                )
+            )
+            # Expand rolling_windows dates to individual rows
+            .explode("rolling_window")
+            # Tag original observations
+            .assign(
+                original_observation=lambda df: (
+                    df["meta_sale_date"].dt.month == df["rolling_window"].dt.month
+                )
+                & (df["meta_sale_date"].dt.year == df["rolling_window"].dt.year)
+            )
+            # Simplify to month level
+            .assign(rolling_window=lambda df: df["rolling_window"].dt.to_period("M"))
+            # Filter such that rolling_window isn't extrapolated into future, we are concerned with historic and present-month data
+            .loc[lambda df: df["rolling_window"] <= max_date.to_period("M")]
+            # Back to float for flagging script
+            .assign(
+                rolling_window=lambda df: df["rolling_window"]
+                .apply(lambda x: x.strftime("%Y%m"))
+                .astype(int),
+                meta_sale_price_original=lambda df: df["meta_sale_price"],
+            )
+        )
+        dfs_to_rolling_window[key] = {"df": df_filtered}
 
         # Extract the specific housing type configuration
         housing_type_config = inputs["stat_groups"][f"tri{tri}"][housing_type]
@@ -251,7 +283,19 @@ for tri in inputs["run_tri"]:
                         )
 
                 if "bins" in col:
-                    bins, labels = create_bins_and_labels(col["bins"])
+                    # Initialize bins with 0 and float("inf")
+                    bins = [0] + col["bins"] + [float("inf")]
+
+                    # Generate labels based on bins
+                    labels = []
+                    for i in range(len(bins) - 1):
+                        if i == 0:
+                            labels.append(f"below-{bins[i+1]}")
+                        elif i == len(bins) - 2:
+                            labels.append(f"above-{bins[i]}")
+                        else:
+                            labels.append(f"{bins[i]}-to-{bins[i+1]}")
+
                     new_col_name = f"{col['column']}_bin"
                     df_filtered[new_col_name] = pd.cut(
                         df_filtered[col["column"]], bins=bins, labels=labels
@@ -270,20 +314,9 @@ for tri in inputs["run_tri"]:
         dfs_to_rolling_window[key]["market"] = housing_type
 
 
-# - - - - - -
-# Make rolling window
-# - - - - - -
-
-dfs_to_flag = copy.deepcopy(dfs_to_rolling_window)
-
-for df_name, df_info in dfs_to_rolling_window.items():
-    print(f"Assigning rolling window for {df_name}")
-    df_copy = df_info["df"].copy()
-
-    df_copy = flg.add_rolling_window(
-        df_copy, num_months=inputs["rolling_window_months"]
-    )
-    dfs_to_flag[df_name]["df"] = df_copy
+################
+# FLAG
+################
 
 # - - - - -
 # Flag Sales
@@ -305,6 +338,12 @@ for df_name, df_info in dfs_to_flag.items():
     # Add the edited or unedited dataframe to the new dictionary
     dfs_flagged[df_name]["df"] = df_copy
 
+
+#########################
+# CLASSIFY
+#########################
+
+
 # - - - - - - - - - - -
 # Adjust outliers based on group sizes and incorporate ptax information
 # - - - - - - - - - - -
@@ -316,56 +355,231 @@ for df_name, df_info in dfs_flagged.items():
     print(f"\n Enacting group threshold and creating ptax data for {df_name}")
     df_copy = df_info["df"].copy()
 
-    df_copy = flg.ptax_adjustment(
-        df=df_copy,
-        groups=df_info["columns"],
-        ptax_sd=inputs["ptax_sd"],
-        condos=df_info["condos_boolean"],
+    group_string = "_".join(df_info["columns"])
+
+    # --------------------------
+    # Add PTAX indicator columns
+    # --------------------------
+
+    if not df_info["condos_boolean"]:
+        df_copy["sv_ind_ptax_flag_w_high_price"] = df_copy["ptax_flag_original"] & (
+            (df_copy[f"sv_price_deviation_{group_string}"] >= inputs["ptax_sd"][1])
+        )
+
+        df_copy["sv_ind_ptax_flag_w_high_price_sqft"] = df_copy["ptax_flag_original"] & (
+            (df_copy[f"sv_price_per_sqft_deviation_{group_string}"] >= inputs["ptax_sd"][1])
+        )
+
+        df_copy["sv_ind_ptax_flag_w_low_price"] = df_copy["ptax_flag_original"] & (
+            (df_copy[f"sv_price_per_sqft_deviation_{group_string}"] <= -inputs["ptax_sd"][0])
+        )
+
+        df_copy["sv_ind_ptax_flag_w_low_price_sqft"] = df_copy["ptax_flag_original"] & (
+            (df_copy[f"sv_price_per_sqft_deviation_{group_string}"] <= -inputs["ptax_sd"][0])
+        )
+
+    else:
+        df_copy["sv_ind_ptax_flag_w_high_price"] = df_copy["ptax_flag_original"] & (
+            (df_copy[f"sv_price_deviation_{group_string}"] >= inputs["ptax_sd"][1])
+        )
+
+        df_copy["sv_ind_ptax_flag_w_low_price"] = df_copy["ptax_flag_original"] & (
+            (df_copy[f"sv_price_deviation_{group_string}"] <= -inputs["ptax_sd"][0])
+        )
+
+    df_copy["sv_ind_ptax_flag"] = df_copy["ptax_flag_original"].astype(int)
+
+    # ---------------------------------------
+    # Add all other outlier indicator columns
+    # ---------------------------------------
+
+    stat_groups = df_info["columns"]
+    group_counts = df_copy.groupby(stat_groups).size().reset_index(name="count")
+    filtered_groups = group_counts[group_counts["count"] <= inputs["min_groups_threshold"]]
+
+    # Merge df_copy_flagged with filtered_groups on the columns to get the matching rows
+    df_copy = pd.merge(
+        df_copy, filtered_groups[stat_groups], on=stat_groups, how="left", indicator=True
     )
 
-    df_copy = flg.classify_outliers(
-        df=df_copy,
-        stat_groups=df_info["columns"],
-        min_threshold=inputs["min_groups_threshold"],
+    # Assign blank sv_outlier_reasons
+    for idx in range(1, 4):
+        df_copy[f"sv_outlier_reason{idx}"] = np.nan
+
+    outlier_type_crosswalk = {
+        "sv_ind_price_high_price": "High price",
+        "sv_ind_ptax_flag_w_high_price": "High price",
+        "sv_ind_price_low_price": "Low price",
+        "sv_ind_ptax_flag_w_low_price": "Low price",
+        "sv_ind_price_high_price_sqft": "High price per square foot",
+        "sv_ind_ptax_flag_w_high_price_sqft": "High price per square foot",
+        "sv_ind_price_low_price_sqft": "Low price per square foot",
+        "sv_ind_ptax_flag_w_low_price_sqft": "Low price per square foot",
+        "sv_ind_ptax_flag": "PTAX-203 Exclusion",
+        "sv_ind_char_short_term_owner": "Short-term owner",
+        "sv_ind_char_family_sale": "Family Sale",
+        "sv_ind_char_non_person_sale": "Non-person sale",
+        "sv_ind_char_statistical_anomaly": "Statistical Anomaly",
+        "sv_ind_char_price_swing_homeflip": "Price swing / Home flip",
+    }
+
+    # During our statistical flagging process, we automatically discard
+    # a sale's eligibility for outlier status if the number of sales in
+    # the statistical grouping is below a certain threshold. The list
+    # `group_thresh_price_fix` along with the ['_merge'] column will allow
+    # us to exclude these sales for the sv_is_outlier status.
+    #
+    # Since the `sv_is_outlier` column requires a price value, we simply
+    # do not assign these price outlier flags if the group number is below a certain
+    # threshold
+    #
+    # Note: This doesn't apply for sales that also have a ptax outlier status.
+    #       In this case, we still assign the price outlier status.
+
+    group_thresh_price_fix = [
+        "sv_ind_price_high_price",
+        "sv_ind_price_low_price",
+        "sv_ind_price_high_price_sqft",
+        "sv_ind_price_low_price_sqft",
+    ]
+
+    def fill_outlier_reasons(row):
+        reasons_added = set()  # Set to track reasons already added
+
+        for reason_ind_col in outlier_type_crosswalk:
+            current_reason = outlier_type_crosswalk[reason_ind_col]
+            # Add a check to ensure that only specific reasons are added if _merge is not 'both'
+            if (
+                reason_ind_col in row
+                and row[reason_ind_col]
+                and current_reason
+                not in reasons_added  # Check if the reason is already added
+                # Apply group threshold logic: `row["_merge"]` will be `both` when the group threshold
+                # is not met, but only price indicators (`group_thresh_price_fix`) should use this threshold,
+                # since ptax indicators don't currently utilize group threshold logic
+                and not (
+                    row["_merge"] == "both" and reason_ind_col in group_thresh_price_fix
+                )
+            ):
+                row[f"sv_outlier_reason{len(reasons_added) + 1}"] = current_reason
+                reasons_added.add(current_reason)  # Add current reason to the set
+                if len(reasons_added) >= 3:
+                    break
+
+        return row
+
+    df_copy = df_copy.apply(fill_outlier_reasons, axis=1)
+
+    # Drop the _merge column
+    df_copy = df_copy.drop(columns=["_merge"])
+
+    # Assign outlier status
+    values_to_check = {
+        "High price",
+        "Low price",
+        "High price per square foot",
+        "Low price per square foot",
+    }
+
+    df_copy["sv_is_outlier"] = np.where(
+        df_copy[[f"sv_outlier_reason{idx}" for idx in range(1, 4)]]
+        .isin(values_to_check)
+        .any(axis=1),
+        True,
+        False,
     )
 
-    """
-    Modify the 'group' column by appending '-market_value', this is done
-    to make sure that a two different groups with the same run_id won't
-    be returned with the same value. For example, if res and condos have the 
-    same column groupings, joining the group column from sale.flag to sale.group_mean
-    by 'group' and 'run_id' could potentially return two groups. This market type
-    append fixes that. This is also added in the group_mean data.
-    """
-    market_value = df_info["market"]
-    df_copy["group"] = df_copy["group"].astype(str) + "-" + market_value
+    # Add group column to eventually write to athena sale.flag table
+    df_copy["group"] = df_copy.apply(
+        # Modify the 'group' column by appending '-market_value', this is done
+        # to make sure that a two different groups with the same run_id won't
+        # be returned with the same value. For example, if res and condos have the
+        # same column groupings, joining the group column from sale.flag to sale.group_mean
+        # by 'group' and 'run_id' could potentially return two groups. This market type
+        # append fixes that. This is also added in the group_mean data.
+        lambda row: "_".join([str(row[col]) for col in stat_groups]) + "-" + df_info["market"],
+        axis=1
+    )
+
+    df_copy = df_copy.assign(
+        # PTAX-203 binary
+        sv_is_ptax_outlier=lambda df: (df["sv_is_outlier"] == True)
+        & (df["sv_ind_ptax_flag"] == 1),
+        sv_is_heuristic_outlier=lambda df: (~df["sv_ind_ptax_flag"] == 1)
+        & (df["sv_is_outlier"] == True),
+    )
 
     # Add the edited or unedited dataframe to the new dictionary
     dfs_to_finalize[df_name]["df"] = df_copy
+
+
+################
+# FINALIZE
+################
+
 
 # - - - - - - -
 # Finalize data to write and create data for all metadata tables
 # - - - - - - - -
 
-if inputs["manual_update"] == True:
-    # Group the existing data by 'ID' and find the maximum 'version' for each sale
-    existing_max_version = (
-        df_flag_table.groupby("meta_sale_document_num")["version"]
-        .max()
-        .reset_index()
-        .rename(columns={"version": "existing_version"})
-    )
-
 
 dfs_to_finalize_list = [details["df"] for details in dfs_to_finalize.values()]
 df_to_finalize = pd.concat(dfs_to_finalize_list, axis=0)
 
-df_to_write, run_id, timestamp = flg.finish_flags(
-    df=df_to_finalize,
-    start_date=inputs["time_frame"]["start"],
-    manual_update=inputs["manual_update"],
-    sales_to_write_filter=inputs["sales_to_write_filter"],
+# Remove duplicate rows
+df_to_finalize = df_to_finalize[df_to_finalize["original_observation"]]
+# Discard pre-2014 data
+df_to_finalize = df_to_finalize[df_to_finalize["meta_sale_date"] >= start_date]
+
+sales_to_write_filter = inputs["sales_to_write_filter"]
+if sales_to_write_filter["column"]:
+    df_to_finalize = df_to_finalize[
+        df_to_finalize[sales_to_write_filter["column"]].isin(sales_to_write_filter["values"])
+    ]
+
+cols_to_write = [
+    "meta_sale_document_num",
+    "meta_sale_price_original",
+    "rolling_window",
+    "sv_is_outlier",
+    "sv_outlier_reason1",
+    "sv_outlier_reason2",
+    "sv_outlier_reason3",
+    "sv_is_ptax_outlier",
+    "ptax_flag_original",
+    "sv_is_heuristic_outlier",
+    "group",
+]
+
+# Create run_id
+left = pd.read_csv(
+    "https://raw.githubusercontent.com/ccao-data/data-architecture/master/dbt/seeds/ccao/ccao.adjective.csv"
 )
+right = pd.read_csv(
+    "https://raw.githubusercontent.com/ccao-data/data-architecture/master/dbt/seeds/ccao/ccao.person.csv"
+)
+
+adj_name_combo = (
+    np.random.choice(left["adjective"]) + "-" + np.random.choice(right["person"])
+)
+timestamp = datetime.datetime.now(pytz.timezone("America/Chicago")).strftime(
+    "%Y-%m-%d_%H:%M"
+)
+run_id = timestamp + "-" + adj_name_combo
+
+# Control flow for incorporating versioning
+dynamic_assignment = {
+    "run_id": run_id,
+    "rolling_window": lambda df: pd.to_datetime(
+        df["rolling_window"], format="%Y%m"
+    ).dt.date,
+}
+
+if not inputs["manual_update"]:
+    dynamic_assignment["version"] = 1
+
+# Finalize to write to sale.flag table
+df_to_write = df_to_finalize[cols_to_write].assign(**dynamic_assignment).reset_index(drop=True)
 
 if inputs["manual_update"] == True:
     # Merge, compute new version, and drop unnecessary columns
@@ -383,37 +597,62 @@ run_filter = str(
     {"housing_market_type": inputs["housing_market_type"], "run_tri": inputs["run_tri"]}
 )
 
-# Get parameters df
-df_parameter = flg.get_parameter_df(
-    df_to_write=df_to_write,
-    df_ingest=df_ingest,
-    run_filter=run_filter,
-    iso_forest_cols=inputs["iso_forest"],
-    stat_groups=inputs["stat_groups"],
-    sales_to_write_filter=inputs["sales_to_write_filter"],
-    housing_market_class_codes=inputs["housing_market_class_codes"],
-    dev_bounds=inputs["dev_bounds"],
-    ptax_sd=inputs["ptax_sd"],
-    rolling_window=inputs["rolling_window_months"],
-    time_frame=inputs["time_frame"],
-    short_term_thresh=flg_model.SHORT_TERM_OWNER_THRESHOLD,
-    min_group_thresh=inputs["min_groups_threshold"],
-    run_id=run_id,
+# Get sale.parameter data
+df_parameters = pd.DataFrame(
+    {
+        "run_id": [run_id],
+        "sales_flagged": [df_to_write.shape[0]],
+        "earliest_data_ingest": [earliest_sale_ingest],
+        "latest_data_ingest": [latest_sale_ingest],
+        "run_filter": [run_filter],
+        "iso_forest_cols": [inputs["iso_forest"]],
+        "stat_groups": [inputs["stat_groups"]],
+        "sales_to_write_filter": [inputs["sales_to_write_filter"]],
+        "housing_market_class_codes": [inputs["housing_market_class_codes"]],
+        "dev_bounds": [inputs["dev_bounds"]],
+        "ptax_sd": [inputs["ptax_sd"]],
+        "rolling_window": [inputs["rolling_window_months"]],
+        "time_frame": [inputs["time_frame"]],
+        "short_term_owner_threshold": [flg_model.SHORT_TERM_OWNER_THRESHOLD],
+        "min_group_thresh": [inputs["min_groups_threshold"]],
+    }
 )
 
+# -------------------------------------------
 # Standardize dtypes to prevent Athena errors
+# -------------------------------------------
+
+# TODO: Replace this with modify_types code
 df_parameter = flg.modify_dtypes(df_parameter)
 
 # Get sale.group_mean data
 df_group_means = []  # List to store the transformed DataFrames
-
 for df_name, df_info in dfs_to_finalize.items():
-    df_group_mean = flg.get_group_mean_df(
-        df=dfs_flagged[df_name]["df"],
-        stat_groups=df_info["columns"],
-        run_id=run_id,
-        condos=df_info["condos_boolean"],
+    # Calculate group sizes
+    group_df = dfs_flagged[df_name]["df"].copy()
+    group_sizes = group_df.groupby(df_info["columns"]).size().reset_index(name="group_size")
+    group_df = group_df.merge(group_sizes, on=df_info["columns"], how="left")
+
+    group_df["group"] = group_df.apply(
+        lambda row: "_".join([str(row[col]) for col in df_info["columns"]]), axis=1
     )
+
+    if df_info["condos_boolean"]:
+        group_df = group_df.drop_duplicates(subset=["group"])[
+            ["group", "group_mean", "group_std", "group_size"]
+        ].assign(run_id=run_id)
+    else:
+        group_df = group_df.drop_duplicates(subset=["group"])[
+            [
+                "group",
+                "group_mean",
+                "group_std",
+                "group_sqft_std",
+                "group_sqft_mean",
+                "group_size",
+            ]
+        ].assign(run_id=run_id)
+
     market_value = df_info["market"]
     df_group_mean["group"] = df_group_mean["group"].astype(str) + "-" + market_value
     df_group_means.append(df_group_mean)
@@ -422,17 +661,22 @@ df_group_mean_to_write = pd.concat(df_group_means, ignore_index=True)
 
 # Get sale.metadata table
 commit_sha = sp.getoutput("git rev-parse HEAD")
-
-# Write to sale.group_mean table
-df_metadata = flg.get_metadata_df(
-    run_id=run_id,
-    timestamp=timestamp,
-    run_type="initial_flagging"
-    if inputs["manual_update"] == False
-    else "manual_update",
-    commit_sha=commit_sha,
-    run_note=inputs["run_note"],
+df_metadata = pd.DataFrame(
+    {
+        "run_id": [run_id],
+        "long_commit_sha": commit_sha,
+        "short_commit_sha": commit_sha[0:8],
+        "run_timestamp": timestamp,
+        "run_type": "initial_flagging" if not inputs["manual_update"] else "manual_update",
+        "run_note": inputs["run_note"],
+    }
 )
+
+
+######################
+# UPLOAD
+######################
+
 
 # - - - -
 # Write tables
@@ -445,11 +689,13 @@ tables_to_write = {
     "metadata": df_metadata,
 }
 
+file_name = run_id + ".parquet"
 for table, df in tables_to_write.items():
-    flg.write_to_table(
-        df=df,
-        table_name=table,
-        s3_warehouse_bucket_path=os.getenv("AWS_S3_WAREHOUSE_BUCKET"),
-        run_id=run_id,
+    s3_file_path = os.path.join(
+        os.getenv("AWS_S3_WAREHOUSE_BUCKET"),
+        "sale",
+        table,
+        file_name
     )
+    wr.s3.to_parquet(df=df, path=s3_file_path)
     print(f"{table} table successfully written")
