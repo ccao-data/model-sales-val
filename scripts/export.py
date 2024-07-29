@@ -17,29 +17,24 @@ import pyathena.pandas.util
 PIN_FIELD = "PARID"
 SALE_KEY_FIELD = "SALEKEY"
 IS_OUTLIER_FIELD = "USER26"
-OUTLIER_TYPE_FIELD = "USER27"
+OUTLIER_REASON1_FIELD = "USER27"
+OUTLIER_REASON2_FIELD = "TODO1"
+OUTLIER_REASON3_FIELD = "TODO2"
 RUN_ID_FIELD = "USER28"
 
 OUTLIER_TYPE_CODES = {
-    "Not outlier": "0",
-    "Anomaly (high)": "1",
-    "Anomaly (low)": "2",
-    "Family sale (high)": "3",
-    "Family sale (low)": "4",
-    "High price (raw & sqft)": "5",
-    "High price (raw)": "6",
-    "High price (sqft)": "7",
-    "High price swing": "8",
-    "Home flip sale (high)": "9",
-    "Home flip sale (low)": "10",
-    "Low price (raw & sqft)": "11",
-    "Low price (raw)": "12",
-    "Low price (sqft)": "13",
-    "Low price swing": "14",
-    "Non-person sale (high)": "15",
-    "Non-person sale (low)": "16",
-    "PTAX-203 flag (High)": "17",
-    "PTAX-203 flag (Low)": "18",
+    "": "0",
+    "Low price": "1",
+    "High price": "2",
+    "Low price per square foot": "3",
+    "High price per square foot": "4",
+    "High price per square foot": "5",
+    "Low price per square foot": "6",
+    "Non-person sale": "7",
+    "PTAX-203 Exclusion": "8",
+    "Statistical Anomaly": "9",
+    "Price swing / Home flip": "10",
+    "Family sale": "11",
 }
 
 if __name__ == "__main__":
@@ -81,7 +76,9 @@ if __name__ == "__main__":
             THEN 'Y'
             ELSE 'N'
         END AS {IS_OUTLIER_FIELD},
-        flag.sv_outlier_type AS {OUTLIER_TYPE_FIELD},
+        flag.sv_outlier_reason1 AS {OUTLIER_REASON1_FIELD},
+        flag.sv_outlier_reason2 AS {OUTLIER_REASON2_FIELD},
+        flag.sv_outlier_reason3 AS {OUTLIER_REASON3_FIELD},
         flag.run_id AS {RUN_ID_FIELD}
     FROM sale.flag AS flag
     -- Filter flags for the most recent version
@@ -97,13 +94,21 @@ if __name__ == "__main__":
     cursor.execute(FLAG_QUERY)
     flag_df = pyathena.pandas.util.as_pandas(cursor)
 
+    logger.info(f"{flag_df.sv_outlier_reason1.value_counts()}")
+
     num_flags = len(flag_df.index)
     logger.info(f"Got {num_flags} sales with flags")
 
     logger.info("Transforming columns")
 
     # Transform outlier type column from string to code
-    flag_df[OUTLIER_TYPE_FIELD] = flag_df[OUTLIER_TYPE_FIELD].replace(
+    flag_df[OUTLIER_REASON1_FIELD] = flag_df[OUTLIER_REASON1_FIELD].replace(
+        OUTLIER_TYPE_CODES
+    )
+    flag_df[OUTLIER_REASON2_FIELD] = flag_df[OUTLIER_REASON2_FIELD].replace(
+        OUTLIER_TYPE_CODES
+    )
+    flag_df[OUTLIER_REASON3_FIELD] = flag_df[OUTLIER_REASON3_FIELD].replace(
         OUTLIER_TYPE_CODES
     )
 
@@ -114,23 +119,24 @@ if __name__ == "__main__":
     for field in not_null_fields:
         assert flag_df[flag_df[field].isnull()].empty, f"{field} contains nulls"
 
-    assert flag_df[
-        ~flag_df[OUTLIER_TYPE_FIELD].isin(OUTLIER_TYPE_CODES.values())
-    ].empty, f"{OUTLIER_TYPE_FIELD} contains invalid codes"
+    for field in [OUTLIER_REASON1_FIELD, OUTLIER_REASON2_FIELD, OUTLIER_REASON3_FIELD]:
+        assert flag_df[
+            ~flag_df[field].isin(OUTLIER_TYPE_CODES.values())
+        ].empty, f"{field} contains invalid codes"
 
-    assert flag_df[
-        (flag_df[IS_OUTLIER_FIELD] == "Y")
-        & (flag_df[OUTLIER_TYPE_FIELD] == OUTLIER_TYPE_CODES["Not outlier"])
-    ].empty, (
-        f"{OUTLIER_TYPE_FIELD} cannot be {OUTLIER_TYPE_CODES['Not outlier']} "
-        f"when {IS_OUTLIER_FIELD} is Y"
-    )
+    logger.info("Test 1")
+
+    for field in [OUTLIER_REASON1_FIELD, OUTLIER_REASON2_FIELD, OUTLIER_REASON3_FIELD]:
+        assert flag_df[
+            (flag_df[IS_OUTLIER_FIELD] == "Y")
+            & (flag_df[field] == OUTLIER_TYPE_CODES["Not outlier"])
+        ].empty, f"{field} cannot be {OUTLIER_TYPE_CODES['Not outlier']} when {IS_OUTLIER_FIELD} is Y"
 
     assert flag_df[
         (flag_df[IS_OUTLIER_FIELD] == "N")
-        & (flag_df[OUTLIER_TYPE_FIELD] != OUTLIER_TYPE_CODES["Not outlier"])
+        & (flag_df[OUTLIER_REASON1_FIELD] != OUTLIER_TYPE_CODES[""])
     ].empty, (
-        f"{OUTLIER_TYPE_FIELD} must be {OUTLIER_TYPE_CODES['Not outlier']} "
+        f"{OUTLIER_REASON1_FIELD} must be {OUTLIER_TYPE_CODES['Not outlier']} "
         f"when {IS_OUTLIER_FIELD} is N"
     )
 
