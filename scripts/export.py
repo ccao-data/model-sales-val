@@ -133,7 +133,6 @@ if __name__ == "__main__":
         mask_all_not
     ), "If there is a price reason in one of the outlier reason fields, it should be classified as an outlier"
 
-    # Assert for IS_OUTLIER_FIELD == "Y"
     assert (flag_df[IS_OUTLIER_FIELD] == "Y").equals(
         mask_any
     ), "If there is no price reason in any of the outlier reason fields, it should not be an outlier"
