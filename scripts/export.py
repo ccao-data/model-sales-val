@@ -28,11 +28,11 @@ OUTLIER_TYPE_CODES = {
     "High price": "2",
     "Low price per square foot": "3",
     "High price per square foot": "4",
-    "Non-person sale": "7",
-    "PTAX-203 Exclusion": "8",
-    "Statistical Anomaly": "9",
-    "Price swing / Home flip": "10",
-    "Family sale": "11",
+    "Non-person sale": "5",
+    "PTAX-203 Exclusion": "6",
+    "Statistical Anomaly": "7",
+    "Price swing / Home flip": "8",
+    "Family sale": "9",
 }
 
 if __name__ == "__main__":
