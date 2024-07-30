@@ -23,13 +23,11 @@ OUTLIER_REASON3_FIELD = "TODO2"
 RUN_ID_FIELD = "USER28"
 
 OUTLIER_TYPE_CODES = {
-    "": "0",
+    None: "0",
     "Low price": "1",
     "High price": "2",
     "Low price per square foot": "3",
     "High price per square foot": "4",
-    "High price per square foot": "5",
-    "Low price per square foot": "6",
     "Non-person sale": "7",
     "PTAX-203 Exclusion": "8",
     "Statistical Anomaly": "9",
@@ -94,23 +92,19 @@ if __name__ == "__main__":
     cursor.execute(FLAG_QUERY)
     flag_df = pyathena.pandas.util.as_pandas(cursor)
 
-    logger.info(f"{flag_df.sv_outlier_reason1.value_counts()}")
-
     num_flags = len(flag_df.index)
     logger.info(f"Got {num_flags} sales with flags")
 
     logger.info("Transforming columns")
 
-    # Transform outlier type column from string to code
-    flag_df[OUTLIER_REASON1_FIELD] = flag_df[OUTLIER_REASON1_FIELD].replace(
-        OUTLIER_TYPE_CODES
-    )
-    flag_df[OUTLIER_REASON2_FIELD] = flag_df[OUTLIER_REASON2_FIELD].replace(
-        OUTLIER_TYPE_CODES
-    )
-    flag_df[OUTLIER_REASON3_FIELD] = flag_df[OUTLIER_REASON3_FIELD].replace(
-        OUTLIER_TYPE_CODES
-    )
+    outlier_fields = [
+        OUTLIER_REASON1_FIELD,
+        OUTLIER_REASON2_FIELD,
+        OUTLIER_REASON3_FIELD,
+    ]
+
+    for field in outlier_fields:
+        flag_df[field] = flag_df[field].replace(OUTLIER_TYPE_CODES)
 
     logger.info("Running data integrity checks")
 
@@ -120,25 +114,29 @@ if __name__ == "__main__":
         assert flag_df[flag_df[field].isnull()].empty, f"{field} contains nulls"
 
     for field in [OUTLIER_REASON1_FIELD, OUTLIER_REASON2_FIELD, OUTLIER_REASON3_FIELD]:
-        assert flag_df[
-            ~flag_df[field].isin(OUTLIER_TYPE_CODES.values())
-        ].empty, f"{field} contains invalid codes"
+        invalid_values = flag_df[~flag_df[field].isin(OUTLIER_TYPE_CODES.values())]
+        assert invalid_values.empty, f"{field} contains invalid codes"
 
-    logger.info("Test 1")
+    # Tests confirming that a price outlier reason is needed
+    # for a sale to be counted as an outlier, and vice-versa
+    values_to_check = list(OUTLIER_TYPE_CODES.values())[1:5]
+    columns_to_check = [
+        OUTLIER_REASON1_FIELD,
+        OUTLIER_REASON2_FIELD,
+        OUTLIER_REASON3_FIELD,
+    ]
 
-    for field in [OUTLIER_REASON1_FIELD, OUTLIER_REASON2_FIELD, OUTLIER_REASON3_FIELD]:
-        assert flag_df[
-            (flag_df[IS_OUTLIER_FIELD] == "Y")
-            & (flag_df[field] == OUTLIER_TYPE_CODES["Not outlier"])
-        ].empty, f"{field} cannot be {OUTLIER_TYPE_CODES['Not outlier']} when {IS_OUTLIER_FIELD} is Y"
+    mask_all_not = ~flag_df[columns_to_check].isin(values_to_check).any(axis=1)
+    mask_any = flag_df[columns_to_check].isin(values_to_check).any(axis=1)
 
-    assert flag_df[
-        (flag_df[IS_OUTLIER_FIELD] == "N")
-        & (flag_df[OUTLIER_REASON1_FIELD] != OUTLIER_TYPE_CODES[""])
-    ].empty, (
-        f"{OUTLIER_REASON1_FIELD} must be {OUTLIER_TYPE_CODES['Not outlier']} "
-        f"when {IS_OUTLIER_FIELD} is N"
-    )
+    assert (flag_df[IS_OUTLIER_FIELD] == "N").equals(
+        mask_all_not
+    ), "If there is a price reason in one of the outlier reason fields, it should be classified as an outlier"
+
+    # Assert for IS_OUTLIER_FIELD == "Y"
+    assert (flag_df[IS_OUTLIER_FIELD] == "Y").equals(
+        mask_any
+    ), "If there is no price reason in any of the outlier reason fields, it should not be an outlier"
 
     assert (
         num_flags == expected_num_flags
