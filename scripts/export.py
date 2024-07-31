@@ -23,6 +23,7 @@ OUTLIER_REASON3_FIELD = "TODO2"
 RUN_ID_FIELD = "USER28"
 
 OUTLIER_TYPE_CODES = {
+    None: None,
     "Low price": "1",
     "High price": "2",
     "Low price per square foot": "3",
@@ -111,6 +112,8 @@ if __name__ == "__main__":
     not_null_fields = [PIN_FIELD, SALE_KEY_FIELD, RUN_ID_FIELD]
     for field in not_null_fields:
         assert flag_df[flag_df[field].isnull()].empty, f"{field} contains nulls"
+
+    logger.info(f"Got {num_flags} sales with flags")
 
     for field in [OUTLIER_REASON1_FIELD, OUTLIER_REASON2_FIELD, OUTLIER_REASON3_FIELD]:
         invalid_values = flag_df[~flag_df[field].isin(OUTLIER_TYPE_CODES.values())]
