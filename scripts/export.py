@@ -23,7 +23,6 @@ OUTLIER_REASON3_FIELD = "TODO2"
 RUN_ID_FIELD = "USER28"
 
 OUTLIER_TYPE_CODES = {
-    None: "0",
     "Low price": "1",
     "High price": "2",
     "Low price per square foot": "3",
