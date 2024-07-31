@@ -119,15 +119,29 @@ if __name__ == "__main__":
 
     # Tests confirming that a price outlier reason is needed
     # for a sale to be counted as an outlier, and vice-versa
-    values_to_check = list(OUTLIER_TYPE_CODES.values())[1:5]
+
+    PRICE_CODES = [
+        "Low price",
+        "High price",
+        "Low price per square foot",
+        "High price per square foot",
+    ]
+
+    for price_code in PRICE_CODES:
+        assert (
+            price_code in OUTLIER_TYPE_CODES
+        ), f"{price_code} is in PRICE_CODES but missing from OUTLIER_TYPE_CODES"
+
+    PRICE_CODES = [OUTLIER_TYPE_CODES[code] for code in PRICE_CODES]
+
     columns_to_check = [
         OUTLIER_REASON1_FIELD,
         OUTLIER_REASON2_FIELD,
         OUTLIER_REASON3_FIELD,
     ]
 
-    mask_all_not = ~flag_df[columns_to_check].isin(values_to_check).any(axis=1)
-    mask_any = flag_df[columns_to_check].isin(values_to_check).any(axis=1)
+    mask_all_not = ~flag_df[columns_to_check].isin(PRICE_CODES).any(axis=1)
+    mask_any = flag_df[columns_to_check].isin(PRICE_CODES).any(axis=1)
 
     assert (flag_df[IS_OUTLIER_FIELD] == "N").equals(
         mask_all_not
