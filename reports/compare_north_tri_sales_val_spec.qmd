@@ -1,0 +1,909 @@
+---
+title: "Compare sales val specs"
+execute: 
+  echo: false
+  warning: false
+format:
+  html:
+    embed-resources: true
+    toc: true
+    toc_float: true
+    fig-align: center
+    fontsize: 12pt
+knitr:
+  opts_chunk:
+    out.width: "100%"
+editor: source
+---
+
+```{r _libraries}
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+library(here)
+library(noctua)
+library(bit64)
+library(stringr)
+library(leaflet)
+library(stringr)
+library(leafsync)
+library(scales)
+library(sf)
+library(htmltools)
+
+```
+
+```{r _data_ingest}
+# Ingest data
+noctua_options(cache_size = 10, unload = FALSE)
+
+AWS_ATHENA_CONN_NOCTUA <- dbConnect(noctua::athena())
+
+df_flag_town_class <- dbGetQuery(
+  conn = AWS_ATHENA_CONN_NOCTUA,
+  "SELECT 
+    flag.*,
+    ps.pin, 
+    ps.year,
+    ps.sale_price,
+    pu.class,
+    pu.lon,
+    pu.lat,
+    pu.triad_name,
+    pu.township_name,
+    pu.nbhd_code
+   FROM 
+      z_ci_model_sales_val_sales_val_pre_modeling_check_sale.flag AS flag
+   JOIN 
+      default.vw_pin_sale ps
+   ON 
+      flag.meta_sale_document_num = ps.doc_no
+   JOIN 
+      default.vw_pin_universe pu
+   ON 
+      ps.pin = pu.pin 
+   AND 
+      ps.year = pu.year
+   WHERE 
+      flag.run_id = '2024-08-29_10:27-blissful-bowen';"
+)
+
+df_group_mean_town_class <- dbGetQuery(
+  conn = AWS_ATHENA_CONN_NOCTUA,
+  "SELECT * FROM z_ci_model_sales_val_sales_val_pre_modeling_check_sale.group_mean
+  WHERE run_id = '2024-08-29_10:27-blissful-bowen'"
+)
+
+df_flag_sf_age_town <- dbGetQuery(
+  conn = AWS_ATHENA_CONN_NOCTUA,
+  "SELECT 
+    flag.*,
+    ps.pin, 
+    ps.year,
+    ps.sale_price,
+    pu.class,
+    pu.lat,
+    pu.lon,
+    pu.triad_name,
+    pu.township_name,
+    pu.nbhd_code
+   FROM 
+      z_ci_model_sales_val_sales_val_pre_modeling_check_sale.flag AS flag
+   JOIN 
+      default.vw_pin_sale ps
+   ON 
+      flag.meta_sale_document_num = ps.doc_no 
+   JOIN 
+      default.vw_pin_universe pu
+   ON 
+      ps.pin = pu.pin 
+   AND 
+      ps.year = pu.year
+   WHERE run_id = '2024-08-30_09:56-busy-matt';"
+  
+)
+
+df_group_mean_sf_age_town <- dbGetQuery(
+  conn = AWS_ATHENA_CONN_NOCTUA,
+  "SELECT * FROM z_ci_model_sales_val_sales_val_pre_modeling_check_sale.group_mean
+  WHERE run_id = '2024-08-30_09:56-busy-matt'"
+)
+
+df_group_mean_city_tri <- dbGetQuery(
+  conn = AWS_ATHENA_CONN_NOCTUA,
+  "SELECT * FROM sale.group_mean
+  WHERE run_id = '2024-03-14_14:48-loving-iris'"
+)
+
+
+```
+
+## Basic look at number of sales excluded from sales val pipeline
+
+```{r _compare_sales_ineligible_due_to_grouping}
+
+# Create each processed dataframe with an additional 'data_spec' column
+df_group_mean_city_tri_percent_out <- df_group_mean_city_tri %>% 
+  mutate(threshold = ifelse(group_size < 30, "under", "over")) %>% 
+  group_by(threshold) %>% 
+  summarise(total_sales = sum(group_size)) %>% 
+  mutate(percentage_under = total_sales / sum(total_sales) * 100) %>% 
+  filter(threshold == "under") %>%
+  mutate(data_spec = "df_group_mean_city_tri")
+
+df_group_mean_town_class_percent_out <- df_group_mean_town_class %>% 
+  mutate(threshold = ifelse(group_size < 30, "under", "over")) %>% 
+  group_by(threshold) %>% 
+  summarise(total_sales = sum(group_size)) %>% 
+  mutate(percentage_under = total_sales / sum(total_sales) * 100) %>% 
+  filter(threshold == "under") %>%
+  mutate(data_spec = "df_group_mean_town_class")
+
+df_group_mean_sf_age_town_percent_out <- df_group_mean_sf_age_town %>% 
+  mutate(threshold = ifelse(group_size < 30, "under", "over")) %>% 
+  group_by(threshold) %>% 
+  summarise(total_sales = sum(group_size)) %>% 
+  mutate(percentage_under = total_sales / sum(total_sales) * 100) %>% 
+  filter(threshold == "under") %>%
+  mutate(data_spec = "df_group_mean_sf_age_town")
+
+# Combine all three dataframes using bind_rows
+combined_df <- bind_rows(
+  df_group_mean_city_tri_percent_out,
+  df_group_mean_town_class_percent_out,
+  df_group_mean_sf_age_town_percent_out
+  )
+
+
+# Create the bar chart
+ggplot(combined_df, aes(x = data_spec, y = percentage_under, fill = data_spec)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = paste0(round(percentage_under, 1), "%")), 
+            vjust = -0.5, size = 4.5) +  # Add rounded percentage labels above bars
+  labs(x = "Data Specification", y = "",
+       title = "Percentage of sales in n < 30",
+           caption = "Data from 2014-current") +
+  scale_fill_discrete(
+    name = "Data Specification",
+    labels = c("City Tri", "North tri - sqft age town",  "North tri - town Class")
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_blank()  # Remove x-axis labels
+  ) + ylim(c(0, 7))
+
+
+###TODO: Need to compare by township breakout. percentage not touched vs percentage outlier etc
+```
+
+
+```{r}
+exclusions_recent_years <- rbind(
+# Subset years to compare before and after for both methods
+df_group_mean_sf_age_town %>% 
+  mutate(threshold = ifelse(group_size < 30, "under", "over")) %>% 
+  filter(str_detect(group, "^2023|2024")) %>% 
+  group_by(threshold) %>% 
+  summarise(total_sales = sum(group_size)) %>% 
+  mutate(percentage_under = total_sales / sum(total_sales) * 100) %>% 
+  filter(threshold == "under") %>% 
+  mutate(label = "Sqft age town 2023-2024"),
+
+df_group_mean_sf_age_town %>% 
+  mutate(threshold = ifelse(group_size < 30, "under", "over")) %>% 
+  filter(str_detect(group, "^2022|2021|2020|2019")) %>% 
+  group_by(threshold) %>% 
+  summarise(total_sales = sum(group_size)) %>% 
+  mutate(percentage_under = total_sales / sum(total_sales) * 100) %>% 
+  filter(threshold == "under") %>% 
+  mutate(label = "Sqft age town 2019-2022"),
+
+df_group_mean_town_class %>% 
+  mutate(threshold = ifelse(group_size < 30, "under", "over")) %>% 
+  filter(str_detect(group, "^2023|2024")) %>% 
+  group_by(threshold) %>% 
+  summarise(total_sales = sum(group_size)) %>% 
+  mutate(percentage_under = total_sales / sum(total_sales) * 100) %>% 
+  filter(threshold == "under") %>% 
+  mutate(label = "Class town 2023-2024"),
+
+df_group_mean_town_class %>% 
+  mutate(threshold = ifelse(group_size < 30, "under", "over")) %>% 
+  #2019-2022
+  filter(str_detect(group, "^2022|2021|2020|2019")) %>% 
+  group_by(threshold) %>% 
+  summarise(total_sales = sum(group_size)) %>% 
+  mutate(percentage_under = total_sales / sum(total_sales) * 100) %>% 
+  filter(threshold == "under") %>% 
+  mutate(label = "Class town 2019-2022")
+
+)
+
+# # Define colors for the two groups
+color_mapping <- c("Class town 2019-2022" = "skyblue", "Class town 2023-2024" = "skyblue",
+                   "Sqft age town 2019-2022" = "salmon", "Sqft age town 2023-2024" = "salmon")
+
+# Plot the bar chart
+ggplot(exclusions_recent_years, aes(x = label, y = percentage_under, fill = label)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = paste0(round(percentage_under, 1), "%")), 
+            vjust = -0.5, size = 4.5) +
+  scale_fill_manual(values = color_mapping) +  
+  labs(fill = "Category",
+       title = "Sales excluded increasing over time, lower sale volume?",
+       x = "") +  
+  theme_minimal() + 
+  theme(axis.text.x = element_blank(), 
+        axis.ticks.x = element_blank()) +
+  ylim(c(0, 6))
+```
+```{r}
+df_flag_town_class <- df_flag_town_class %>%
+  left_join(
+    df_group_mean_town_class %>% select(group, group_size),  
+    by = "group"  
+  ) 
+
+df_flag_town_class <- df_flag_town_class %>%
+  filter(triad_name == "North") %>% 
+    mutate(
+      symbol_to_graph = case_when(
+        group_size < 30 ~ "Did not enter pipeline",
+        sv_is_outlier == TRUE ~ "Outlier",
+        sv_is_outlier == FALSE ~ "Not outlier"
+      ),
+      spec = "Town class"
+    )
+
+
+df_flag_sf_age_town <- df_flag_sf_age_town %>%
+  left_join(
+    df_group_mean_sf_age_town %>% select(group, group_size),  
+    by = "group"  
+  ) 
+
+df_flag_sf_age_town <- df_flag_sf_age_town %>%
+    filter(triad_name == "North") %>% 
+    mutate(
+      symbol_to_graph = case_when(
+        group_size < 30 ~ "Did not enter pipeline",
+        sv_is_outlier == TRUE ~ "Outlier",
+        sv_is_outlier == FALSE ~ "Not outlier"
+      ),
+      spec = "Sqft age town"
+    )
+```
+
+```{r}
+  ggplot(rbind(df_flag_sf_age_town, df_flag_town_class), aes(x = spec, fill = symbol_to_graph)) +
+  geom_bar(position = "fill") +
+  
+  labs(
+    x = "Group",
+    y = "Proportion",
+    fill = "Category",
+    title = "More sales in n < 30 in town / class spec",
+    caption = "Sales from 2014-current"
+  ) +
+  scale_y_continuous(labels = scales::percent) +scale_fill_manual(
+    values = c("Did not enter pipeline" = "darkgrey", 
+               "Not outlier" = "green3", 
+               "Outlier" = "brown1")) +
+  theme_minimal() + coord_flip()
+```
+## By township
+
+```{r}
+ggplot(df_flag_town_class, aes(x = township_name, fill = symbol_to_graph)) +
+  geom_bar(position = "fill") +
+  geom_text(
+    stat = 'count',
+    aes(label = ..count..),
+    position = position_fill(vjust = 0.5),
+    size = 3
+  ) +
+  labs(
+    x = "",
+    y = "Proportion",
+    fill = "Category",
+    title = "In town class makeup, Norwood Park and Barrington stand out",
+    caption = "Sales from 2014-current"
+  ) +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(
+    values = c("Did not enter pipeline" = "darkgrey", 
+               "Not outlier" = "green3", 
+               "Outlier" = "brown1")
+  ) +
+  theme_minimal() +
+  coord_flip()
+```
+```{r}
+  ggplot(df_flag_sf_age_town, aes(x = township_name, fill = symbol_to_graph)) +
+  geom_bar(position = "fill") + 
+  geom_text(
+    stat = 'count',
+    aes(label = ..count..),
+    position = position_fill(vjust = 0.5),
+    size = 3) +
+  labs(
+    x = "",
+    y = "Proportion",
+    fill = "Sale status",
+    title = "Sqft age and town increase sales eligible for sales val",
+    caption = "Sales from 2014 - current"
+  ) +
+  scale_y_continuous(labels = scales::percent) +scale_fill_manual(
+    values = c("Did not enter pipeline" = "darkgrey", 
+               "Not outlier" = "green3", 
+               "Outlier" = "brown1")) +
+  theme_minimal() + coord_flip()
+```
+
+## Analysis on sales with changed classification
+
+```{r}
+compare_changes <- df_flag_town_class %>%
+  left_join(
+    df_flag_sf_age_town %>%
+      select(meta_sale_document_num, symbol_to_graph) %>% 
+      rename(symbol_to_graph_sqft_age = symbol_to_graph)
+    )
+
+compare_raw_numbers_by_township <- compare_changes %>% 
+  filter(symbol_to_graph != symbol_to_graph_sqft_age) %>% 
+  count(township_name, symbol_to_graph, symbol_to_graph_sqft_age) %>% 
+  mutate(
+    change = case_when(
+      symbol_to_graph == 'Did not enter pipeline' & symbol_to_graph_sqft_age == 'Not outlier' ~ "Excluded to not outlier",
+      symbol_to_graph == 'Did not enter pipeline' & symbol_to_graph_sqft_age == 'Outlier' ~ "Excluded to outlier",
+      symbol_to_graph == 'Not outlier' & symbol_to_graph_sqft_age == 'Did not enter pipeline' ~ "Not outlier to excluded",
+      symbol_to_graph == 'Not outlier' & symbol_to_graph_sqft_age == 'Outlier' ~ "Not outlier to outlier",
+      symbol_to_graph == 'Outlier' & symbol_to_graph_sqft_age == 'Did not enter pipeline' ~ "Outlier to excluded",
+      symbol_to_graph == 'Outlier' & symbol_to_graph_sqft_age == 'Not outlier' ~ "Outlier to not outlier"
+    ),
+    change_basic = case_when(
+      symbol_to_graph == 'Did not enter pipeline' & symbol_to_graph_sqft_age == 'Not outlier' ~ "not outlier",
+      symbol_to_graph == 'Did not enter pipeline' & symbol_to_graph_sqft_age == 'Outlier' ~ "outlier",
+      symbol_to_graph == 'Not outlier' & symbol_to_graph_sqft_age == 'Did not enter pipeline' ~ "excluded",
+      symbol_to_graph == 'Not outlier' & symbol_to_graph_sqft_age == 'Outlier' ~ "outlier",
+      symbol_to_graph == 'Outlier' & symbol_to_graph_sqft_age == 'Did not enter pipeline' ~ "excluded",
+      symbol_to_graph == 'Outlier' & symbol_to_graph_sqft_age == 'Not outlier' ~ "not outlier"
+    )
+    
+  )
+
+
+totals_compare_raw_numbers_by_township <- compare_raw_numbers_by_township %>% 
+  group_by(township_name) %>% 
+  summarise(total = sum(n))
+
+
+
+ggplot(compare_raw_numbers_by_township, aes(x = township_name, y = n, fill = change)) +
+  geom_col(position = "fill") +
+  geom_text(aes(y = 1.05, label = total, fill = NULL), 
+            data = totals_compare_raw_numbers_by_township,
+            hjust = 0) +
+  labs(
+    title = "Changes from town class to sqft age town",
+    x = "",
+    y = "Proportion",
+    fill = "Change"
+  ) +
+  coord_flip() +
+  theme_minimal() +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+  theme(axis.text.y = element_text(margin = margin(r = 5)))
+
+ggplot(compare_raw_numbers_by_township, aes(x = township_name, y = n, fill = change_basic)) +
+  geom_col(position = "fill") +
+  geom_text(aes(y = 1.05, label = total, fill = NULL), 
+            data = totals_compare_raw_numbers_by_township,
+            hjust = 0) +
+  labs(
+    title = "Simplified changes from town class to sqft age town",
+    x = "",
+    y = "Proportion",
+    fill = "Change"
+  ) +
+  coord_flip() +
+  theme_minimal() +
+  scale_fill_manual(
+    values = c(
+      "excluded" = "darkgrey", 
+      "not outlier" = "green3", 
+      "outlier" = "brown1"
+    )
+  ) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+  theme(axis.text.y = element_text(margin = margin(r = 5)))
+
+#TODO: Add a simplified became outlier -became excluded, became not outlier
+```
+```{r}
+#TODO Tabset with both types of above graphs in
+create_township_nbhd_bar_chart <- function(data, township_name, title) {
+
+  ggplot(data %>% filter(township_name == !!township_name), aes(x = nbhd_code, fill = symbol_to_graph)) +
+    geom_bar(position = "fill") +
+    geom_text(
+      stat = 'count',
+      aes(label = ..count..),
+      position = position_fill(vjust = 0.5),
+      size = 3
+    ) +
+    labs(
+      title = title,
+      x = "",
+      y = "Proportion",
+      fill = "Category",
+      caption = "Sales from 2014-current"
+    ) +
+    scale_y_continuous(labels = scales::percent) +
+    scale_fill_manual(
+      values = c("Did not enter pipeline" = "darkgrey", 
+                 "Not outlier" = "green3", 
+                 "Outlier" = "brown1")
+    ) +
+    theme_minimal() +
+    coord_flip()
+}
+
+
+
+```
+
+## Compare neigborhood breakout per specification
+
+::: {.panel-tabset}
+
+## Barrington
+
+```{r}
+create_township_nbhd_bar_chart(df_flag_town_class, "Barrington", title = "Town class distribution")
+create_township_nbhd_bar_chart(df_flag_sf_age_town, "Barrington", title = "Sqft age town distribution")
+```
+
+## Elk Grove
+
+```{r}
+create_township_nbhd_bar_chart(df_flag_town_class, "Elk Grove", title = "Town class distribution")
+create_township_nbhd_bar_chart(df_flag_sf_age_town, "Elk Grove", title = "Sqft age town distribution")
+```
+
+## Evanston
+
+```{r}
+create_township_nbhd_bar_chart(df_flag_town_class, "Evanston", title = "Town class distribution")
+create_township_nbhd_bar_chart(df_flag_sf_age_town, "Evanston", title = "Sqft age town distribution")
+```
+
+## Hanover
+
+```{r}
+create_township_nbhd_bar_chart(df_flag_town_class, "Hanover", title = "Town class distribution")
+create_township_nbhd_bar_chart(df_flag_sf_age_town, "Hanover", title = "Sqft age town distribution")
+
+```
+
+## Leyden
+
+```{r}
+create_township_nbhd_bar_chart(df_flag_town_class, "Leyden", title = "Town class distribution")
+create_township_nbhd_bar_chart(df_flag_sf_age_town, "Leyden", title = "Sqft age town distribution")
+```
+
+## Maine
+
+```{r}
+create_township_nbhd_bar_chart(df_flag_town_class, "Maine", title = "Town class distribution")
+create_township_nbhd_bar_chart(df_flag_sf_age_town, "Maine", title = "Sqft age town distribution")
+```
+
+## New Trier
+
+```{r}
+create_township_nbhd_bar_chart(df_flag_town_class, "New Trier", title = "Town class distribution")
+create_township_nbhd_bar_chart(df_flag_sf_age_town, "New Trier", title = "Sqft age town distribution")
+```
+
+## Niles
+
+```{r}
+create_township_nbhd_bar_chart(df_flag_town_class, "Niles", title = "Town class distribution")
+create_township_nbhd_bar_chart(df_flag_sf_age_town, "Niles", title = "Sqft age town distribution")
+```
+
+## Northfield
+
+```{r}
+create_township_nbhd_bar_chart(df_flag_town_class, "Northfield", title = "Town class distribution")
+create_township_nbhd_bar_chart(df_flag_sf_age_town, "Northfield", title = "Sqft age town distribution")
+```
+
+## Norwood Park
+
+```{r}
+create_township_nbhd_bar_chart(df_flag_town_class, "Norwood Park", title = "Town class distribution")
+create_township_nbhd_bar_chart(df_flag_sf_age_town, "Norwood Park", title = "Sqft age town distribution")
+
+```
+
+## Palatine
+
+```{r}
+create_township_nbhd_bar_chart(df_flag_town_class, "Palatine", title = "Town class distribution")
+create_township_nbhd_bar_chart(df_flag_town_class, "Palatine", title = "Sqft age town distribution")
+```
+
+## Schaumburg
+
+```{r}
+create_township_nbhd_bar_chart(df_flag_town_class, "Schaumburg", title = "Town class distribution")
+create_township_nbhd_bar_chart(df_flag_sf_age_town, "Schaumburg", title = "Sqft age town distribution")
+```
+## Wheeling
+
+```{r}
+create_township_nbhd_bar_chart(df_flag_town_class, "Wheeling", title = "Town class distribution")
+create_township_nbhd_bar_chart(df_flag_sf_age_town, "Wheeling", title = "Sqft age town distribution")
+```
+
+:::
+
+## Analysis on sales with changed classification by neighborhood
+
+```{r}
+compare_changes <- df_flag_town_class %>%
+  left_join(
+    df_flag_sf_age_town %>%
+      select(meta_sale_document_num, symbol_to_graph) %>%
+      rename(symbol_to_graph_sqft_age = symbol_to_graph)
+    )
+
+compare_raw_numbers_by_nbhd <- compare_changes %>%
+  filter(symbol_to_graph != symbol_to_graph_sqft_age) %>%
+  count(nbhd_code, symbol_to_graph, symbol_to_graph_sqft_age) %>%
+  mutate(
+    change = case_when(
+      symbol_to_graph == 'Did not enter pipeline' & symbol_to_graph_sqft_age == 'Not outlier' ~ "Excluded to not outlier",
+      symbol_to_graph == 'Did not enter pipeline' & symbol_to_graph_sqft_age == 'Outlier' ~ "Excluded to outlier",
+      symbol_to_graph == 'Not outlier' & symbol_to_graph_sqft_age == 'Did not enter pipeline' ~ "Not outlier to excluded",
+      symbol_to_graph == 'Not outlier' & symbol_to_graph_sqft_age == 'Outlier' ~ "Not outlier to outlier",
+      symbol_to_graph == 'Outlier' & symbol_to_graph_sqft_age == 'Did not enter pipeline' ~ "Outlier to excluded",
+      symbol_to_graph == 'Outlier' & symbol_to_graph_sqft_age == 'Not outlier' ~ "Outlier to not outlier"
+    ),
+    change_basic = case_when(
+      symbol_to_graph == 'Did not enter pipeline' & symbol_to_graph_sqft_age == 'Not outlier' ~ "not outlier",
+      symbol_to_graph == 'Did not enter pipeline' & symbol_to_graph_sqft_age == 'Outlier' ~ "outlier",
+      symbol_to_graph == 'Not outlier' & symbol_to_graph_sqft_age == 'Did not enter pipeline' ~ "excluded",
+      symbol_to_graph == 'Not outlier' & symbol_to_graph_sqft_age == 'Outlier' ~ "outlier",
+      symbol_to_graph == 'Outlier' & symbol_to_graph_sqft_age == 'Did not enter pipeline' ~ "excluded",
+      symbol_to_graph == 'Outlier' & symbol_to_graph_sqft_age == 'Not outlier' ~ "not outlier"
+    ) 
+  ) %>% 
+  left_join(
+    df_flag_town_class %>%
+      distinct(township_name, nbhd_code),
+    by = "nbhd_code"
+  )
+
+
+totals_compare_raw_numbers_by_nbhd <- compare_raw_numbers_by_nbhd %>% 
+  group_by(nbhd_code) %>% 
+  summarise(total = sum(n))
+
+
+create_change_chart <- function(data, township_name) {
+  # Filter the data by township_code
+  filtered_data <- data %>% filter(township_name == !!township_name)
+  # Calculate totals for each township
+  totals_data <- filtered_data %>% 
+    group_by(nbhd_code) %>% 
+    summarise(total = sum(n))
+
+  # First plot
+  plot1 <- ggplot(filtered_data, aes(x = nbhd_code, y = n, fill = change)) +
+    geom_col(position = "fill") +
+    geom_text(aes(y = 1.05, label = total, fill = NULL), 
+              data = totals_data,
+              hjust = 0) +
+    labs(
+      x = "",
+      y = "Proportion",
+      fill = "Change"
+    ) +
+    coord_flip() +
+    theme_minimal() +
+    scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+    theme(axis.text.y = element_text(margin = margin(r = 5)))
+  
+  # Print the first plot
+  print(plot1)
+
+  # Second plot
+  plot2 <- ggplot(filtered_data, aes(x = nbhd_code, y = n, fill = change_basic)) +
+    geom_col(position = "fill") +
+    geom_text(aes(y = 1.05, label = total, fill = NULL), 
+              data = totals_data,
+              hjust = 0) +
+    labs(
+      x = "",
+      y = "Proportion",
+      fill = "Change"
+    ) +
+    coord_flip() +
+    theme_minimal() +
+    scale_fill_manual(
+      values = c(
+        "excluded" = "darkgrey", 
+        "not outlier" = "green3", 
+        "outlier" = "brown1"
+      )
+    ) +
+    scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+    theme(axis.text.y = element_text(margin = margin(r = 5)))
+  
+  # Print the second plot
+  print(plot2)
+}
+
+```
+
+### Town class makeup - sales that change status
+::: {.panel-tabset}
+
+## Barrington
+
+```{r}
+#TODO: ADD THIS UNDER THE NBHD ANALYSIS
+create_change_chart(compare_raw_numbers_by_nbhd, "Barrington")
+```
+
+## Elk Grove
+
+```{r}
+create_change_chart(compare_raw_numbers_by_nbhd, "Elk Grove")
+```
+
+## Evanston
+
+```{r}
+create_change_chart(compare_raw_numbers_by_nbhd, "Evanston")
+```
+
+## Hanover
+
+```{r}
+create_change_chart(compare_raw_numbers_by_nbhd, "Hanover")
+```
+
+## Leyden
+
+```{r}
+create_change_chart(compare_raw_numbers_by_nbhd, "Leyden")
+```
+
+## Maine
+
+```{r}
+create_change_chart(compare_raw_numbers_by_nbhd, "Maine")
+```
+
+## New Trier
+
+```{r}
+create_change_chart(compare_raw_numbers_by_nbhd, "New Trier")
+```
+
+## Niles
+
+```{r}
+create_change_chart(compare_raw_numbers_by_nbhd, "Niles")
+```
+
+## Northfield
+
+```{r}
+create_change_chart(compare_raw_numbers_by_nbhd, "Northfield")
+```
+
+## Norwood Park
+
+```{r}
+create_change_chart(compare_raw_numbers_by_nbhd, "Norwood Park")
+```
+
+## Palatine
+
+```{r}
+create_change_chart(compare_raw_numbers_by_nbhd, "Palatine")
+```
+
+## Schaumburg
+
+```{r}
+create_change_chart(compare_raw_numbers_by_nbhd, "Schaumburg")
+```
+
+## Wheeling
+
+```{r}
+create_change_chart(compare_raw_numbers_by_nbhd, "Wheeling")
+```
+
+:::
+
+## Mapping
+
+### Sales from 2023
+
+Left is Town/Class. Right is Sqft/Age/Town.
+
+```{r}
+# Function to create synchronized leaflet maps with hover labels
+create_synchronized_maps <- function(df1, df2) {
+  
+    df1 <- st_as_sf(
+      df1 %>%
+        filter(!is.na(lat) & !is.na(lon)),
+      coords = c("lon", "lat"), crs = 4326
+    )
+    df2 <- st_as_sf(
+      df2 %>%
+        filter(!is.na(lat) & !is.na(lon)),
+      coords = c("lon", "lat"), crs = 4326
+    )
+  
+  
+  
+  # Subset years and create HTML formatted labels
+  df1 <- df1 %>%
+    filter(str_detect(group, "^2023|^2024")) %>%
+    mutate(sale_price = scales::dollar(as.numeric(sale_price))) %>% 
+    mutate(label_col = lapply(seq(nrow(.)), function(i) {
+      HTML(paste0(
+        '<p>Pin: ', .$pin[i], '</p>',
+        '<p>Class: ', .$class[i], '</p>',
+        '<p>Sale Price: ',.$sale_price[i], '</p>',
+        '<p>Group: ',.$group[i], '</p>'
+      ))
+    }))
+    
+  df2 <- df2 %>%
+    filter(str_detect(group, "^2023|^2024")) %>% 
+    mutate(sale_price = scales::dollar(as.numeric(sale_price))) %>% 
+    mutate(label_col = lapply(seq(nrow(.)), function(i) {
+      HTML(paste0(
+        '<p>Pin: ', .$pin[i], '</p>',
+        '<p>Class: ', .$class[i], '</p>',
+        '<p>Sale Price: ', .$sale_price[i], '</p>',
+         '<p>Group: ',.$group[i], '</p>'
+      ))
+    }))
+  
+  # Create a color palette based on the symbol_to_graph column
+  pal <- colorFactor(
+    palette = c("black", "darkgreen", "darkred"),
+    domain = df1$symbol_to_graph
+  )
+  
+  # Create the leaflet maps with HTML-formatted hover labels
+  map1 <- leaflet(df1) %>%
+    addTiles() %>%
+    addCircleMarkers(
+      color = ~pal(symbol_to_graph),
+      stroke = FALSE,
+      fillOpacity = 0.8,
+      radius = 4,
+      label = ~label_col
+    )
+  
+  map2 <- leaflet(df2) %>%
+    addTiles() %>%
+    addCircleMarkers(
+      color = ~pal(symbol_to_graph),
+      stroke = FALSE,
+      fillOpacity = 0.8,
+      radius = 4,
+      label = ~label_col
+    ) %>% 
+    addLegend(
+      position = "bottomright",
+      pal = pal,
+      values = ~symbol_to_graph,
+      title = "Symbol to Graph"
+    )
+  
+  # Synchronize the maps
+  sync(map1, map2)
+}
+
+# To create single map
+create_leaflet_map <- function(df) {
+  
+  # Convert the dataframe to an sf object and filter out missing lat/lon
+  df <- st_as_sf(
+    df %>%
+      filter(!is.na(lat) & !is.na(lon)),
+    coords = c("lon", "lat"), crs = 4326
+  )
+  
+  # Subset years and create HTML formatted labels
+  df <- df %>%
+    #filter(str_detect(group, "^2023|^2024")) %>%
+    mutate(sale_price = scales::dollar(as.numeric(sale_price))) %>% 
+    mutate(label_col = lapply(seq(nrow(.)), function(i) {
+      HTML(paste0(
+        '<p>Pin: ', .$pin[i], '</p>',
+        '<p>Class: ', .$class[i], '</p>',
+        '<p>Sale Price: ', .$sale_price[i], '</p>',
+        '<p>Old group: ', .$group[i], '</p>',
+        '<p>New group: ', .$group_sqft_age[i], '</p>'
+      ))
+    }))
+  
+  # Create a color palette based on the symbol_to_graph column
+  pal <- colorFactor(
+    palette = c("black", "darkgreen", "darkred"),
+    domain = df$change_basic
+  )
+  
+  # Create the leaflet map with HTML-formatted hover labels
+  map <- leaflet(df) %>%
+    addTiles() %>%
+    addCircleMarkers(
+      color = ~pal(change_basic),
+      stroke = FALSE,
+      fillOpacity = 0.8,
+      radius = 4,
+      label = ~label_col
+    ) %>%
+    addLegend(
+      position = "bottomright",
+      pal = pal,
+      values = ~change_basic,
+      title = "Symbol to Graph"
+    )
+  
+  return(map)
+}
+
+```
+
+```{r}
+create_synchronized_maps(
+  df_flag_town_class,
+  df_flag_sf_age_town)
+```
+
+### Sales 2014-current that change from town class - sqft age
+
+```{r}
+
+df_to_map_changes_sales_status <- df_flag_town_class %>%
+  left_join(
+    df_flag_sf_age_town %>%
+      select(meta_sale_document_num, symbol_to_graph, group) %>% 
+      rename(symbol_to_graph_sqft_age = symbol_to_graph,
+             group_sqft_age = group)
+    ) %>% 
+  filter(symbol_to_graph != symbol_to_graph_sqft_age) %>% 
+  mutate(
+    change_basic = case_when(
+      symbol_to_graph == 'Did not enter pipeline' & symbol_to_graph_sqft_age == 'Not outlier' ~ "not outlier",
+      symbol_to_graph == 'Did not enter pipeline' & symbol_to_graph_sqft_age == 'Outlier' ~ "outlier",
+      symbol_to_graph == 'Not outlier' & symbol_to_graph_sqft_age == 'Did not enter pipeline' ~ "excluded",
+      symbol_to_graph == 'Not outlier' & symbol_to_graph_sqft_age == 'Outlier' ~ "outlier",
+      symbol_to_graph == 'Outlier' & symbol_to_graph_sqft_age == 'Did not enter pipeline' ~ "excluded",
+      symbol_to_graph == 'Outlier' & symbol_to_graph_sqft_age == 'Not outlier' ~ "not outlier"
+    )
+  )
+
+create_leaflet_map(df_to_map_changes_sales_status)
+```
+
+
+
+
