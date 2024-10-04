@@ -23,28 +23,25 @@ def read_parquets_to_dfs(table):
     """
     # List all parquet files in the specified S3 path
     parquet_files = wr.s3.list_objects(
-        os.path.join(os.getenv("AWS_BUCKET_SV_BACKUP"),
-                     "0003_fix_is_ptax_outlier_column",
-                     "old_prod_data",
-                     table
-                     ),
-                     suffix=".parquet",
-                     )
+        os.path.join(
+            os.getenv("AWS_BUCKET_SV_BACKUP"),
+            "0003_fix_is_ptax_outlier_column",
+            "old_prod_data",
+            table,
+        ),
+        suffix=".parquet",
+    )
     # Initialize a dictionary to hold the dataframes
     dfs = {}
 
     # Loop through the parquet files, read each into a DataFrame, and store it in the dictionary
     for file in parquet_files:
         # Extract a meaningful name part from the file path for use in the DataFrame variable name
-        name_part = file.split("/")[-1].split(".")[
-            0
-        ]  # Adjust this as necessary based on your file naming convention
+        name_part = file.split("/")[-1].split(".")[0]
         df_name = f"{name_part}"
 
-        # Read the parquet file into a DataFrame
         df = wr.s3.read_parquet(file)
 
-        # Store the DataFrame in the dictionary with the constructed name
         dfs[df_name] = df
 
     return dfs
@@ -67,8 +64,8 @@ def update_sv_is_ptax_outlier(dfs):
 
         # The PTAX value will always be in sv_outlier_reason2
         # due to the way we constructed the priority order of the columns
-        mask = df_new['sv_outlier_reason2'] == 'PTAX-203 Exclusion'
-        df_new.loc[mask, 'sv_is_ptax_outlier'] = True
+        mask = df_new["sv_outlier_reason2"] == "PTAX-203 Exclusion"
+        df_new.loc[mask, "sv_is_ptax_outlier"] = True
         # Add the modified DataFrame to the new dictionary
         new_dfs[name] = df_new
     return new_dfs
@@ -85,10 +82,11 @@ def write_dfs_to_s3(dfs, bucket, table):
             "0003_fix_is_ptax_outlier_column",
             "new_prod_data",
             table,
-            df_name + ".parquet"
+            df_name + ".parquet",
         )
 
         wr.s3.to_parquet(df=df, path=file_path, index=False)
+
 
 dfs_sale_flag = read_parquets_to_dfs("flag")
 
@@ -102,5 +100,5 @@ for i in dfs_sale_flag:
     print(dfs_ptax_edited[i].sv_is_ptax_outlier.value_counts())
     print("\n")
 
-# Write data to backup bucket 
+# Write data to backup bucket
 write_dfs_to_s3(dfs_ptax_edited, os.getenv("AWS_BUCKET_SV_BACKUP"), "flag")
