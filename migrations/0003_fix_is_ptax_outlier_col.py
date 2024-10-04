@@ -1,3 +1,7 @@
+# Migration script to recompute the `sv_is_ptax_outlier` column for all
+# existing sales val data. We needed to do this because an earlier version
+# of the sales val pipeline accidentally used the wrong reason codes to
+# compute this column, resulting in every row getting set to False
 import os
 import awswrangler as wr
 import pandas as pd
