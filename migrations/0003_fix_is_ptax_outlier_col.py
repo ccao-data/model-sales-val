@@ -100,9 +100,3 @@ for i in dfs_sale_flag:
 
 # Write data to backup bucket 
 write_dfs_to_s3(dfs_ptax_edited, os.getenv("AWS_BUCKET_SV_BACKUP"), "flag")
-
-
-
-
-
-        file_path = f"{bucket}/new_prod_data/{table}/{df_name}.parquet"
