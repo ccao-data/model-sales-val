@@ -378,6 +378,10 @@ if inputs["manual_update"] == True:
         )
         .drop(columns=["existing_version"])
     )
+    # Additional filtering if manual_update_only_new_sales is True
+    # If this is set to true, only unseen sales will get flag updates
+    if inputs["manual_update_only_new_sales"] == True:
+        df_to_write = df_to_write[df_to_write["version"] == 1]
 
 run_filter = str(
     {"housing_market_type": inputs["housing_market_type"], "run_tri": inputs["run_tri"]}

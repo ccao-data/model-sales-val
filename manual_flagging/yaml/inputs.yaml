@@ -13,7 +13,15 @@ run_note: |
 # without flags, it assigns a version number of "1". The latest
 # version of each sale flag can be found in the "default"."vw_pin_sale" view.
 
-manual_update: true
+manual_update: false
+
+# manual_update_only_new_sales: A boolean that only is in play when
+# manual_update = true. If true, the sales val pipeline will only
+# flag sale that currently have no existing flag in the sale.flag
+# table. In other words, it will flag unseen sales, not sales that
+# the sales val model has already given a flag value to.
+
+manual_update_only_new_sales: true
 
 # "housing_market_type" and "run_tri" configurations determine the
 # specificity of flagging. First, we retrieve the run tris, then run
@@ -24,7 +32,6 @@ housing_market_type: [
   "res_single_family",
   "res_multi_family",
   "res_all",
-  "condos"
 ]
 run_tri: [1, 2, 3]
 
@@ -139,7 +146,7 @@ housing_market_class_codes:
 
 # These are the price standard deviation bounds that the sales must exceed
 # to be classified as an outlier
-dev_bounds: [2, 2]
+dev_bounds: [2, 3]
 
 # 'start' and 'end' determine which sales will be written to the
 # sale.flag table. Leave 'end' blank if we want to flag all sales
@@ -153,7 +160,7 @@ rolling_window_months: 12
 
 # PTAX flags are only kept if the raw or sqft price is at least this
 # many standard deviations away from the mean
-ptax_sd: [1, 1]
+ptax_sd: [1.5, 1.5]
 
 # Flags are only applied if there are at least this many sales in the group
 min_groups_threshold: 30
