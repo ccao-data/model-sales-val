@@ -427,13 +427,18 @@ df_group_mean_to_write = pd.concat(df_group_means, ignore_index=True)
 # Get sale.metadata table
 commit_sha = sp.getoutput("git rev-parse HEAD")
 
-# Write to sale.group_mean table
+run_type = (
+    "initial_flagging"
+    if not inputs["manual_update"]
+    else "manual_update_only_new_sales"
+    if inputs["manual_update_only_new_sales"]
+    else "manual_update"
+)
+
 df_metadata = flg.get_metadata_df(
     run_id=run_id,
     timestamp=timestamp,
-    run_type="initial_flagging"
-    if inputs["manual_update"] == False
-    else "manual_update",
+    run_type=run_type,
     commit_sha=commit_sha,
     run_note=inputs["run_note"],
 )
