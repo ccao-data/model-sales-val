@@ -146,7 +146,7 @@ housing_market_class_codes:
 
 # These are the price standard deviation bounds that the sales must exceed
 # to be classified as an outlier
-dev_bounds: [2, 3]
+dev_bounds: [2, 2]
 
 # 'start' and 'end' determine which sales will be written to the
 # sale.flag table. Leave 'end' blank if we want to flag all sales
@@ -160,7 +160,7 @@ rolling_window_months: 12
 
 # PTAX flags are only kept if the raw or sqft price is at least this
 # many standard deviations away from the mean
-ptax_sd: [1.5, 1.5]
+ptax_sd: [1, 1]
 
 # Flags are only applied if there are at least this many sales in the group
 min_groups_threshold: 30
