@@ -16,7 +16,7 @@ manual_update: false
 
 # manual_update_only_new_sales: A boolean that only is in play when
 # manual_update = true. If true, the sales val pipeline will only
-# flag sale that currently have no existing flag in the sale.flag
+# flag sales that currently have no existing flag in the sale.flag
 # table. In other words, it will flag unseen sales, not sales that
 # the sales val model has already given a flag value to.
 manual_update_only_new_sales: true
