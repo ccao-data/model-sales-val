@@ -119,6 +119,12 @@ The model can be executed in three distinct run modes, depending on the state of
 only to flag sales that do not have a current sales-val model determination. It will not re-flag any sales like the normal
 'Manual Update' would.
 
+| Aspect                          | Manual Update                               | Manual Update (New Sales Only)             |
+|---------------------------------|----------------------------------------------|---------------------------------------------|
+| Primary Use                     | Re-flagging sales due to errors or changes in methodology | Flagging only new sales that lack a current sales-val model determination |
+| Re-Flag Existing Sales          | Yes, existing flagged sales can be re-flagged | No, does not re-flag already flagged sales  |
+| Flags Unflagged Sales           | Yes                                          | Yes, but only if they are new and currently unflagged |
+
 ```mermaid
 graph TD
     subgraph "Manual Update Mode"
