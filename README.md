@@ -129,20 +129,38 @@ only to flag sales that do not have a current sales-val model determination. It 
 graph TD
     subgraph "Manual Update Mode"
         A3{{"Sales must be re-flagged"}}
-        B3[Specify subset in yaml]
-        C3[Run manual_update.py]
-        D3[Increment version if sale already flagged]
-        E3[Assign Version = 1 if sale unflagged]
-        F3[Update flags in default.vw_pin_sale]
-        G3[Save results to S3 with new run ID]
+        B3[Specify subset in YAML]
+        C3[Run manual_update.py (standard)]
+        D3[Check if sale already flagged]
+        E3[If flagged: Increment version]
+        F3[If unflagged: Assign Version = 1]
+        G3[Update flags in default.vw_pin_sale]
+        H3[Save results to S3 with new run ID]
 
         A3 -->|Manual selection| B3
         B3 -->|Run update| C3
-        C3 -->|Version check| D3
-        D3 -->|Update process| F3
-        C3 -->|New flag| E3
-        E3 -->|Update process| F3
-        F3 -->|Persist results| G3
+        C3 --> D3
+        D3 -->|Flagged| E3 --> G3
+        D3 -->|Unflagged| F3 --> G3
+        G3 -->|Persist results| H3
+    end
+
+    subgraph "Manual Update (New Sales Only) Mode"
+        A4{{"Flag only new, unflagged sales"}}
+        B4[Specify subset in YAML (new sales only)]
+        C4[Run manual_update.py (new-sales-only)]
+        D4[Check if sale already flagged]
+        E4[If unflagged: Assign Version = 1]
+        F4[If flagged: Skip]
+        G4[Update flags in default.vw_pin_sale (new only)]
+        H4[Save results to S3 with new run ID]
+
+        A4 -->|Manual selection| B4
+        B4 -->|Run update (new-only)| C4
+        C4 --> D4
+        D4 -->|Flagged| F4
+        D4 -->|Unflagged| E4 --> G4
+        G4 -->|Persist results| H4
     end
 
     subgraph "Initial Run Mode"
