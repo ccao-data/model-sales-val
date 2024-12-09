@@ -128,9 +128,9 @@ only to flag sales that do not have a current sales-val model determination. It 
 ```mermaid
 graph TD
     subgraph "Manual Update Mode"
-        A3{{"Sales must be re-flagged"}}
-        B3[Specify subset in YAML]
-        C3[Run manual_update.py (standard)]
+        A3{{Sales must be re-flagged}}
+        B3[Specify subset in YAML file]
+        C3[Run manual_update.py standard mode]
         D3[Check if sale already flagged]
         E3[If flagged: Increment version]
         F3[If unflagged: Assign Version = 1]
@@ -146,13 +146,13 @@ graph TD
     end
 
     subgraph "Manual Update (New Sales Only) Mode"
-        A4{{"Flag only new, unflagged sales"}}
-        B4[Specify subset in YAML (new sales only)]
-        C4[Run manual_update.py (new-sales-only)]
+        A4{{Flag only new unflagged sales}}
+        B4[Specify subset in YAML file new only]
+        C4[Run manual_update.py new-sales-only mode]
         D4[Check if sale already flagged]
         E4[If unflagged: Assign Version = 1]
         F4[If flagged: Skip]
-        G4[Update flags in default.vw_pin_sale (new only)]
+        G4[Update flags in default.vw_pin_sale new only]
         H4[Save results to S3 with new run ID]
 
         A4 -->|Manual selection| B4
