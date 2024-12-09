@@ -114,8 +114,10 @@ This query is used to generate the proportion of different outlier types
 The model can be executed in three distinct run modes, depending on the state of the sales data and the specific requirements for flagging:
 
 1. **Initial Run:** This mode is triggered when no sales have been flagged. It's the first step in the model to instantiate tables and flag sales.
-2. **Glue Job:** This mode applies when there are already flagged sales in the system. It's an automated scheduled job that flags new, unflagged sales.
-3. **Manual Update:** This mode is used when sales need to be re-flagged, either due to errors or methodology updates. This allows for the selective re-flagging of sales.
+2. **Manual Update:** This mode is used when sales need to be re-flagged, either due to errors or methodology updates. This allows for the selective re-flagging of sales. It also assigns flags to unflagged sales.
+3. **Manual Update (New Sales Only):** This mode borrows much of the same logic as the normal 'Manual Update' mode, but is used
+only to flag sales that do not have a current sales-val model determination. It will not re-flag any sales like the normal
+'Manual Update' would.
 
 ```mermaid
 graph TD
@@ -135,23 +137,6 @@ graph TD
         C3 -->|New flag| E3
         E3 -->|Update process| F3
         F3 -->|Persist results| G3
-    end
-
-    subgraph "Glue Job Mode"
-        A2[Schedule triggers glue job]
-        B2{{"Some sales are already flagged"}}
-        C2[Ingest data for unflagged sales]
-        D2[Run flagging model within glue job]
-        E2[Write sales data to sale.flag]
-        F2[Join flags to<br>default.vw_pin_sale]
-        G2[Save results to S3 with unique run ID]
-
-        A2 -->|Trigger| B2
-        B2 -->|Process new sales| C2
-        C2 -->|Run model| D2
-        D2 -->|Output flags| E2
-        E2 -->|Join data| F2
-        F2 -->|Persist results| G2
     end
 
     subgraph "Initial Run Mode"
