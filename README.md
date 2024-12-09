@@ -119,48 +119,39 @@ The model can be executed in three distinct run modes, depending on the state of
 only to flag sales that do not have a current sales-val model determination. It will not re-flag any sales like the normal
 'Manual Update' would.
 
-| Aspect                          | Manual Update                               | Manual Update (New Sales Only)             |
-|---------------------------------|----------------------------------------------|---------------------------------------------|
-| Primary Use                     | Re-flagging sales due to errors or changes in methodology | Flagging only new sales that lack a current sales-val model determination |
-| Re-Flag Existing Sales          | Yes, existing flagged sales can be re-flagged | No, does not re-flag already flagged sales  |
-| Flags Unflagged Sales           | Yes                                          | Yes, but only if they are new and currently unflagged |
-
 ```mermaid
 graph TD
     subgraph "Manual Update Mode"
-        A3{{Sales must be re-flagged}}
-        B3[Specify subset in YAML file]
-        C3[Run manual_update.py standard mode]
-        D3[Check if sale already flagged]
-        E3[If flagged: Increment version]
-        F3[If unflagged: Assign Version = 1]
-        G3[Update flags in default.vw_pin_sale]
-        H3[Save results to S3 with new run ID]
+        A3{{"Sales must be re-flagged"}}
+        B3[Specify subset in yaml]
+        C3[Run manual_update.py]
+        D3[Increment version if sale already flagged]
+        E3[Assign Version = 1 if sale unflagged]
+        F3[Update flags in default.vw_pin_sale]
+        G3[Save results to S3 with new run ID]
 
         A3 -->|Manual selection| B3
         B3 -->|Run update| C3
-        C3 --> D3
-        D3 -->|Flagged| E3 --> G3
-        D3 -->|Unflagged| F3 --> G3
-        G3 -->|Persist results| H3
+        C3 -->|Version check| D3
+        D3 -->|Update process| F3
+        C3 -->|New flag| E3
+        E3 -->|Update process| F3
+        F3 -->|Persist results| G3
     end
 
     subgraph "Manual Update (New Sales Only) Mode"
-        A4{{Flag only new unflagged sales}}
-        B4[Specify subset in YAML file new only]
-        C4[Run manual_update.py new-sales-only mode]
-        D4[Check if sale already flagged]
-        E4[If unflagged: Assign Version = 1]
-        F4[If flagged: Skip]
-        G4[Update flags in default.vw_pin_sale new only]
-        H4[Save results to S3 with new run ID]
+        A4{{"Flag only new sales"}}
+        B4[Identify sales with no current model determination]
+        C4[Run manual_update.py]
+        E4[Assign Version = 1 if sale unflagged]
+        F4[Update flags in default.vw_pin_sale]
+        G4[Save results to S3 with new run ID]
 
-        A4 -->|Manual selection| B4
-        B4 -->|Run update (new-only)| C4
-        C4 --> D4
-        D4 -->|Flagged| F4
-        D4 -->|Unflagged| E4 --> G4
-        G4 -->|Persist results| H4
+        A4 -->|Filter new sales| B4
+        B4 -->|Run update| C4
+        C4 -->|New flag only| E4
+        E4 -->|Update process| F4
+        F4 -->|Persist results| G4
     end
 
     subgraph "Initial Run Mode"
