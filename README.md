@@ -168,7 +168,7 @@ graph TD
     end
 
     style A1 fill:#bbf,stroke:#333,stroke-width:2px,color:#000;
-    style B2 fill:#bbf,stroke:#333,stroke-width:2px,color:#000;
+    style A4 fill:#bbf,stroke:#333,stroke-width:2px,color:#000;
     style A3 fill:#bbf,stroke:#333,stroke-width:2px,color:#000;
 ```
 
