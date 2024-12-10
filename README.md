@@ -114,8 +114,10 @@ This query is used to generate the proportion of different outlier types
 The model can be executed in three distinct run modes, depending on the state of the sales data and the specific requirements for flagging:
 
 1. **Initial Run:** This mode is triggered when no sales have been flagged. It's the first step in the model to instantiate tables and flag sales.
-2. **Glue Job:** This mode applies when there are already flagged sales in the system. It's an automated scheduled job that flags new, unflagged sales.
-3. **Manual Update:** This mode is used when sales need to be re-flagged, either due to errors or methodology updates. This allows for the selective re-flagging of sales.
+2. **Manual Update:** This mode is used when sales need to be re-flagged, either due to errors or methodology updates. This allows for the selective re-flagging of sales. It also assigns flags to unflagged sales.
+3. **Manual Update (New Sales Only):** This mode borrows much of the same logic as the normal 'Manual Update' mode, but is used
+only to flag sales that do not have a current sales-val model determination. It will not re-flag any sales like the normal
+'Manual Update' would.
 
 ```mermaid
 graph TD
@@ -137,21 +139,19 @@ graph TD
         F3 -->|Persist results| G3
     end
 
-    subgraph "Glue Job Mode"
-        A2[Schedule triggers glue job]
-        B2{{"Some sales are already flagged"}}
-        C2[Ingest data for unflagged sales]
-        D2[Run flagging model within glue job]
-        E2[Write sales data to sale.flag]
-        F2[Join flags to<br>default.vw_pin_sale]
-        G2[Save results to S3 with unique run ID]
+    subgraph "Manual Update (New Sales Only) Mode"
+        A4{{"Flag only new sales"}}
+        B4[Identify sales with no current model determination]
+        C4[Run manual_update.py]
+        E4[Assign Version = 1 if sale unflagged]
+        F4[Update flags in default.vw_pin_sale]
+        G4[Save results to S3 with new run ID]
 
-        A2 -->|Trigger| B2
-        B2 -->|Process new sales| C2
-        C2 -->|Run model| D2
-        D2 -->|Output flags| E2
-        E2 -->|Join data| F2
-        F2 -->|Persist results| G2
+        A4 -->|Filter new sales| B4
+        B4 -->|Run update| C4
+        C4 -->|New flag only| E4
+        E4 -->|Update process| F4
+        F4 -->|Persist results| G4
     end
 
     subgraph "Initial Run Mode"
@@ -168,7 +168,7 @@ graph TD
     end
 
     style A1 fill:#bbf,stroke:#333,stroke-width:2px,color:#000;
-    style B2 fill:#bbf,stroke:#333,stroke-width:2px,color:#000;
+    style A4 fill:#bbf,stroke:#333,stroke-width:2px,color:#000;
     style A3 fill:#bbf,stroke:#333,stroke-width:2px,color:#000;
 ```
 
