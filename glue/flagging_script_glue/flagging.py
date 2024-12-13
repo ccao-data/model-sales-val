@@ -572,9 +572,14 @@ def get_sale_counts(dups: pd.DataFrame) -> pd.DataFrame:
         df (pd.DataFrame): pandas dataframe
     """
     v_counts = (
-        dups.pin.value_counts()
-        .reset_index()
-        .rename(columns={"count": "sv_sale_dup_counts"})
+        dups.pin.value_counts().reset_index()
+        # NOTE: For some unknown reason, using either of the following rename methods
+        # may cause unexpected issues in certain environments. If one option breaks the code,
+        # try the usually works:
+        #
+        # .rename(columns={'count':'sv_sale_dup_counts'})
+        # .rename(columns={'index':'pin', 'pin':'sv_sale_dup_counts'})
+        .rename(columns={"index": "pin", "pin": "sv_sale_dup_counts"})
     )
 
     dups = pd.merge(dups, v_counts)
