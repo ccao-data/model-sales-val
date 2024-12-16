@@ -12,4 +12,3 @@ repos:
     rev: 23.7.0
     hooks:
       - id: black
-        language_version: 3.10.12
