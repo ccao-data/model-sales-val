@@ -573,7 +573,7 @@ def get_sale_counts(dups: pd.DataFrame) -> pd.DataFrame:
     """
     v_counts = (
         dups.pin.value_counts()
-        .reset_index(name="count")
+        .reset_index(name="sv_sale_dup_counts")
         .rename(columns={"index": "pin"})
     )
 
