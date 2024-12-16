@@ -572,9 +572,8 @@ def get_sale_counts(dups: pd.DataFrame) -> pd.DataFrame:
         df (pd.DataFrame): pandas dataframe
     """
     v_counts = (
-        dups.pin.value_counts()
-        .reset_index()
-        .rename(columns={"count": "sv_sale_dup_counts"})
+        dups.pin.value_counts().reset_index(name="count")
+        .rename(columns={"index": "pin"})
     )
 
     dups = pd.merge(dups, v_counts)
