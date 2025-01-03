@@ -178,7 +178,7 @@ def classify_outliers(df, stat_groups: list, min_threshold):
         "sv_ind_ptax_flag_w_high_price_sqft": "High price per square foot",
         "sv_ind_price_low_price_sqft": "Low price per square foot",
         "sv_ind_ptax_flag_w_low_price_sqft": "Low price per square foot",
-        "sv_raw_price_threshold": "Raw price threshold",
+        "sv_ind_raw_price_threshold": "Raw price threshold",
         "sv_ind_ptax_flag": "PTAX-203 Exclusion",
         "sv_ind_char_short_term_owner": "Short-term owner",
         "sv_ind_char_family_sale": "Family Sale",
