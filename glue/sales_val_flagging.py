@@ -144,7 +144,8 @@ def classify_outliers(df, stat_groups: list, min_threshold):
     2. Implement our group threshold requirement. In the statistical flagging process, if
     the group a sale belongs too is below N=30 then we want to manually set these flags to
     non-outlier status, even if they were flagged in the mansueto script. This requirement
-    is bypasses for ptax outliers - we don't care about group threshold in this case.
+    is bypasses for ptax outliers and raw price threshold outliers - we don't care about
+    group threshold in this case.
 
     Inputs:
         df: The data right after we perform the flagging script (go()), when the exploded
