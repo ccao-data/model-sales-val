@@ -178,6 +178,7 @@ def classify_outliers(df, stat_groups: list, min_threshold):
         "sv_ind_ptax_flag_w_high_price_sqft": "High price per square foot",
         "sv_ind_price_low_price_sqft": "Low price per square foot",
         "sv_ind_ptax_flag_w_low_price_sqft": "Low price per square foot",
+        "sv_raw_price_threshold": "Raw price threshold",
         "sv_ind_ptax_flag": "PTAX-203 Exclusion",
         "sv_ind_char_short_term_owner": "Short-term owner",
         "sv_ind_char_family_sale": "Family Sale",
@@ -199,6 +200,11 @@ def classify_outliers(df, stat_groups: list, min_threshold):
 
     Note: This doesn't apply for sales that also have a ptax outlier status.
           In this case, we still assign the price outlier status.
+
+          We also don't apply this threshold with sv_raw_price_threshold,
+          since this is design to be a safeguard that catches very high price
+          sales that may have slipped through the cracks due to the group
+          threshold requirement
     """
     group_thresh_price_fix = [
         "sv_ind_price_high_price",
@@ -237,12 +243,14 @@ def classify_outliers(df, stat_groups: list, min_threshold):
     # Drop the _merge column
     df = df.drop(columns=["_merge"])
 
-    # Assign outlier status
+    # Assign outlier status, these are the outlier types
+    # that assign a sale as an outlier
     values_to_check = {
         "High price",
         "Low price",
         "High price per square foot",
         "Low price per square foot",
+        "Raw price threshold",
     }
 
     df["sv_is_outlier"] = np.where(

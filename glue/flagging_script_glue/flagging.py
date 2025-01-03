@@ -807,6 +807,10 @@ def outlier_type(df: pd.DataFrame, condos: bool) -> pd.DataFrame:
             "sv_ind_price_low_price_sqft",
         ]
 
+    # Implement raw threshold
+    price_conditions.append(df["sale_price"] > 9_000_000)
+    price_labels.append("sv_raw_price_threshold")
+
     combined_conditions = price_conditions + char_conditions
     combined_labels = price_labels + char_labels
 
