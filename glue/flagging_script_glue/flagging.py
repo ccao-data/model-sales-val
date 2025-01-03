@@ -808,7 +808,7 @@ def outlier_type(df: pd.DataFrame, condos: bool) -> pd.DataFrame:
         ]
 
     # Implement raw threshold, unlog  price
-    price_conditions.append((10 ** df["meta_sale_price"]) > 1_000_000)
+    price_conditions.append((10 ** df["meta_sale_price"]) > 15_000_000)
     price_labels.append("sv_ind_raw_price_threshold")
 
     combined_conditions = price_conditions + char_conditions
