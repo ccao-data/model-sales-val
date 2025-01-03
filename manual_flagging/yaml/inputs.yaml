@@ -19,7 +19,7 @@ manual_update: false
 # flag sales that currently have no existing flag in the sale.flag
 # table. In other words, it will flag unseen sales, not sales that
 # the sales val model has already given a flag value to.
-manual_update_only_new_sales: true
+manual_update_only_new_sales: false
 
 # "housing_market_type" and "run_tri" configurations determine the
 # specificity of flagging. First, we retrieve the run tris, then run
@@ -30,7 +30,7 @@ housing_market_type: [
   "res_single_family",
   "res_multi_family",
   "res_all",
-  "condos"
+  #"condos"
 ]
 run_tri: [1, 2, 3]
 
@@ -151,7 +151,7 @@ dev_bounds: [2, 2]
 # sale.flag table. Leave 'end' blank if we want to flag all sales
 # since the start date
 time_frame:
-  start: "2014-01-01"
+  start: "2022-01-01"
   end:
 
 # How many total months to include in the grouping methodology
@@ -163,3 +163,7 @@ ptax_sd: [1, 1]
 
 # Flags are only applied if there are at least this many sales in the group
 min_groups_threshold: 30
+
+# This is the raw price threshold that is used to set sales to outlier status
+# regardless of group size
+raw_price_thresh: 15000000
