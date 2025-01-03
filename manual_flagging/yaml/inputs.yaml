@@ -12,7 +12,7 @@ run_note: |
 # the version number by 1 for existing flags in sales; for sales
 # without flags, it assigns a version number of "1". The latest
 # version of each sale flag can be found in the "default"."vw_pin_sale" view.
-manual_update: false
+manual_update: true
 
 # manual_update_only_new_sales: A boolean that only is in play when
 # manual_update = true. If true, the sales val pipeline will only
@@ -30,7 +30,7 @@ housing_market_type: [
   "res_single_family",
   "res_multi_family",
   "res_all",
-  #"condos"
+  "condos"
 ]
 run_tri: [1, 2, 3]
 
@@ -151,7 +151,7 @@ dev_bounds: [2, 2]
 # sale.flag table. Leave 'end' blank if we want to flag all sales
 # since the start date
 time_frame:
-  start: "2022-01-01"
+  start: "2014-01-01"
   end:
 
 # How many total months to include in the grouping methodology
@@ -166,4 +166,4 @@ min_groups_threshold: 30
 
 # This is the raw price threshold that is used to set sales to outlier status
 # regardless of group size
-raw_price_thresh: 15000000
+raw_price_thresh: 1500000
