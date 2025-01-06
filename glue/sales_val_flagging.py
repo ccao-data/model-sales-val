@@ -203,7 +203,7 @@ def classify_outliers(df, stat_groups: list, min_threshold):
           In this case, we still assign the price outlier status.
 
           We also don't apply this threshold with sv_raw_price_threshold,
-          since this is design to be a safeguard that catches very high price
+          since this is designed to be a safeguard that catches very high price
           sales that may have slipped through the cracks due to the group
           threshold requirement
     """
