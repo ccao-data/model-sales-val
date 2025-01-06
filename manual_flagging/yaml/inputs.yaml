@@ -166,4 +166,4 @@ min_groups_threshold: 30
 
 # This is the raw price threshold that is used to set sales to outlier status
 # regardless of group size
-raw_price_threshold: 1500000
+raw_price_threshold: 15_000_000
