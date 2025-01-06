@@ -300,6 +300,7 @@ for df_name, df_info in dfs_to_flag.items():
         iso_forest_cols=df_info["iso_forest_cols"],
         dev_bounds=tuple(inputs["dev_bounds"]),
         condos=df_info["condos_boolean"],
+        raw_price_threshold=inputs["raw_price_threshold"],
     )
 
     # Add the edited or unedited dataframe to the new dictionary
@@ -400,8 +401,9 @@ df_parameter = flg.get_parameter_df(
     ptax_sd=inputs["ptax_sd"],
     rolling_window=inputs["rolling_window_months"],
     time_frame=inputs["time_frame"],
-    short_term_thresh=flg_model.SHORT_TERM_OWNER_THRESHOLD,
+    short_term_threshold=flg_model.SHORT_TERM_OWNER_THRESHOLD,
     min_group_thresh=inputs["min_groups_threshold"],
+    raw_price_threshold=inputs["raw_price_threshold"],
     run_id=run_id,
 )
 

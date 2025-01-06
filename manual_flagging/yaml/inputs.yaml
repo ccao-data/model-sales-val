@@ -163,3 +163,7 @@ ptax_sd: [1, 1]
 
 # Flags are only applied if there are at least this many sales in the group
 min_groups_threshold: 30
+
+# This is the raw price threshold that is used to set sales to outlier status
+# regardless of group size
+raw_price_threshold: 15_000_000

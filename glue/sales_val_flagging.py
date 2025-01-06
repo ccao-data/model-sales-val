@@ -144,7 +144,8 @@ def classify_outliers(df, stat_groups: list, min_threshold):
     2. Implement our group threshold requirement. In the statistical flagging process, if
     the group a sale belongs too is below N=30 then we want to manually set these flags to
     non-outlier status, even if they were flagged in the mansueto script. This requirement
-    is bypasses for ptax outliers - we don't care about group threshold in this case.
+    is bypasses for ptax outliers and raw price threshold outliers - we don't care about
+    group threshold in this case.
 
     Inputs:
         df: The data right after we perform the flagging script (go()), when the exploded
@@ -178,6 +179,7 @@ def classify_outliers(df, stat_groups: list, min_threshold):
         "sv_ind_ptax_flag_w_high_price_sqft": "High price per square foot",
         "sv_ind_price_low_price_sqft": "Low price per square foot",
         "sv_ind_ptax_flag_w_low_price_sqft": "Low price per square foot",
+        "sv_ind_raw_price_threshold": "Raw price threshold",
         "sv_ind_ptax_flag": "PTAX-203 Exclusion",
         "sv_ind_char_short_term_owner": "Short-term owner",
         "sv_ind_char_family_sale": "Family Sale",
@@ -199,6 +201,11 @@ def classify_outliers(df, stat_groups: list, min_threshold):
 
     Note: This doesn't apply for sales that also have a ptax outlier status.
           In this case, we still assign the price outlier status.
+
+          We also don't apply this threshold with sv_raw_price_threshold,
+          since this is designed to be a safeguard that catches very high price
+          sales that may have slipped through the cracks due to the group
+          threshold requirement
     """
     group_thresh_price_fix = [
         "sv_ind_price_high_price",
@@ -237,12 +244,14 @@ def classify_outliers(df, stat_groups: list, min_threshold):
     # Drop the _merge column
     df = df.drop(columns=["_merge"])
 
-    # Assign outlier status
+    # Assign outlier status, these are the outlier types
+    # that assign a sale as an outlier
     values_to_check = {
         "High price",
         "Low price",
         "High price per square foot",
         "Low price per square foot",
+        "Raw price threshold",
     }
 
     df["sv_is_outlier"] = np.where(
@@ -471,8 +480,9 @@ def get_parameter_df(
     ptax_sd,
     rolling_window,
     time_frame,
-    short_term_thresh,
-    min_group_thresh,
+    short_term_threshold,
+    min_group_threshold,
+    raw_price_threshold,
     run_id,
 ):
     """
@@ -488,8 +498,9 @@ def get_parameter_df(
         ptax_sd: list of standard deviations used for ptax flagging
         rolling_window: how many months used in rolling window methodology
         date_floor: parameter specification that limits earliest flagging write
-        short_term_thresh: short-term threshold for Mansueto's flagging model
+        short_term_threshold: short-term threshold for Mansueto's flagging model
         min_group_thresh: minimum group size threshold needed to flag as outlier
+        raw_price_threshold: raw price threshold at which we unconditionally classify sales as outliers
         run_id: unique run_id to flagging program run
     Outputs:
         df_parameters: parameters table associated with flagging run
@@ -512,8 +523,9 @@ def get_parameter_df(
         "ptax_sd": [ptax_sd],
         "rolling_window": [rolling_window],
         "time_frame": [time_frame],
-        "short_term_owner_threshold": [short_term_thresh],
-        "min_group_thresh": [min_group_thresh],
+        "short_term_owner_threshold": [short_term_threshold],
+        "min_group_thresh": [min_group_threshold],
+        "raw_price_threshold": [raw_price_threshold],
     }
 
     df_parameters = pd.DataFrame(parameter_dict_to_df)

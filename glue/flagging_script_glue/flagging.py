@@ -21,6 +21,7 @@ def go(
     iso_forest_cols: list,
     dev_bounds: tuple,
     condos: bool,
+    raw_price_threshold: int,
 ):
     """
     This function runs all of our other functions in the correct sequence.
@@ -50,7 +51,9 @@ def go(
     print("string_processing() done")
     df = iso_forest(df, groups, iso_forest_cols)
     print("iso_forest() done")
-    df = outlier_taxonomy(df, dev_bounds, groups, condos=condos)
+    df = outlier_taxonomy(
+        df, dev_bounds, groups, condos=condos, raw_price_threshold=raw_price_threshold
+    )
     print("outlier_taxonomy() done\nfinished")
 
     return df
@@ -69,7 +72,13 @@ def create_group_string(groups: tuple, sep: str) -> str:
     return sep.join(groups)
 
 
-def outlier_taxonomy(df: pd.DataFrame, permut: tuple, groups: tuple, condos: bool):
+def outlier_taxonomy(
+    df: pd.DataFrame,
+    permut: tuple,
+    groups: tuple,
+    condos: bool,
+    raw_price_threshold: int,
+):
     """
     Creates columns having to do with our chosen outlier taxonomy.
     Ex: Family sale, Home flip sale, Non-person sale, High price (raw and or sqft), etc.
@@ -84,7 +93,7 @@ def outlier_taxonomy(df: pd.DataFrame, permut: tuple, groups: tuple, condos: boo
 
     df = check_days(df, SHORT_TERM_OWNER_THRESHOLD)
     df = pricing_info(df, permut, groups, condos=condos)
-    df = outlier_type(df, condos=condos)
+    df = outlier_type(df, condos=condos, raw_price_threshold=raw_price_threshold)
 
     return df
 
@@ -740,7 +749,9 @@ def z_normalize_groupby(s: pd.Series):
     return zscore(s, nan_policy="omit")
 
 
-def outlier_type(df: pd.DataFrame, condos: bool) -> pd.DataFrame:
+def outlier_type(
+    df: pd.DataFrame, condos: bool, raw_price_threshold: int
+) -> pd.DataFrame:
     """
     This function create indicator columns for each distinct outlier type between price
     and characteristic outliers. These columns are prefixed with 'sv_ind_'.
@@ -806,6 +817,10 @@ def outlier_type(df: pd.DataFrame, condos: bool) -> pd.DataFrame:
             "sv_ind_price_high_price_sqft",
             "sv_ind_price_low_price_sqft",
         ]
+
+    # Implement raw threshold, unlog  price
+    price_conditions.append((10 ** df["meta_sale_price"]) > raw_price_threshold)
+    price_labels.append("sv_ind_raw_price_threshold")
 
     combined_conditions = price_conditions + char_conditions
     combined_labels = price_labels + char_labels
