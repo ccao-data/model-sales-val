@@ -482,6 +482,7 @@ def get_parameter_df(
     time_frame,
     short_term_thresh,
     min_group_thresh,
+    raw_price_thresh,
     run_id,
 ):
     """
@@ -499,6 +500,7 @@ def get_parameter_df(
         date_floor: parameter specification that limits earliest flagging write
         short_term_thresh: short-term threshold for Mansueto's flagging model
         min_group_thresh: minimum group size threshold needed to flag as outlier
+        raw_price_thresh: raw price threshold at which we unconditionally classify sales as outliers
         run_id: unique run_id to flagging program run
     Outputs:
         df_parameters: parameters table associated with flagging run
@@ -523,6 +525,7 @@ def get_parameter_df(
         "time_frame": [time_frame],
         "short_term_owner_threshold": [short_term_thresh],
         "min_group_thresh": [min_group_thresh],
+        "raw_price_thresh": [raw_price_thresh],
     }
 
     df_parameters = pd.DataFrame(parameter_dict_to_df)
