@@ -498,9 +498,9 @@ def get_parameter_df(
         ptax_sd: list of standard deviations used for ptax flagging
         rolling_window: how many months used in rolling window methodology
         date_floor: parameter specification that limits earliest flagging write
-        short_term_thresh: short-term threshold for Mansueto's flagging model
+        short_term_threshold: short-term threshold for Mansueto's flagging model
         min_group_thresh: minimum group size threshold needed to flag as outlier
-        raw_price_thresh: raw price threshold at which we unconditionally classify sales as outliers
+        raw_price_threshold: raw price threshold at which we unconditionally classify sales as outliers
         run_id: unique run_id to flagging program run
     Outputs:
         df_parameters: parameters table associated with flagging run
