@@ -480,9 +480,9 @@ def get_parameter_df(
     ptax_sd,
     rolling_window,
     time_frame,
-    short_term_thresh,
-    min_group_thresh,
-    raw_price_thresh,
+    short_term_threshold,
+    min_group_threshold,
+    raw_price_threshold,
     run_id,
 ):
     """
@@ -523,9 +523,9 @@ def get_parameter_df(
         "ptax_sd": [ptax_sd],
         "rolling_window": [rolling_window],
         "time_frame": [time_frame],
-        "short_term_owner_threshold": [short_term_thresh],
-        "min_group_thresh": [min_group_thresh],
-        "raw_price_thresh": [raw_price_thresh],
+        "short_term_owner_threshold": [short_term_threshold],
+        "min_group_thresh": [min_group_threshold],
+        "raw_price_threshold": [raw_price_threshold],
     }
 
     df_parameters = pd.DataFrame(parameter_dict_to_df)
