@@ -402,7 +402,7 @@ df_parameter = flg.get_parameter_df(
     rolling_window=inputs["rolling_window_months"],
     time_frame=inputs["time_frame"],
     short_term_threshold=flg_model.SHORT_TERM_OWNER_THRESHOLD,
-    min_group_thresh=inputs["min_groups_threshold"],
+    min_group_threshold=inputs["min_groups_threshold"],
     raw_price_threshold=inputs["raw_price_threshold"],
     run_id=run_id,
 )
