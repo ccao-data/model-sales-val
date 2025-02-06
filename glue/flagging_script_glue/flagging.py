@@ -186,9 +186,17 @@ def pricing_info(
     df: pd.DataFrame, permut: tuple, groups: tuple, condos: bool
 ) -> pd.DataFrame:
     """
-    Computes pricing deviations and, using a vectorized approach, computes per-row
-    lower/upper thresholds based on group means and standard deviations. Then,
-    determines pricing outlier type.
+    Computes pricing deviations and computeslower/upper standard
+    deviation thresholds based on group means and standard deviations.
+
+    Inputs:
+        df (pd.DataFrame): dataframe of sales
+        permut (tuple): tuple of standard deviation boundaries.
+                        Ex: (2,2) is 2 std away on both sides.
+        groups: (tuple): Our statistical grouping columns
+        condos (bool): Specifies whether we are running function for condos or residential
+    Outputs:
+        df (pd.DataFrame): dataframe with 3 extra columns of price info.
     """
     group_str = create_group_string(groups, "_")
     # Log-transform the columns (price and, if applicable, price per sqft)
@@ -280,6 +288,14 @@ def price_column(row: pd.Series, groups: tuple, condos: bool) -> str:
     Determines whether the record is a high or low price outlier and, if applicable,
     whether it exhibits a price swing. Comparisons are made by checking the record's
     deviation against its per-row lower/upper threshold.
+
+    Determines whether the record is a high price outlier or a low price outlier.
+    If the record is also a price change outlier, than 'swing' is added to the string.
+    Inputs:
+        groups: (tuple) Columns for statistical grouping
+        condos (bool): Specifies whether we are running function for condos or residential
+    Outputs:
+        value (str): string showing what kind of price outlier the record is.
     """
     group_str = create_group_string(groups, "_")
     value = "Not price outlier"
