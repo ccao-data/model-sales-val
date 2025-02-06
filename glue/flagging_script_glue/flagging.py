@@ -254,6 +254,10 @@ def which_price(row: pd.Series, groups: tuple) -> str:
     """
     Determines which price measure (raw, per sqft, or both) is flagged as an outlier
     by comparing deviation values with per-row thresholds.
+    Inputs:
+        groups (tuple): tuple of columns used for statistical grouping
+    Outputs:
+        value (str): string saying which of these are outliers.
     """
     group_str = create_group_string(groups, "_")
     raw_val = row[f"sv_price_deviation_{group_str}"]
