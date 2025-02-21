@@ -186,7 +186,7 @@ def pricing_info(
     df: pd.DataFrame, permut: tuple, groups: tuple, condos: bool
 ) -> pd.DataFrame:
     """
-    Computes pricing deviations and computeslower/upper standard
+    Computes pricing deviations and computes lower/upper standard
     deviation thresholds based on group means and standard deviations.
 
     Inputs:
