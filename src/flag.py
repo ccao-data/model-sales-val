@@ -1,5 +1,5 @@
-from glue.flagging_script_glue import flagging as flg_model
-from glue import sales_val_flagging as flg
+import model
+import utils
 import awswrangler as wr
 import copy
 import os
@@ -14,10 +14,10 @@ from pyathena.pandas.util import as_pandas
 
 # Set working dir to manual_update, standardize yaml and src locations
 root = sp.getoutput("git rev-parse --show-toplevel")
-os.chdir(os.path.join(root, "manual_flagging"))
+os.chdir(os.path.join(root, "src"))
 
 # Use yaml as inputs
-with open(os.path.join("yaml", "inputs.yaml"), "r") as stream:
+with open("inputs.yaml", "r") as stream:
     inputs = yaml.safe_load(stream)
 
 # Validate the input specification
@@ -44,7 +44,7 @@ conn = connect(
     region_name=os.getenv("AWS_REGION"),
 )
 
-date_floor = flg.months_back(
+date_floor = utils.months_back(
     date_str=inputs["time_frame"]["start"],
     num_months=inputs["rolling_window_months"] - 1,
 )
@@ -168,9 +168,9 @@ if inputs["manual_update"] == True:
     df_flag_table = df_ingest_flag
 
 conversion_dict = {
-    col[0]: flg.sql_type_to_pd_type(col[1])
+    col[0]: utils.sql_type_to_pd_type(col[1])
     for col in metadata
-    if flg.sql_type_to_pd_type(col[1]) is not None
+    if utils.sql_type_to_pd_type(col[1]) is not None
 }
 df = df.astype(conversion_dict)
 df["ptax_flag_original"].fillna(False, inplace=True)
@@ -280,7 +280,7 @@ for df_name, df_info in dfs_to_rolling_window.items():
     print(f"Assigning rolling window for {df_name}")
     df_copy = df_info["df"].copy()
 
-    df_copy = flg.add_rolling_window(
+    df_copy = utils.add_rolling_window(
         df_copy, num_months=inputs["rolling_window_months"]
     )
     dfs_to_flag[df_name]["df"] = df_copy
@@ -294,7 +294,7 @@ dfs_flagged = copy.deepcopy(dfs_to_flag)
 for df_name, df_info in dfs_to_flag.items():
     print(f"\nFlagging sales for {df_name}")
     df_copy = df_info["df"].copy()
-    df_copy = flg_model.go(
+    df_copy = model.go(
         df=df_copy,
         groups=tuple(df_info["columns"]),
         iso_forest_cols=df_info["iso_forest_cols"],
@@ -317,14 +317,14 @@ for df_name, df_info in dfs_flagged.items():
     print(f"\n Enacting group threshold and creating ptax data for {df_name}")
     df_copy = df_info["df"].copy()
 
-    df_copy = flg.ptax_adjustment(
+    df_copy = utils.ptax_adjustment(
         df=df_copy,
         groups=df_info["columns"],
         ptax_sd=inputs["ptax_sd"],
         condos=df_info["condos_boolean"],
     )
 
-    df_copy = flg.classify_outliers(
+    df_copy = utils.classify_outliers(
         df=df_copy,
         stat_groups=df_info["columns"],
         min_threshold=inputs["min_groups_threshold"],
@@ -361,7 +361,7 @@ if inputs["manual_update"] == True:
 dfs_to_finalize_list = [details["df"] for details in dfs_to_finalize.values()]
 df_to_finalize = pd.concat(dfs_to_finalize_list, axis=0)
 
-df_to_write, run_id, timestamp = flg.finish_flags(
+df_to_write, run_id, timestamp = utils.finish_flags(
     df=df_to_finalize,
     start_date=inputs["time_frame"]["start"],
     manual_update=inputs["manual_update"],
@@ -389,7 +389,7 @@ run_filter = str(
 )
 
 # Get parameters df
-df_parameter = flg.get_parameter_df(
+df_parameter = utils.get_parameter_df(
     df_to_write=df_to_write,
     df_ingest=df_ingest,
     run_filter=run_filter,
@@ -401,20 +401,20 @@ df_parameter = flg.get_parameter_df(
     ptax_sd=inputs["ptax_sd"],
     rolling_window=inputs["rolling_window_months"],
     time_frame=inputs["time_frame"],
-    short_term_threshold=flg_model.SHORT_TERM_OWNER_THRESHOLD,
+    short_term_threshold=model.SHORT_TERM_OWNER_THRESHOLD,
     min_group_threshold=inputs["min_groups_threshold"],
     raw_price_threshold=inputs["raw_price_threshold"],
     run_id=run_id,
 )
 
 # Standardize dtypes to prevent Athena errors
-df_parameter = flg.modify_dtypes(df_parameter)
+df_parameter = utils.modify_dtypes(df_parameter)
 
 # Get sale.group_mean data
 df_group_means = []  # List to store the transformed DataFrames
 
 for df_name, df_info in dfs_to_finalize.items():
-    df_group_mean = flg.get_group_mean_df(
+    df_group_mean = utils.get_group_mean_df(
         df=dfs_flagged[df_name]["df"],
         stat_groups=df_info["columns"],
         run_id=run_id,
@@ -437,7 +437,7 @@ run_type = (
     else "manual_update"
 )
 
-df_metadata = flg.get_metadata_df(
+df_metadata = utils.get_metadata_df(
     run_id=run_id,
     timestamp=timestamp,
     run_type=run_type,
@@ -457,7 +457,7 @@ tables_to_write = {
 }
 
 for table, df in tables_to_write.items():
-    flg.write_to_table(
+    utils.write_to_table(
         df=df,
         table_name=table,
         s3_warehouse_bucket_path=os.getenv("AWS_S3_WAREHOUSE_BUCKET"),
