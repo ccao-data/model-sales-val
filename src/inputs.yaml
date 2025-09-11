@@ -27,9 +27,12 @@ manual_update_only_new_sales: true
 # the market type is present in the "stat groups" config under the
 # "tri$n" value.
 housing_market_type: [
+  "res_single_family",
+  "res_multi_family",
   "res_all",
+  "condos"
 ]
-run_tri: [3]
+run_tri: [1, 2, 3]
 
 # "sales_to_write" filter allows further specificity. Here we can decide
 # which flags we want to write at a more precise level than market type
@@ -148,7 +151,7 @@ dev_bounds: [2, 2]
 # sale.flag table. Leave 'end' blank if we want to flag all sales
 # since the start date
 time_frame:
-  start: "2022-01-01"
+  start: "2014-01-01"
   end:
 
 # How many total months to include in the grouping methodology
