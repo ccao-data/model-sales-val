@@ -7,6 +7,7 @@ from glue import sales_val_flagging as flg
 import subprocess as sp
 from pyathena import connect
 from pyathena.pandas.util import as_pandas
+from pyathena.pandas.cursor import PandasCursor
 
 pedantic_matt_path = os.path.join(
     os.getenv("AWS_BUCKET_SV_BACKUP"),
@@ -35,10 +36,15 @@ df_to_edit_compassionate_rina = wr.s3.read_parquet(compassionate_rina_path)
 # # # - - - - - -
 
 # Connect to Athena
-conn = connect(
-    s3_staging_dir=os.getenv("AWS_ATHENA_S3_STAGING_DIR"),
+# Connect to Athena
+cursor = connect(
+    # We add '+ "/"' to the end of the line below because enabling unload
+    # requires that the staging directory end with a slash
+    s3_staging_dir=os.getenv("AWS_ATHENA_S3_STAGING_DIR") + "/",
     region_name=os.getenv("AWS_REGION"),
-)
+    cursor_class=PandasCursor,
+).cursor(unload=True)
+
 
 # Fetch sales and characteristics from Athena
 SQL_QUERY_PIN_SALE = """
@@ -48,12 +54,21 @@ where sv_is_outlier is not null
 """
 
 # Execute query and return as pandas df
-cursor = conn.cursor()
 cursor.execute(SQL_QUERY_PIN_SALE)
-metadata = cursor.description
-
-df_ingest = as_pandas(cursor)
-df = df_ingest
+df = cursor.as_pandas()
 
 
 # wr.s3.to_parquet(df=df, path=file_path, index=False)
+
+# Normalize to string to avoid dtype mismatches
+df_ids = set(df["doc_no"].astype(str))
+
+# Filter pedantic_matt
+df_to_edit_pedantic_matt_filtered = df_to_edit_pedantic_matt[
+    df_to_edit_pedantic_matt["meta_sale_document_num"].astype(str).isin(df_ids)
+]
+
+# Filter compassionate_rina
+df_to_edit_compassionate_rina_filtered = df_to_edit_compassionate_rina[
+    df_to_edit_compassionate_rina["meta_sale_document_num"].astype(str).isin(df_ids)
+]
