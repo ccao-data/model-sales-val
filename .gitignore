@@ -3,8 +3,3 @@ __pycache__/
 ipynb_checkpoints
 glue/schema/*.parquet
 *.csv
-
-# Terraform internals
-.terraform
-terraform.tfstate
-terraform.tfstate.*
