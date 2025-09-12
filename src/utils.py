@@ -1,14 +1,9 @@
 import awswrangler as wr
-import boto3
 import datetime
 import numpy as np
 import os
 import pandas as pd
 import pytz
-import re
-import sys
-from pyathena import connect
-from pyathena.pandas.util import as_pandas
 from dateutil.relativedelta import relativedelta
 
 
