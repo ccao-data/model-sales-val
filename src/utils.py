@@ -320,6 +320,7 @@ def finish_flags(df, start_date, manual_update, sales_to_write_filter):
         "ptax_flag_original",
         "sv_is_heuristic_outlier",
         "sv_price_deviation",
+        "sv_price_per_sqft_deviation",
         "group",
     ]
 
