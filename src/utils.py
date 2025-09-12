@@ -103,28 +103,28 @@ def ptax_adjustment(df, groups, ptax_sd, condos: bool):
 
     if not condos:
         df["sv_ind_ptax_flag_w_high_price"] = df["ptax_flag_original"] & (
-            (df[f"sv_price_deviation_{group_string}"] >= ptax_sd[1])
+            (df["sv_price_deviation"] >= ptax_sd[1])
         )
 
         df["sv_ind_ptax_flag_w_high_price_sqft"] = df["ptax_flag_original"] & (
-            (df[f"sv_price_per_sqft_deviation_{group_string}"] >= ptax_sd[1])
+            (df["sv_price_per_sqft_deviation"] >= ptax_sd[1])
         )
 
         df["sv_ind_ptax_flag_w_low_price"] = df["ptax_flag_original"] & (
-            (df[f"sv_price_per_sqft_deviation_{group_string}"] <= -ptax_sd[0])
+            (df["sv_price_per_sqft_deviation"] <= -ptax_sd[0])
         )
 
         df["sv_ind_ptax_flag_w_low_price_sqft"] = df["ptax_flag_original"] & (
-            (df[f"sv_price_per_sqft_deviation_{group_string}"] <= -ptax_sd[0])
+            (df["sv_price_per_sqft_deviation"] <= -ptax_sd[0])
         )
 
     else:
         df["sv_ind_ptax_flag_w_high_price"] = df["ptax_flag_original"] & (
-            (df[f"sv_price_deviation_{group_string}"] >= ptax_sd[1])
+            (df["sv_price_deviation"] >= ptax_sd[1])
         )
 
         df["sv_ind_ptax_flag_w_low_price"] = df["ptax_flag_original"] & (
-            (df[f"sv_price_deviation_{group_string}"] <= -ptax_sd[0])
+            (df["sv_price_deviation"] <= -ptax_sd[0])
         )
 
     df["sv_ind_ptax_flag"] = df["ptax_flag_original"].astype(int)
@@ -319,6 +319,7 @@ def finish_flags(df, start_date, manual_update, sales_to_write_filter):
         "sv_is_ptax_outlier",
         "ptax_flag_original",
         "sv_is_heuristic_outlier",
+        "sv_price_deviation",
         "group",
     ]
 
