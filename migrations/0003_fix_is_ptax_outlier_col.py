@@ -3,11 +3,8 @@
 # of the sales val pipeline accidentally used the wrong reason codes to
 # compute this column, resulting in every row getting set to False
 import os
+
 import awswrangler as wr
-import pandas as pd
-import numpy as np
-from glue import sales_val_flagging as flg
-import subprocess as sp
 
 
 def read_parquets_to_dfs(table):

@@ -1,0 +1,11 @@
+[project]
+name = "model-sales-val"
+version = "0.0.1"
+readme = "README.md"
+
+[tool.ruff]
+line-length = 79
+
+[tool.ruff.lint]
+# Add isort to ruff linting
+extend-select = ["I"]

@@ -1,10 +1,9 @@
-import awswrangler as wr
-import boto3
 import os
 import subprocess as sp
+
+import awswrangler as wr
+import boto3
 import numpy as np
-from pyathena import connect
-from pyathena.pandas.util import as_pandas
 
 # Set working dir to manual_update, standardize yaml and src locations
 root = sp.getoutput("git rev-parse --show-toplevel")
@@ -77,7 +76,10 @@ def write_dfs_to_s3(dfs, bucket, table):
     for df_name, df in dfs.items():
         file_path = f"{bucket}/0002_update_outlier_column_structure_w_iasworld_2024_update/new_prod_data/{table}/{df_name}.parquet"
         wr.s3.to_parquet(
-            df=df, path=file_path, index=False, dtype={"sv_outlier_reason3": "string"}
+            df=df,
+            path=file_path,
+            index=False,
+            dtype={"sv_outlier_reason3": "string"},
         )
 
 
