@@ -498,7 +498,8 @@ def percent_change(df: pd.DataFrame) -> pd.DataFrame:
         df (pd.DataFrame): dataframe with CGR statistic and previous_price column
     """
 
-    original_df = df[df["original_observation"] is True].copy()
+    mask_original_df = df["original_observation"]
+    original_df = df.loc[mask_original_df].copy()
     original_df["sv_previous_price"] = (
         original_df.sort_values("meta_sale_date")
         .groupby(["pin"])["meta_sale_price"]
@@ -673,7 +674,8 @@ def transaction_days(df: pd.DataFrame) -> pd.DataFrame:
         df (pd.DataFrame): DataFrame with new column
     """
 
-    original_df = df[df["original_observation"] is True].copy()
+    mask_original_df = df["original_observation"]
+    original_df = df.loc[mask_original_df].copy()
     original_df["sv_days_since_last_transaction"] = (
         original_df.sort_values("meta_sale_date")
         .groupby("pin")["meta_sale_date"]
