@@ -1,16 +1,15 @@
-import model
-import utils
-import awswrangler as wr
 import copy
-import os
 import datetime
-import numpy as np
-import pandas as pd
-import pytz
+import os
 import subprocess as sp
+
+import pandas as pd
 import yaml
 from pyathena import connect
 from pyathena.pandas.util import as_pandas
+
+import model
+import utils
 
 # Set working dir to manual_update, standardize yaml and src locations
 root = sp.getoutput("git rev-parse --show-toplevel")
@@ -26,17 +25,21 @@ with open("inputs.yaml", "r") as stream:
 assert "housing_market_type" in inputs, "Missing key: 'housing_market_type'"
 assert set(inputs["housing_market_type"]).issubset(
     {"res_single_family", "res_multi_family", "condos", "res_all"}
-), "housing_market_type can only contain 'res_single_family', 'res_multi_family', 'condos', 'res_all'"
+), (
+    "housing_market_type can only contain 'res_single_family', 'res_multi_family', 'condos', 'res_all'"
+)
 assert len(inputs["housing_market_type"]) == len(
     set(inputs["housing_market_type"])
 ), "Duplicate values in 'housing_market_type'"
 
 # Check run_tri
 assert "run_tri" in inputs, "Missing key: 'run_tri'"
-assert set(inputs["run_tri"]).issubset({1, 2, 3}), "run_tri can only contain 1, 2, 3"
-assert len(inputs["run_tri"]) == len(
-    set(inputs["run_tri"])
-), "Duplicate values in 'run_tri'"
+assert set(inputs["run_tri"]).issubset({1, 2, 3}), (
+    "run_tri can only contain 1, 2, 3"
+)
+assert len(inputs["run_tri"]) == len(set(inputs["run_tri"])), (
+    "Duplicate values in 'run_tri'"
+)
 
 # Connect to Athena
 conn = connect(
@@ -50,12 +53,12 @@ date_floor = utils.months_back(
 )
 
 # Parse yaml to get which sales to flag
-if inputs["time_frame"]["end"] == None:
+if inputs["time_frame"]["end"] is None:
     sql_time_frame = f"sale.sale_date >= DATE '{date_floor}'"
 else:
     sql_time_frame = f"""(sale.sale_date
         BETWEEN DATE '{date_floor}'
-        AND DATE '{inputs['time_frame']['end']}')"""
+        AND DATE '{inputs["time_frame"]["end"]}')"""
 
 # Fetch sales and characteristics from Athena
 SQL_QUERY = f"""
@@ -157,7 +160,7 @@ metadata = cursor.description
 df_ingest = as_pandas(cursor)
 df = df_ingest
 
-if inputs["manual_update"] == True:
+if inputs["manual_update"] is True:
     # TODO: sub this out for prod table before merging
     SQL_QUERY_SALES_VAL = """
     SELECT *
@@ -195,11 +198,11 @@ def create_bins_and_labels(input_list):
     labels = []
     for i in range(len(bins) - 1):
         if i == 0:
-            labels.append(f"below-{bins[i+1]}")
+            labels.append(f"below-{bins[i + 1]}")
         elif i == len(bins) - 2:
             labels.append(f"above-{bins[i]}")
         else:
-            labels.append(f"{bins[i]}-to-{bins[i+1]}")
+            labels.append(f"{bins[i]}-to-{bins[i + 1]}")
 
     return bins, labels
 
@@ -231,7 +234,9 @@ for tri in inputs["run_tri"]:
 
         # Initialize the DataFrame for the current key
         df_filtered = df[triad_code_filter & market_filter].copy()
-        dfs_to_rolling_window[key] = {"df": df_filtered}  # Store the filtered DataFrame
+        dfs_to_rolling_window[key] = {
+            "df": df_filtered  # Store the filtered DataFrame
+        }
 
         # Extract the specific housing type configuration
         housing_type_config = inputs["stat_groups"][f"tri{tri}"][housing_type]
@@ -348,7 +353,7 @@ for df_name, df_info in dfs_flagged.items():
 # Finalize data to write and create data for all metadata tables
 # - - - - - - - -
 
-if inputs["manual_update"] == True:
+if inputs["manual_update"] is True:
     # Group the existing data by 'ID' and find the maximum 'version' for each sale
     existing_max_version = (
         df_flag_table.groupby("meta_sale_document_num")["version"]
@@ -368,10 +373,12 @@ df_to_write, run_id, timestamp = utils.finish_flags(
     sales_to_write_filter=inputs["sales_to_write_filter"],
 )
 
-if inputs["manual_update"] == True:
+if inputs["manual_update"] is True:
     # Merge, compute new version, and drop unnecessary columns
     df_to_write = (
-        df_to_write.merge(existing_max_version, on="meta_sale_document_num", how="left")
+        df_to_write.merge(
+            existing_max_version, on="meta_sale_document_num", how="left"
+        )
         .assign(
             version=lambda x: x["existing_version"]
             .apply(lambda y: y + 1 if pd.notnull(y) else 1)
@@ -381,11 +388,14 @@ if inputs["manual_update"] == True:
     )
     # Additional filtering if manual_update_only_new_sales is True
     # If this is set to true, only unseen sales will get flag updates
-    if inputs["manual_update_only_new_sales"] == True:
+    if inputs["manual_update_only_new_sales"] is True:
         df_to_write = df_to_write[df_to_write["version"] == 1]
 
 run_filter = str(
-    {"housing_market_type": inputs["housing_market_type"], "run_tri": inputs["run_tri"]}
+    {
+        "housing_market_type": inputs["housing_market_type"],
+        "run_tri": inputs["run_tri"],
+    }
 )
 
 # Get parameters df
@@ -421,7 +431,9 @@ for df_name, df_info in dfs_to_finalize.items():
         condos=df_info["condos_boolean"],
     )
     market_value = df_info["market"]
-    df_group_mean["group"] = df_group_mean["group"].astype(str) + "-" + market_value
+    df_group_mean["group"] = (
+        df_group_mean["group"].astype(str) + "-" + market_value
+    )
     df_group_means.append(df_group_mean)
 
 df_group_mean_to_write = pd.concat(df_group_means, ignore_index=True)

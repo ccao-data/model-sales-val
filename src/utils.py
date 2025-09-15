@@ -1,7 +1,8 @@
-import awswrangler as wr
 import datetime
-import numpy as np
 import os
+
+import awswrangler as wr
+import numpy as np
 import pandas as pd
 import pytz
 from dateutil.relativedelta import relativedelta
@@ -22,9 +23,9 @@ def months_back(date_str, num_months):
             that is num_months months back from date_str
     """
     # Parse the date string to a datetime object and subtract the months
-    result_date = datetime.datetime.strptime(date_str, "%Y-%m-%d") - relativedelta(
-        months=num_months
-    )
+    result_date = datetime.datetime.strptime(
+        date_str, "%Y-%m-%d"
+    ) - relativedelta(months=num_months)
 
     # Set the day to 1
     result_date = result_date.replace(day=1)
@@ -63,7 +64,9 @@ def add_rolling_window(df, num_months):
             & (df["meta_sale_date"].dt.year == df["rolling_window"].dt.year)
         )
         # Simplify to month level
-        .assign(rolling_window=lambda df: df["rolling_window"].dt.to_period("M"))
+        .assign(
+            rolling_window=lambda df: df["rolling_window"].dt.to_period("M")
+        )
         # Filter such that rolling_window isn't extrapolated into future, we are concerned with historic and present-month data
         .loc[lambda df: df["rolling_window"] <= max_date.to_period("M")]
         # Back to float for flagging script
@@ -94,32 +97,30 @@ def ptax_adjustment(df, groups, ptax_sd, condos: bool):
         df: ptax adjusted dataframe
     """
 
-    group_string = "_".join(groups)
-
     if not condos:
         df["sv_ind_ptax_flag_w_high_price"] = df["ptax_flag_original"] & (
-            (df["sv_price_deviation"] >= ptax_sd[1])
+            df["sv_price_deviation"] >= ptax_sd[1]
         )
 
         df["sv_ind_ptax_flag_w_high_price_sqft"] = df["ptax_flag_original"] & (
-            (df["sv_price_per_sqft_deviation"] >= ptax_sd[1])
+            df["sv_price_per_sqft_deviation"] >= ptax_sd[1]
         )
 
         df["sv_ind_ptax_flag_w_low_price"] = df["ptax_flag_original"] & (
-            (df["sv_price_per_sqft_deviation"] <= -ptax_sd[0])
+            df["sv_price_per_sqft_deviation"] <= -ptax_sd[0]
         )
 
         df["sv_ind_ptax_flag_w_low_price_sqft"] = df["ptax_flag_original"] & (
-            (df["sv_price_per_sqft_deviation"] <= -ptax_sd[0])
+            df["sv_price_per_sqft_deviation"] <= -ptax_sd[0]
         )
 
     else:
         df["sv_ind_ptax_flag_w_high_price"] = df["ptax_flag_original"] & (
-            (df["sv_price_deviation"] >= ptax_sd[1])
+            df["sv_price_deviation"] >= ptax_sd[1]
         )
 
         df["sv_ind_ptax_flag_w_low_price"] = df["ptax_flag_original"] & (
-            (df["sv_price_deviation"] <= -ptax_sd[0])
+            df["sv_price_deviation"] <= -ptax_sd[0]
         )
 
     df["sv_ind_ptax_flag"] = df["ptax_flag_original"].astype(int)
@@ -158,7 +159,11 @@ def classify_outliers(df, stat_groups: list, min_threshold):
 
     # Merge df_flagged with filtered_groups on the columns to get the matching rows
     df = pd.merge(
-        df, filtered_groups[stat_groups], on=stat_groups, how="left", indicator=True
+        df,
+        filtered_groups[stat_groups],
+        on=stat_groups,
+        how="left",
+        indicator=True,
     )
 
     # Assign sv_outlier_reasons
@@ -224,11 +229,16 @@ def classify_outliers(df, stat_groups: list, min_threshold):
                 # is not met, but only price indicators (`group_thresh_price_fix`) should use this threshold,
                 # since ptax indicators don't currently utilize group threshold logic
                 and not (
-                    row["_merge"] == "both" and reason_ind_col in group_thresh_price_fix
+                    row["_merge"] == "both"
+                    and reason_ind_col in group_thresh_price_fix
                 )
             ):
-                row[f"sv_outlier_reason{len(reasons_added) + 1}"] = current_reason
-                reasons_added.add(current_reason)  # Add current reason to the set
+                row[f"sv_outlier_reason{len(reasons_added) + 1}"] = (
+                    current_reason
+                )
+                reasons_added.add(
+                    current_reason  # Add current reason to the set
+                )
                 if len(reasons_added) >= 3:
                     break
 
@@ -264,10 +274,10 @@ def classify_outliers(df, stat_groups: list, min_threshold):
 
     df = df.assign(
         # PTAX-203 binary
-        sv_is_ptax_outlier=lambda df: (df["sv_is_outlier"] == True)
+        sv_is_ptax_outlier=lambda df: (df["sv_is_outlier"] is True)
         & (df["sv_ind_ptax_flag"] == 1),
         sv_is_heuristic_outlier=lambda df: (~df["sv_ind_ptax_flag"] == 1)
-        & (df["sv_is_outlier"] == True),
+        & (df["sv_is_outlier"] is True),
     )
 
     return df
@@ -300,7 +310,9 @@ def finish_flags(df, start_date, manual_update, sales_to_write_filter):
 
     if sales_to_write_filter["column"]:
         df = df[
-            df[sales_to_write_filter["column"]].isin(sales_to_write_filter["values"])
+            df[sales_to_write_filter["column"]].isin(
+                sales_to_write_filter["values"]
+            )
         ]
 
     cols_to_write = [
@@ -328,11 +340,13 @@ def finish_flags(df, start_date, manual_update, sales_to_write_filter):
     )
 
     adj_name_combo = (
-        np.random.choice(left["adjective"]) + "-" + np.random.choice(right["person"])
+        np.random.choice(left["adjective"])
+        + "-"
+        + np.random.choice(right["person"])
     )
-    timestamp = datetime.datetime.now(pytz.timezone("America/Chicago")).strftime(
-        "%Y-%m-%d_%H:%M"
-    )
+    timestamp = datetime.datetime.now(
+        pytz.timezone("America/Chicago")
+    ).strftime("%Y-%m-%d_%H:%M")
     run_id = timestamp + "-" + adj_name_combo
 
     # Control flow for incorporating versioning
@@ -569,5 +583,7 @@ def write_to_table(df, table_name, s3_warehouse_bucket_path, run_id):
         run_id: unique run_id of the script
     """
     file_name = run_id + ".parquet"
-    s3_file_path = os.path.join(s3_warehouse_bucket_path, "sale", table_name, file_name)
+    s3_file_path = os.path.join(
+        s3_warehouse_bucket_path, "sale", table_name, file_name
+    )
     wr.s3.to_parquet(df=df, path=s3_file_path)
