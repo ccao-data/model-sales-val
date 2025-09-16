@@ -5,6 +5,7 @@
 # or add context
 run_note: |
 
+# 'dev' or 'prod'
 output_environment: dev
 
 # manual_update: A boolean setting to control flag updates. If set
