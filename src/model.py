@@ -498,8 +498,7 @@ def percent_change(df: pd.DataFrame) -> pd.DataFrame:
         df (pd.DataFrame): dataframe with CGR statistic and previous_price column
     """
 
-    mask_original_df = df["original_observation"]
-    original_df = df.loc[mask_original_df].copy()
+    original_df = df[df["original_observation"]].copy()
     original_df["sv_previous_price"] = (
         original_df.sort_values("meta_sale_date")
         .groupby(["pin"])["meta_sale_price"]
