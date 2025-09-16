@@ -264,7 +264,7 @@ Valid values are:
 
 When `output_environment` is set to `"dev"`, the pipeline will utilize user-specific paths: Tables are created under `z_dev_${USER}_sale/`
 
-## First-Time Development Setup
+### First-Time Development Setup
 
 When you first start working on a development version of the sales validation pipeline, you need to create a Glue crawler to be able to query/interact with the data in athena.
 
