@@ -253,6 +253,7 @@ erDiagram
 ```yaml
 output_environment: "dev"  # or "prod"
 ```
+
 - `"prod"` → writes to production tables & S3 paths
 - `"dev"`: writes to user-scoped dev tables & S3 paths, athena database will appear as `z_dev_${USER}_sale`
 
