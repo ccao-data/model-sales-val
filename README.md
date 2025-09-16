@@ -6,6 +6,7 @@ Table of Contents
 - [Outlier Types](#outlier-types)
 - [Flagging Details](#flagging-details)
 - [Structure of Data](#structure-of-data)
+- [Developing the sales val pipeline](#developing-the-sales-val-pipeline)
 - [AWS Glue Job Documentation](#aws-glue-job-documentation)
 - [Exporting Flags to iasWorld](#exporting-flags-to-iasworld)
 
@@ -244,6 +245,35 @@ erDiagram
         string run_id PK
     }
 ```
+
+## Developing the sales val pipeline
+
+### Setting the Environment
+
+Configure your environment by setting the `output_environment` key in `inputs.yaml`:
+
+```yaml
+output_environment: "dev"  # or "prod"
+```
+
+Valid values are:
+- `"prod"`: Writes to production tables and S3 locations
+- `"dev"`: Writes to user-specific development tables and S3 locations
+
+### Development Environment Behavior
+
+When `output_environment` is set to `"dev"`, the pipeline will utilize user-specific paths: Tables are created under `z_dev_${USER}_sale/`
+
+## First-Time Development Setup
+
+When you first start working on a development version of the sales validation pipeline, you need to create a Glue crawler to be able to query/interact with the data in athena.
+
+### Environment Variables
+
+Ensure you have the following environment variables set:
+- `AWS_S3_WAREHOUSE_BUCKET`
+- `AWS_S3_WAREHOUSE_BUCKET_DEV`
+
 
 ## AWS Glue Job Documentation
 
