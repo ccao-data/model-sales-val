@@ -572,18 +572,24 @@ def get_metadata_df(run_id, timestamp, run_type, commit_sha, run_note):
     return df_metadata
 
 
-def write_to_table(df, table_name, s3_warehouse_bucket_path, run_id):
+def write_to_table(df, table_name, run_id, output_environment):
     """
     This function writes a parquet file to s3 which will either create or append
     to a table in athena.
     Inputs:
         df: dataframe ready to be written
         table_name: which table the parquet will be written to
-        s3_warehouse_bucket_path: s3 bucket
         run_id: unique run_id of the script
     """
+    USER = os.getenv("USER")
+
+    if output_environment == "prod":
+        base_path = os.path.join(os.getenv("AWS_S3_WAREHOUSE_BUCKET"), "sale")
+    elif output_environment == "dev":
+        base_path = os.path.join(
+            os.getenv("AWS_S3_WAREHOUSE_BUCKET_DEV"), f"z_dev_{USER}_sale"
+        )
+
     file_name = run_id + ".parquet"
-    s3_file_path = os.path.join(
-        s3_warehouse_bucket_path, "sale", table_name, file_name
-    )
+    s3_file_path = os.path.join(base_path, table_name, file_name)
     wr.s3.to_parquet(df=df, path=s3_file_path)

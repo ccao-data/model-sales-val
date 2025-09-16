@@ -20,6 +20,9 @@ with open("inputs.yaml", "r") as stream:
     inputs = yaml.safe_load(stream)
 
 # Validate the input specification
+if inputs["output_environment"] not in {"dev", "prod"}:
+    raise ValueError("output_environment must be either 'dev' or 'prod'")
+
 # Check housing_market_type
 # TODO: Add res_all and other res_type exclusivity check
 assert "housing_market_type" in inputs, "Missing key: 'housing_market_type'"
@@ -472,7 +475,7 @@ for table, df in tables_to_write.items():
     utils.write_to_table(
         df=df,
         table_name=table,
-        s3_warehouse_bucket_path=os.getenv("AWS_S3_WAREHOUSE_BUCKET"),
         run_id=run_id,
+        output_environment=inputs["output_environment"],
     )
     print(f"{table} table successfully written")

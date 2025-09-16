@@ -5,6 +5,7 @@
 # or add context
 run_note: |
 
+output_environment: dev
 
 # manual_update: A boolean setting to control flag updates. If set
 # to "false", it initializes a new set of flags with each assigned
