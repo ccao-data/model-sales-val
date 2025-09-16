@@ -246,34 +246,26 @@ erDiagram
     }
 ```
 
-## Developing the sales val pipeline
+## Developing the sales val pipeline, testing changes
 
 ### Setting the Environment
 
-Configure your environment by setting the `output_environment` key in `inputs.yaml`:
+**Choose output target** (in `src/inputs.yaml`)
 
 ```yaml
 output_environment: "dev"  # or "prod"
 ```
+- `"prod"` → writes to production tables & S3 paths
+- `"dev"`: writes to user-scoped dev tables & S3 paths, athena database will appear as `z_dev_${USER}_sale`
 
-Valid values are:
-- `"prod"`: Writes to production tables and S3 locations
-- `"dev"`: Writes to user-specific development tables and S3 locations
+**First-rime dev setup**
+Once outputs arrive at the development S3 bucket, a crawler will need to be run to populate the Athena tables.
 
-### Development Environment Behavior
-
-When `output_environment` is set to `"dev"`, the pipeline will utilize user-specific paths: Tables are created under `z_dev_${USER}_sale/`
-
-### First-Time Development Setup
-
-When you first start working on a development version of the sales validation pipeline, you need to create a Glue crawler to be able to query/interact with the data in athena.
-
-### Environment Variables
+**Required environment variables**
 
 Ensure you have the following environment variables set:
 - `AWS_S3_WAREHOUSE_BUCKET`
 - `AWS_S3_WAREHOUSE_BUCKET_DEV`
-
 
 ## AWS Glue Job Documentation
 
