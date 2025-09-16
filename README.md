@@ -248,9 +248,7 @@ erDiagram
 
 ## Developing the sales val pipeline, testing changes
 
-### Setting the Environment
-
-**Choose output target** (in `src/inputs.yaml`)
+### Choose output target (in `src/inputs.yaml`)
 
 ```yaml
 output_environment: "dev"  # or "prod"
@@ -258,10 +256,10 @@ output_environment: "dev"  # or "prod"
 - `"prod"` → writes to production tables & S3 paths
 - `"dev"`: writes to user-scoped dev tables & S3 paths, athena database will appear as `z_dev_${USER}_sale`
 
-**First-rime dev setup**
+### First-time dev setup
 Once outputs arrive at the development S3 bucket, a crawler will need to be run to populate the Athena tables.
 
-**Required environment variables**
+### Required environment variables
 
 Ensure you have the following environment variables set:
 - `AWS_S3_WAREHOUSE_BUCKET`
