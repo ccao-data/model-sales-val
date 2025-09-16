@@ -8,6 +8,7 @@ import yaml
 from pyathena import connect
 from pyathena.pandas.util import as_pandas
 
+import constants
 import model
 import utils
 
@@ -77,7 +78,7 @@ WITH CombinedData AS (
         res.pin AS pin,
         res.char_bldg_sf AS char_bldg_sf,
         res.pin_is_multicard
-    FROM default.vw_card_res_char res
+    FROM {constants.DEFAULT_CARD_RES_CHAR_TABLE} res
     WHERE res.class IN (
         '202', '203', '204', '205', '206', '207', '208', '209',
         '210', '211', '212', '218', '219', '234', '278', '295'
@@ -96,7 +97,7 @@ WITH CombinedData AS (
         condo.pin AS pin,
         NULL AS char_bldg_sf,
         FALSE AS pin_is_multicard
-    FROM default.vw_pin_condo_char condo
+    FROM {constants.DEFAULT_VW_PIN_CONDO_CHAR_TABLE} condo
     WHERE condo.class IN ('297', '299', '399')
     AND NOT condo.is_parking_space
     AND NOT condo.is_common_area
@@ -105,10 +106,10 @@ WITH CombinedData AS (
 -- Select neighborhood groups and filter for most recent versions
 neighborhood_group AS (
     SELECT nbhd_group.nbhd, nbhd_group.group_name
-    FROM location.neighborhood_group AS nbhd_group
+    FROM {constants.LOCATION_NEIGHBORHOOD_GROUP_TABLE} AS nbhd_group
     INNER JOIN (
         SELECT nbhd, MAX(version) AS version
-        FROM location.neighborhood_group
+        FROM {constants.LOCATION_NEIGHBORHOOD_GROUP_TABLE}
         GROUP BY nbhd
     ) AS latest_group_version
         ON nbhd_group.nbhd = latest_group_version.nbhd
@@ -134,7 +135,7 @@ SELECT
     data.indicator,
     universe.triad_code 
 FROM CombinedData data
-INNER JOIN default.vw_pin_sale sale
+INNER JOIN {constants.DEFAULT_VW_PIN_SALE_TABLE} sale
     ON sale.pin = data.pin
     AND sale.year = data.year
 INNER JOIN default.vw_pin_universe universe 
