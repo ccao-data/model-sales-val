@@ -218,6 +218,10 @@ def pricing_info(
     ]
     if not condos:
         prices.insert(1, "sv_price_per_sqft_deviation")
+    else:
+        # ensure the column exists even for condos for downstream processing
+        # in `utils.finish_flags()`
+        df["sv_price_per_sqft_deviation"] = np.nan
 
     # Persist standard deviation per group
     group_std = (
