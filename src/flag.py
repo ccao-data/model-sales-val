@@ -138,7 +138,7 @@ FROM CombinedData data
 INNER JOIN {constants.DEFAULT_VW_PIN_SALE_TABLE} sale
     ON sale.pin = data.pin
     AND sale.year = data.year
-INNER JOIN default.vw_pin_universe universe 
+INNER JOIN {constants.DEFAULT_VW_PIN_UNIVERSE_TABLE} universe 
     ON universe.pin = data.pin
     AND universe.year = data.year
 LEFT JOIN neighborhood_group nbhd_group
