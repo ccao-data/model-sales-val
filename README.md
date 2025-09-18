@@ -6,7 +6,7 @@ Table of Contents
 - [Outlier Types](#outlier-types)
 - [Flagging Details](#flagging-details)
 - [Structure of Data](#structure-of-data)
-- [Developing the sales val pipeline](#developing-the-sales-val-pipeline)
+- [Developing the sales val pipeline and testing changes](#developing-the-sales-val-pipeline-and-testing-changes)
 - [AWS Glue Job Documentation](#aws-glue-job-documentation)
 - [Exporting Flags to iasWorld](#exporting-flags-to-iasworld)
 
@@ -246,7 +246,7 @@ erDiagram
     }
 ```
 
-## Developing the sales val pipeline, testing changes
+## Developing the sales val pipeline and testing changes
 
 ### Choose output target (in `src/inputs.yaml`)
 
