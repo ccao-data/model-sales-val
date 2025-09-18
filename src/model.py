@@ -213,11 +213,15 @@ def pricing_info(
     df = log_transform(df, columns_to_log)
 
     prices = [
-        f"sv_price_deviation_{group_string}",
+        "sv_price_deviation",
         f"sv_cgdr_deviation_{group_string}",
     ]
     if not condos:
-        prices.insert(1, f"sv_price_per_sqft_deviation_{group_string}")
+        prices.insert(1, "sv_price_per_sqft_deviation")
+    else:
+        # ensure the column exists even for condos for downstream processing
+        # in `utils.finish_flags()`
+        df["sv_price_per_sqft_deviation"] = np.nan
 
     # Persist standard deviation per group
     group_std = (
@@ -260,12 +264,12 @@ def pricing_info(
         df = df.merge(group_sqft_mean, on=groups)
 
     # Calculate standard deviations
-    df[f"sv_price_deviation_{group_string}"] = df.groupby(
-        list(groups), group_keys=False
-    )["meta_sale_price"].apply(z_normalize_groupby)
+    df["sv_price_deviation"] = df.groupby(list(groups), group_keys=False)[
+        "meta_sale_price"
+    ].apply(z_normalize_groupby)
 
     if not condos:
-        df[f"sv_price_per_sqft_deviation_{group_string}"] = df.groupby(
+        df["sv_price_per_sqft_deviation"] = df.groupby(
             list(groups), group_keys=False
         )["sv_price_per_sqft"].apply(z_normalize_groupby)
 
@@ -296,44 +300,33 @@ def which_price(row: pd.Series, thresholds: dict, groups: tuple) -> str:
         value (str): string saying which of these are outliers.
     """
     value = "Non-outlier"
-    group_string = create_group_string(groups, "_")
     key = tuple(row[group] for group in groups)
 
-    if thresholds.get(f"sv_price_deviation_{group_string}").get(
-        key
-    ) and thresholds.get(f"sv_price_per_sqft_deviation_{group_string}").get(
-        key
-    ):
-        s_std, *s_std_range = thresholds.get(
-            f"sv_price_deviation_{group_string}"
-        ).get(key)
+    if thresholds.get("sv_price_deviation").get(key) and thresholds.get(
+        "sv_price_per_sqft_deviation"
+    ).get(key):
+        s_std, *s_std_range = thresholds.get("sv_price_deviation").get(key)
         s_lower, s_upper = s_std_range
         sq_std, *sq_std_range = thresholds.get(
-            f"sv_price_per_sqft_deviation_{group_string}"
+            "sv_price_per_sqft_deviation"
         ).get(key)
         sq_lower, sq_upper = sq_std_range
         if not between_two_numbers(
-            row[f"sv_price_deviation_{group_string}"], s_lower, s_upper
+            row["sv_price_deviation"], s_lower, s_upper
         ) and between_two_numbers(
-            row[f"sv_price_per_sqft_deviation_{group_string}"],
-            sq_lower,
-            sq_upper,
+            row["sv_price_per_sqft_deviation"], sq_lower, sq_upper
         ):
             value = "(raw)"
         elif between_two_numbers(
-            row[f"sv_price_deviation_{group_string}"], s_lower, s_upper
+            row["sv_price_deviation"], s_lower, s_upper
         ) and not between_two_numbers(
-            row[f"sv_price_per_sqft_deviation_{group_string}"],
-            sq_lower,
-            sq_upper,
+            row["sv_price_per_sqft_deviation"], sq_lower, sq_upper
         ):
             value = "(sqft)"
         elif not between_two_numbers(
-            row[f"sv_price_deviation_{group_string}"], s_lower, s_upper
+            row["sv_price_deviation"], s_lower, s_upper
         ) and not between_two_numbers(
-            row[f"sv_price_per_sqft_deviation_{group_string}"],
-            sq_lower,
-            sq_upper,
+            row["sv_price_per_sqft_deviation"], sq_lower, sq_upper
         ):
             value = "(raw & sqft)"
 
@@ -365,16 +358,14 @@ def price_column(
     key = tuple(row[group] for group in groups)
 
     if condos:
-        if thresholds.get(f"sv_price_deviation_{group_string}").get(key):
-            s_std, *s_std_range = thresholds.get(
-                f"sv_price_deviation_{group_string}"
-            ).get(key)
+        if thresholds.get("sv_price_deviation").get(key):
+            s_std, *s_std_range = thresholds.get("sv_price_deviation").get(key)
             s_lower, s_upper = s_std_range
 
-            if row[f"sv_price_deviation_{group_string}"] > s_upper:
+            if row["sv_price_deviation"] > s_upper:
                 value = "High price"
                 price = True
-            elif row[f"sv_price_deviation_{group_string}"] < s_lower:
+            elif row["sv_price_deviation"] < s_lower:
                 value = "Low price"
                 price = True
 
@@ -399,32 +390,26 @@ def price_column(
                     value += " swing"
 
     else:
-        if thresholds.get(f"sv_price_deviation_{group_string}").get(
-            key
-        ) and thresholds.get(
-            f"sv_price_per_sqft_deviation_{group_string}"
+        if thresholds.get("sv_price_deviation").get(key) and thresholds.get(
+            "sv_price_per_sqft_deviation"
         ).get(key):
-            s_std, *s_std_range = thresholds.get(
-                f"sv_price_deviation_{group_string}"
-            ).get(key)
+            s_std, *s_std_range = thresholds.get("sv_price_deviation").get(key)
             s_lower, s_upper = s_std_range
 
             sq_std, *sq_std_range = thresholds.get(
-                f"sv_price_per_sqft_deviation_{group_string}"
+                "sv_price_per_sqft_deviation"
             ).get(key)
             sq_lower, sq_upper = sq_std_range
 
             if (
-                row[f"sv_price_deviation_{group_string}"] > s_upper
-                or row[f"sv_price_per_sqft_deviation_{group_string}"]
-                > sq_upper
+                row["sv_price_deviation"] > s_upper
+                or row["sv_price_per_sqft_deviation"] > sq_upper
             ):
                 value = "High price"
                 price = True
             elif (
-                row[f"sv_price_deviation_{group_string}"] < s_lower
-                or row[f"sv_price_per_sqft_deviation_{group_string}"]
-                < sq_lower
+                row["sv_price_deviation"] < s_lower
+                or row["sv_price_per_sqft_deviation"] < sq_lower
             ):
                 value = "Low price"
                 price = True
