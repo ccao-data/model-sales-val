@@ -581,14 +581,16 @@ def write_to_table(df, table_name, run_id, output_environment):
         table_name: which table the parquet will be written to
         run_id: unique run_id of the script
     """
-    USER = os.getenv("USER")
-
     if output_environment == "prod":
-        base_path = os.path.join(os.getenv("AWS_S3_WAREHOUSE_BUCKET"), "sale")
-    elif output_environment == "dev":
-        base_path = os.path.join(
-            os.getenv("AWS_S3_WAREHOUSE_BUCKET_DEV"), f"z_dev_{USER}_sale"
-        )
+        base_path = "s3://ccao-data-warehouse-us-east-1/sale"
+    else:
+        USER = os.getenv("USER")
+        if not USER:
+            raise ValueError(
+                "$USER environment variable is unset but is required when "
+                "output_environment == 'dev'"
+            )            
+        base_path = f"s3://ccao-data-warehouse-us-east-1/z_dev_{USER}_sale"
 
     file_name = run_id + ".parquet"
     s3_file_path = os.path.join(base_path, table_name, file_name)
