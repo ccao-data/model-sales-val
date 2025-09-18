@@ -593,5 +593,5 @@ def write_to_table(df, table_name, run_id, output_environment):
         base_path = f"s3://ccao-data-warehouse-dev-us-east-1/z_dev_{USER}_sale"
 
     file_name = run_id + ".parquet"
-    s3_file_path = os.path.join(base_path, table_name, file_name)
+    s3_file_path = f"{base_path}/{table_name}/{file_name}"
     wr.s3.to_parquet(df=df, path=s3_file_path)
