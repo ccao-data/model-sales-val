@@ -273,11 +273,9 @@ def classify_outliers(df, stat_groups: list, min_threshold):
     )
 
     df = df.assign(
-        # PTAX-203 binary
-        sv_is_ptax_outlier=lambda df: (df["sv_is_outlier"] is True)
-        & (df["sv_ind_ptax_flag"] == 1),
-        sv_is_heuristic_outlier=lambda df: (~df["sv_ind_ptax_flag"] == 1)
-        & (df["sv_is_outlier"] is True),
+        sv_is_ptax_outlier=df["sv_is_outlier"] & df["sv_ind_ptax_flag"].eq(1),
+        sv_is_heuristic_outlier=df["sv_is_outlier"]
+        & df["sv_ind_ptax_flag"].eq(0),
     )
 
     return df
