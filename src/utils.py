@@ -107,7 +107,7 @@ def ptax_adjustment(df, groups, ptax_sd, condos: bool):
         )
 
         df["sv_ind_ptax_flag_w_low_price"] = df["ptax_flag_original"] & (
-            df["sv_price_per_sqft_deviation"] <= -ptax_sd[0]
+            df["sv_price_deviation"] <= -ptax_sd[0]
         )
 
         df["sv_ind_ptax_flag_w_low_price_sqft"] = df["ptax_flag_original"] & (
