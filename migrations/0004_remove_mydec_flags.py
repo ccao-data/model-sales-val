@@ -1,12 +1,8 @@
 # TODO: Add context
 import os
+
 import awswrangler as wr
-import pandas as pd
-import numpy as np
-from glue import sales_val_flagging as flg
-import subprocess as sp
 from pyathena import connect
-from pyathena.pandas.util import as_pandas
 from pyathena.pandas.cursor import PandasCursor
 
 pedantic_matt_path = os.path.join(
@@ -36,7 +32,6 @@ df_to_edit_compassionate_rina = wr.s3.read_parquet(compassionate_rina_path)
 # # # - - - - - -
 
 # Connect to Athena
-# Connect to Athena
 cursor = connect(
     # We add '+ "/"' to the end of the line below because enabling unload
     # requires that the staging directory end with a slash
@@ -57,9 +52,6 @@ where sv_is_outlier is not null
 cursor.execute(SQL_QUERY_PIN_SALE)
 df = cursor.as_pandas()
 
-
-# wr.s3.to_parquet(df=df, path=file_path, index=False)
-
 # Normalize to string to avoid dtype mismatches
 df_ids = set(df["doc_no"].astype(str))
 
@@ -70,5 +62,19 @@ df_to_edit_pedantic_matt_filtered = df_to_edit_pedantic_matt[
 
 # Filter compassionate_rina
 df_to_edit_compassionate_rina_filtered = df_to_edit_compassionate_rina[
-    df_to_edit_compassionate_rina["meta_sale_document_num"].astype(str).isin(df_ids)
+    df_to_edit_compassionate_rina["meta_sale_document_num"]
+    .astype(str)
+    .isin(df_ids)
 ]
+
+wr.s3.to_parquet(
+    df=df_to_edit_pedantic_matt_filtered,
+    path="s3://ccao-data-backup-us-east-1/0004_remove_mydec_flags/new_data_file/2024-12-10_14:17-pedantic-matt.parquet",
+    index=False,
+)
+
+wr.s3.to_parquet(
+    df=df_to_edit_compassionate_rina_filtered,
+    path="s3://ccao-data-backup-us-east-1/0004_remove_mydec_flags/new_data_file/2024-12-10_13:30-compassionate-rina.parquet",
+    index=False,
+)
