@@ -97,32 +97,30 @@ def ptax_adjustment(df, groups, ptax_sd, condos: bool):
         df: ptax adjusted dataframe
     """
 
-    group_string = "_".join(groups)
-
     if not condos:
         df["sv_ind_ptax_flag_w_high_price"] = df["ptax_flag_original"] & (
-            df[f"sv_price_deviation_{group_string}"] >= ptax_sd[1]
+            df["sv_price_deviation"] >= ptax_sd[1]
         )
 
         df["sv_ind_ptax_flag_w_high_price_sqft"] = df["ptax_flag_original"] & (
-            df[f"sv_price_per_sqft_deviation_{group_string}"] >= ptax_sd[1]
+            df["sv_price_per_sqft_deviation"] >= ptax_sd[1]
         )
 
         df["sv_ind_ptax_flag_w_low_price"] = df["ptax_flag_original"] & (
-            df[f"sv_price_per_sqft_deviation_{group_string}"] <= -ptax_sd[0]
+            df["sv_price_deviation"] <= -ptax_sd[0]
         )
 
         df["sv_ind_ptax_flag_w_low_price_sqft"] = df["ptax_flag_original"] & (
-            df[f"sv_price_per_sqft_deviation_{group_string}"] <= -ptax_sd[0]
+            df["sv_price_per_sqft_deviation"] <= -ptax_sd[0]
         )
 
     else:
         df["sv_ind_ptax_flag_w_high_price"] = df["ptax_flag_original"] & (
-            df[f"sv_price_deviation_{group_string}"] >= ptax_sd[1]
+            df["sv_price_deviation"] >= ptax_sd[1]
         )
 
         df["sv_ind_ptax_flag_w_low_price"] = df["ptax_flag_original"] & (
-            df[f"sv_price_deviation_{group_string}"] <= -ptax_sd[0]
+            df["sv_price_deviation"] <= -ptax_sd[0]
         )
 
     df["sv_ind_ptax_flag"] = df["ptax_flag_original"].astype(int)
@@ -274,12 +272,19 @@ def classify_outliers(df, stat_groups: list, min_threshold):
         lambda row: "_".join([str(row[col]) for col in stat_groups]), axis=1
     )
 
+    # Input validation to be extra safe
+    if not df["sv_ind_ptax_flag"].isin([0, 1]).all():
+        invalid = df.loc[
+            ~df["sv_ind_ptax_flag"].isin([0, 1]), "sv_ind_ptax_flag"
+        ].unique()
+        raise ValueError(
+            f"sv_ind_ptax_flag contains invalid values: {invalid}"
+        )
+
     df = df.assign(
-        # PTAX-203 binary
-        sv_is_ptax_outlier=lambda df: (df["sv_is_outlier"] is True)
-        & (df["sv_ind_ptax_flag"] == 1),
-        sv_is_heuristic_outlier=lambda df: (~df["sv_ind_ptax_flag"] == 1)
-        & (df["sv_is_outlier"] is True),
+        sv_is_ptax_outlier=df["sv_is_outlier"] & df["sv_ind_ptax_flag"].eq(1),
+        sv_is_heuristic_outlier=df["sv_is_outlier"]
+        & df["sv_ind_ptax_flag"].eq(0),
     )
 
     return df
@@ -328,6 +333,8 @@ def finish_flags(df, start_date, manual_update, sales_to_write_filter):
         "sv_is_ptax_outlier",
         "ptax_flag_original",
         "sv_is_heuristic_outlier",
+        "sv_price_deviation",
+        "sv_price_per_sqft_deviation",
         "group",
     ]
 
@@ -360,7 +367,6 @@ def finish_flags(df, start_date, manual_update, sales_to_write_filter):
     if not manual_update:
         dynamic_assignment["version"] = 1
 
-    # Finalize to write to sale.flag table
     df = df[cols_to_write].assign(**dynamic_assignment).reset_index(drop=True)
 
     return df, run_id, timestamp
