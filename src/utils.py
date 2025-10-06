@@ -272,6 +272,15 @@ def classify_outliers(df, stat_groups: list, min_threshold):
         lambda row: "_".join([str(row[col]) for col in stat_groups]), axis=1
     )
 
+    # Input validation to be extra safe
+    if not df["sv_ind_ptax_flag"].isin([0, 1]).all():
+        invalid = df.loc[
+            ~df["sv_ind_ptax_flag"].isin([0, 1]), "sv_ind_ptax_flag"
+        ].unique()
+        raise ValueError(
+            f"sv_ind_ptax_flag contains invalid values: {invalid}"
+        )
+
     df = df.assign(
         sv_is_ptax_outlier=df["sv_is_outlier"] & df["sv_ind_ptax_flag"].eq(1),
         sv_is_heuristic_outlier=df["sv_is_outlier"]
