@@ -8,8 +8,13 @@ repos:
     rev: v0.0.18
     hooks:
       - id: shellcheck
-  - repo: https://github.com/psf/black
-    rev: 23.7.0
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.13.0
     hooks:
-      - id: black
-        language_version: 3.10.12
+      # Python linter. Ruff recommends running this before the formatter to
+      # avoid conflicts when using the --fix flag
+      - id: ruff
+        args:
+          - --fix
+      # Formatter
+      - id: ruff-format

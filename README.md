@@ -6,6 +6,7 @@ Table of Contents
 - [Outlier Types](#outlier-types)
 - [Flagging Details](#flagging-details)
 - [Structure of Data](#structure-of-data)
+- [Developing the sales val pipeline and testing changes](#developing-the-sales-val-pipeline-and-testing-changes)
 - [AWS Glue Job Documentation](#aws-glue-job-documentation)
 - [Exporting Flags to iasWorld](#exporting-flags-to-iasworld)
 
@@ -244,6 +245,26 @@ erDiagram
         string run_id PK
     }
 ```
+
+## Developing the sales val pipeline and testing changes
+
+### Choose output target (in `src/inputs.yaml`)
+
+```yaml
+output_environment: "dev"  # or "prod"
+```
+
+- `"prod"` → writes to production tables & S3 paths
+- `"dev"`: writes to user-scoped dev tables & S3 paths, athena database will appear as `z_dev_${USER}_sale`
+
+### First-time dev setup
+Once outputs arrive at the development S3 bucket, a crawler will need to be run to populate the Athena tables.
+
+### Required environment variables
+
+Ensure you have the following environment variables set:
+- `AWS_S3_WAREHOUSE_BUCKET`
+- `AWS_S3_WAREHOUSE_BUCKET_DEV`
 
 ## AWS Glue Job Documentation
 

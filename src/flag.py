@@ -1,42 +1,49 @@
-from glue.flagging_script_glue import flagging as flg_model
-from glue import sales_val_flagging as flg
-import awswrangler as wr
 import copy
-import os
 import datetime
-import numpy as np
-import pandas as pd
-import pytz
+import os
 import subprocess as sp
+
+import pandas as pd
 import yaml
 from pyathena import connect
 from pyathena.pandas.util import as_pandas
 
+import constants
+import model
+import utils
+
 # Set working dir to manual_update, standardize yaml and src locations
 root = sp.getoutput("git rev-parse --show-toplevel")
-os.chdir(os.path.join(root, "manual_flagging"))
+os.chdir(os.path.join(root, "src"))
 
 # Use yaml as inputs
-with open(os.path.join("yaml", "inputs.yaml"), "r") as stream:
+with open("inputs.yaml", "r") as stream:
     inputs = yaml.safe_load(stream)
 
 # Validate the input specification
+if inputs["output_environment"] not in {"dev", "prod"}:
+    raise ValueError("output_environment must be either 'dev' or 'prod'")
+
 # Check housing_market_type
 # TODO: Add res_all and other res_type exclusivity check
 assert "housing_market_type" in inputs, "Missing key: 'housing_market_type'"
 assert set(inputs["housing_market_type"]).issubset(
     {"res_single_family", "res_multi_family", "condos", "res_all"}
-), "housing_market_type can only contain 'res_single_family', 'res_multi_family', 'condos', 'res_all'"
+), (
+    "housing_market_type can only contain 'res_single_family', 'res_multi_family', 'condos', 'res_all'"
+)
 assert len(inputs["housing_market_type"]) == len(
     set(inputs["housing_market_type"])
 ), "Duplicate values in 'housing_market_type'"
 
 # Check run_tri
 assert "run_tri" in inputs, "Missing key: 'run_tri'"
-assert set(inputs["run_tri"]).issubset({1, 2, 3}), "run_tri can only contain 1, 2, 3"
-assert len(inputs["run_tri"]) == len(
-    set(inputs["run_tri"])
-), "Duplicate values in 'run_tri'"
+assert set(inputs["run_tri"]).issubset({1, 2, 3}), (
+    "run_tri can only contain 1, 2, 3"
+)
+assert len(inputs["run_tri"]) == len(set(inputs["run_tri"])), (
+    "Duplicate values in 'run_tri'"
+)
 
 # Connect to Athena
 conn = connect(
@@ -44,18 +51,18 @@ conn = connect(
     region_name=os.getenv("AWS_REGION"),
 )
 
-date_floor = flg.months_back(
+date_floor = utils.months_back(
     date_str=inputs["time_frame"]["start"],
     num_months=inputs["rolling_window_months"] - 1,
 )
 
 # Parse yaml to get which sales to flag
-if inputs["time_frame"]["end"] == None:
+if inputs["time_frame"]["end"] is None:
     sql_time_frame = f"sale.sale_date >= DATE '{date_floor}'"
 else:
     sql_time_frame = f"""(sale.sale_date
         BETWEEN DATE '{date_floor}'
-        AND DATE '{inputs['time_frame']['end']}')"""
+        AND DATE '{inputs["time_frame"]["end"]}')"""
 
 # Fetch sales and characteristics from Athena
 SQL_QUERY = f"""
@@ -71,7 +78,7 @@ WITH CombinedData AS (
         res.pin AS pin,
         res.char_bldg_sf AS char_bldg_sf,
         res.pin_is_multicard
-    FROM default.vw_card_res_char res
+    FROM {constants.DEFAULT_CARD_RES_CHAR_TABLE} res
     WHERE res.class IN (
         '202', '203', '204', '205', '206', '207', '208', '209',
         '210', '211', '212', '218', '219', '234', '278', '295'
@@ -90,7 +97,7 @@ WITH CombinedData AS (
         condo.pin AS pin,
         NULL AS char_bldg_sf,
         FALSE AS pin_is_multicard
-    FROM default.vw_pin_condo_char condo
+    FROM {constants.DEFAULT_VW_PIN_CONDO_CHAR_TABLE} condo
     WHERE condo.class IN ('297', '299', '399')
     AND NOT condo.is_parking_space
     AND NOT condo.is_common_area
@@ -99,10 +106,10 @@ WITH CombinedData AS (
 -- Select neighborhood groups and filter for most recent versions
 neighborhood_group AS (
     SELECT nbhd_group.nbhd, nbhd_group.group_name
-    FROM location.neighborhood_group AS nbhd_group
+    FROM {constants.LOCATION_NEIGHBORHOOD_GROUP_TABLE} AS nbhd_group
     INNER JOIN (
         SELECT nbhd, MAX(version) AS version
-        FROM location.neighborhood_group
+        FROM {constants.LOCATION_NEIGHBORHOOD_GROUP_TABLE}
         GROUP BY nbhd
     ) AS latest_group_version
         ON nbhd_group.nbhd = latest_group_version.nbhd
@@ -128,10 +135,10 @@ SELECT
     data.indicator,
     universe.triad_code 
 FROM CombinedData data
-INNER JOIN default.vw_pin_sale sale
+INNER JOIN {constants.DEFAULT_VW_PIN_SALE_TABLE} sale
     ON sale.pin = data.pin
     AND sale.year = data.year
-INNER JOIN default.vw_pin_universe universe 
+INNER JOIN {constants.DEFAULT_VW_PIN_UNIVERSE_TABLE} universe 
     ON universe.pin = data.pin
     AND universe.year = data.year
 LEFT JOIN neighborhood_group nbhd_group
@@ -157,7 +164,7 @@ metadata = cursor.description
 df_ingest = as_pandas(cursor)
 df = df_ingest
 
-if inputs["manual_update"] == True:
+if inputs["manual_update"] is True:
     # TODO: sub this out for prod table before merging
     SQL_QUERY_SALES_VAL = """
     SELECT *
@@ -168,9 +175,9 @@ if inputs["manual_update"] == True:
     df_flag_table = df_ingest_flag
 
 conversion_dict = {
-    col[0]: flg.sql_type_to_pd_type(col[1])
+    col[0]: utils.sql_type_to_pd_type(col[1])
     for col in metadata
-    if flg.sql_type_to_pd_type(col[1]) is not None
+    if utils.sql_type_to_pd_type(col[1]) is not None
 }
 df = df.astype(conversion_dict)
 df["ptax_flag_original"].fillna(False, inplace=True)
@@ -195,11 +202,11 @@ def create_bins_and_labels(input_list):
     labels = []
     for i in range(len(bins) - 1):
         if i == 0:
-            labels.append(f"below-{bins[i+1]}")
+            labels.append(f"below-{bins[i + 1]}")
         elif i == len(bins) - 2:
             labels.append(f"above-{bins[i]}")
         else:
-            labels.append(f"{bins[i]}-to-{bins[i+1]}")
+            labels.append(f"{bins[i]}-to-{bins[i + 1]}")
 
     return bins, labels
 
@@ -231,7 +238,9 @@ for tri in inputs["run_tri"]:
 
         # Initialize the DataFrame for the current key
         df_filtered = df[triad_code_filter & market_filter].copy()
-        dfs_to_rolling_window[key] = {"df": df_filtered}  # Store the filtered DataFrame
+        dfs_to_rolling_window[key] = {
+            "df": df_filtered  # Store the filtered DataFrame
+        }
 
         # Extract the specific housing type configuration
         housing_type_config = inputs["stat_groups"][f"tri{tri}"][housing_type]
@@ -280,7 +289,7 @@ for df_name, df_info in dfs_to_rolling_window.items():
     print(f"Assigning rolling window for {df_name}")
     df_copy = df_info["df"].copy()
 
-    df_copy = flg.add_rolling_window(
+    df_copy = utils.add_rolling_window(
         df_copy, num_months=inputs["rolling_window_months"]
     )
     dfs_to_flag[df_name]["df"] = df_copy
@@ -294,12 +303,13 @@ dfs_flagged = copy.deepcopy(dfs_to_flag)
 for df_name, df_info in dfs_to_flag.items():
     print(f"\nFlagging sales for {df_name}")
     df_copy = df_info["df"].copy()
-    df_copy = flg_model.go(
+    df_copy = model.go(
         df=df_copy,
         groups=tuple(df_info["columns"]),
         iso_forest_cols=df_info["iso_forest_cols"],
         dev_bounds=tuple(inputs["dev_bounds"]),
         condos=df_info["condos_boolean"],
+        raw_price_threshold=inputs["raw_price_threshold"],
     )
 
     # Add the edited or unedited dataframe to the new dictionary
@@ -316,14 +326,14 @@ for df_name, df_info in dfs_flagged.items():
     print(f"\n Enacting group threshold and creating ptax data for {df_name}")
     df_copy = df_info["df"].copy()
 
-    df_copy = flg.ptax_adjustment(
+    df_copy = utils.ptax_adjustment(
         df=df_copy,
         groups=df_info["columns"],
         ptax_sd=inputs["ptax_sd"],
         condos=df_info["condos_boolean"],
     )
 
-    df_copy = flg.classify_outliers(
+    df_copy = utils.classify_outliers(
         df=df_copy,
         stat_groups=df_info["columns"],
         min_threshold=inputs["min_groups_threshold"],
@@ -347,7 +357,7 @@ for df_name, df_info in dfs_flagged.items():
 # Finalize data to write and create data for all metadata tables
 # - - - - - - - -
 
-if inputs["manual_update"] == True:
+if inputs["manual_update"] is True:
     # Group the existing data by 'ID' and find the maximum 'version' for each sale
     existing_max_version = (
         df_flag_table.groupby("meta_sale_document_num")["version"]
@@ -360,17 +370,19 @@ if inputs["manual_update"] == True:
 dfs_to_finalize_list = [details["df"] for details in dfs_to_finalize.values()]
 df_to_finalize = pd.concat(dfs_to_finalize_list, axis=0)
 
-df_to_write, run_id, timestamp = flg.finish_flags(
+df_to_write, run_id, timestamp = utils.finish_flags(
     df=df_to_finalize,
     start_date=inputs["time_frame"]["start"],
     manual_update=inputs["manual_update"],
     sales_to_write_filter=inputs["sales_to_write_filter"],
 )
 
-if inputs["manual_update"] == True:
+if inputs["manual_update"] is True:
     # Merge, compute new version, and drop unnecessary columns
     df_to_write = (
-        df_to_write.merge(existing_max_version, on="meta_sale_document_num", how="left")
+        df_to_write.merge(
+            existing_max_version, on="meta_sale_document_num", how="left"
+        )
         .assign(
             version=lambda x: x["existing_version"]
             .apply(lambda y: y + 1 if pd.notnull(y) else 1)
@@ -380,15 +392,18 @@ if inputs["manual_update"] == True:
     )
     # Additional filtering if manual_update_only_new_sales is True
     # If this is set to true, only unseen sales will get flag updates
-    if inputs["manual_update_only_new_sales"] == True:
+    if inputs["manual_update_only_new_sales"] is True:
         df_to_write = df_to_write[df_to_write["version"] == 1]
 
 run_filter = str(
-    {"housing_market_type": inputs["housing_market_type"], "run_tri": inputs["run_tri"]}
+    {
+        "housing_market_type": inputs["housing_market_type"],
+        "run_tri": inputs["run_tri"],
+    }
 )
 
 # Get parameters df
-df_parameter = flg.get_parameter_df(
+df_parameter = utils.get_parameter_df(
     df_to_write=df_to_write,
     df_ingest=df_ingest,
     run_filter=run_filter,
@@ -400,26 +415,29 @@ df_parameter = flg.get_parameter_df(
     ptax_sd=inputs["ptax_sd"],
     rolling_window=inputs["rolling_window_months"],
     time_frame=inputs["time_frame"],
-    short_term_thresh=flg_model.SHORT_TERM_OWNER_THRESHOLD,
-    min_group_thresh=inputs["min_groups_threshold"],
+    short_term_threshold=model.SHORT_TERM_OWNER_THRESHOLD,
+    min_group_threshold=inputs["min_groups_threshold"],
+    raw_price_threshold=inputs["raw_price_threshold"],
     run_id=run_id,
 )
 
 # Standardize dtypes to prevent Athena errors
-df_parameter = flg.modify_dtypes(df_parameter)
+df_parameter = utils.modify_dtypes(df_parameter)
 
 # Get sale.group_mean data
 df_group_means = []  # List to store the transformed DataFrames
 
 for df_name, df_info in dfs_to_finalize.items():
-    df_group_mean = flg.get_group_mean_df(
+    df_group_mean = utils.get_group_mean_df(
         df=dfs_flagged[df_name]["df"],
         stat_groups=df_info["columns"],
         run_id=run_id,
         condos=df_info["condos_boolean"],
     )
     market_value = df_info["market"]
-    df_group_mean["group"] = df_group_mean["group"].astype(str) + "-" + market_value
+    df_group_mean["group"] = (
+        df_group_mean["group"].astype(str) + "-" + market_value
+    )
     df_group_means.append(df_group_mean)
 
 df_group_mean_to_write = pd.concat(df_group_means, ignore_index=True)
@@ -435,7 +453,7 @@ run_type = (
     else "manual_update"
 )
 
-df_metadata = flg.get_metadata_df(
+df_metadata = utils.get_metadata_df(
     run_id=run_id,
     timestamp=timestamp,
     run_type=run_type,
@@ -455,10 +473,10 @@ tables_to_write = {
 }
 
 for table, df in tables_to_write.items():
-    flg.write_to_table(
+    utils.write_to_table(
         df=df,
         table_name=table,
-        s3_warehouse_bucket_path=os.getenv("AWS_S3_WAREHOUSE_BUCKET"),
         run_id=run_id,
+        output_environment=inputs["output_environment"],
     )
     print(f"{table} table successfully written")
