@@ -1,4 +1,16 @@
-# TODO: Add context
+"""
+In 2024, we ran some flags from default.vw_combined_pin_sale.
+This asset contains some sales from mydec that aren't in iasworld,
+we did this because the updated iasworld sales were ingested late,
+and we wanted to start sales val and modeling analysis.
+
+We made a plan to remove these mydec sales from the sale.flag table
+once the 2024 sales came in, in order to maintain consistency
+and have only sales that are in iasworld have production flag
+values in sale.flag.
+https://github.com/ccao-data/model-sales-val/pull/135#issuecomment-2529411173
+"""
+
 import os
 
 import awswrangler as wr
@@ -21,15 +33,6 @@ compassionate_rina_path = os.path.join(
 
 df_to_edit_pedantic_matt = wr.s3.read_parquet(pedantic_matt_path)
 df_to_edit_compassionate_rina = wr.s3.read_parquet(compassionate_rina_path)
-
-# # # - - - - - -
-# The task here is to, after flagging 2023 and onward ias sales,
-# find flagged doc_no's that are in both of the above files
-# and NOT in default.vw_pin_sale, and then remove those observations
-#
-# These sales in theory should be isolated to 2023 and 2024
-#
-# # # - - - - - -
 
 # Connect to Athena
 cursor = connect(
