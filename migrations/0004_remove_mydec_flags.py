@@ -55,19 +55,16 @@ where sv_is_outlier is not null
 cursor.execute(SQL_QUERY_PIN_SALE)
 df = cursor.as_pandas()
 
-# Normalize to string to avoid dtype mismatches
-df_ids = set(df["doc_no"].astype(str))
+df_ids = set(df["doc_no"])
 
 # Filter pedantic_matt
 df_to_edit_pedantic_matt_filtered = df_to_edit_pedantic_matt[
-    df_to_edit_pedantic_matt["meta_sale_document_num"].astype(str).isin(df_ids)
+    df_to_edit_pedantic_matt["meta_sale_document_num"].isin(df_ids)
 ]
 
 # Filter compassionate_rina
 df_to_edit_compassionate_rina_filtered = df_to_edit_compassionate_rina[
-    df_to_edit_compassionate_rina["meta_sale_document_num"]
-    .astype(str)
-    .isin(df_ids)
+    df_to_edit_compassionate_rina["meta_sale_document_num"].isin(df_ids)
 ]
 
 wr.s3.to_parquet(
