@@ -2,6 +2,10 @@
 name = "model-sales-val"
 version = "0.0.1"
 readme = "README.md"
+dependencies = [
+    "pyathena>=3.19.0",
+    "pyyaml>=6.0.3",
+]
 
 [tool.ruff]
 line-length = 79
@@ -9,3 +13,6 @@ line-length = 79
 [tool.ruff.lint]
 # Add isort to ruff linting
 extend-select = ["I"]
+
+[tool.uv.workspace]
+members = ["src"]
