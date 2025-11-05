@@ -1,0 +1,39 @@
+stages:
+  ingest:
+    cmd: python3 src/00_ingest.py
+    deps:
+      - src/00_ingest.py
+      - src/constants.py
+      - src/inputs.yaml
+      - src/utils.py
+    outs:
+      - input/sales_ingest.parquet
+  flag:
+    cmd: python3 src/01_flag.py
+    deps:
+      - input/sales_ingest.parquet
+      - src/01_flag.py
+      - src/constants.py
+      - src/inputs.yaml
+      - src/model.py
+      - src/utils.py
+    outs:
+      - output/df_to_write.parquet:
+          cache: false
+      - output/df_parameter.parquet:
+          cache: false
+      - output/df_group_mean_to_write.parquet:
+          cache: false
+      - output/df_metadata.parquet:
+          cache: false
+  upload:
+    cmd: python3 src/02_upload.py
+    deps:
+      - output/df_group_mean_to_write.parquet
+      - output/df_metadata.parquet
+      - output/df_parameter.parquet
+      - output/df_to_write.parquet
+      - src/02_upload.py
+      - src/inputs.yaml
+      - src/utils.py
+    frozen: true
