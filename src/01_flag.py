@@ -10,7 +10,6 @@ from pyathena.pandas.util import as_pandas
 import model
 import utils
 
-# Set working dir to manual_update, standardize yaml and src locations
 root = sp.getoutput("git rev-parse --show-toplevel")
 os.chdir(os.path.join(root, "src"))
 
