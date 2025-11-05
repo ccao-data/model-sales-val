@@ -1,6 +1,6 @@
 stages:
   ingest:
-    cmd: python3 src/00_ingest.py
+    cmd: uv run python3 src/00_ingest.py
     deps:
       - src/00_ingest.py
       - src/constants.py
@@ -9,7 +9,7 @@ stages:
     outs:
       - input/sales_ingest.parquet
   flag:
-    cmd: python3 src/01_flag.py
+    cmd: uv run python3 src/01_flag.py
     deps:
       - input/sales_ingest.parquet
       - src/01_flag.py
@@ -27,7 +27,7 @@ stages:
       - output/df_metadata.parquet:
           cache: false
   upload:
-    cmd: python3 src/02_upload.py
+    cmd: uv run python3 src/02_upload.py
     deps:
       - output/df_group_mean_to_write.parquet
       - output/df_metadata.parquet
