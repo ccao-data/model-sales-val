@@ -1,3 +1,29 @@
 [project]
 name = "src"
-version = "0.0.0"
+version = "0.0.1"
+readme = "README.md"
+requires-python = ">=3.11"
+# Note - this command opens ipython terminal using uv venv
+# uv run --with ipython ipython
+
+dependencies = [
+    "awswrangler",
+    "numpy",
+    "pandas",
+    "pyathena>=3.19.0",
+    "python-dateutil>=2.9.0.post0",
+    "pytz",
+    "scipy",
+    "scikit-learn",
+    "pyyaml>=6.0.3",
+]
+
+[tool.ruff]
+line-length = 79
+
+[tool.ruff.lint]
+# Add isort to ruff linting
+extend-select = ["I"]
+
+[tool.uv.workspace]
+members = ["src"]
