@@ -80,6 +80,35 @@ wheels = [
 ]
 
 [[package]]
+name = "model-sales-val"
+version = "0.0.1"
+source = { virtual = "." }
+dependencies = [
+    { name = "awswrangler" },
+    { name = "numpy" },
+    { name = "pandas" },
+    { name = "pyathena" },
+    { name = "python-dateutil" },
+    { name = "pytz" },
+    { name = "pyyaml" },
+    { name = "scikit-learn" },
+    { name = "scipy" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "awswrangler" },
+    { name = "numpy" },
+    { name = "pandas" },
+    { name = "pyathena", specifier = ">=3.19.0" },
+    { name = "python-dateutil", specifier = ">=2.9.0.post0" },
+    { name = "pytz" },
+    { name = "pyyaml", specifier = ">=6.0.3" },
+    { name = "scikit-learn" },
+    { name = "scipy" },
+]
+
+[[package]]
 name = "numpy"
 version = "2.3.4"
 source = { registry = "https://pypi.org/simple" }
@@ -489,35 +518,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/94/e7/b2c673351809dca68a0e064b6af791aa332cf192da575fd474ed7d6f16a2/six-1.17.0.tar.gz", hash = "sha256:ff70335d468e7eb6ec65b95b99d3a2836546063f63acc5171de367e834932a81", size = 34031 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b7/ce/149a00dd41f10bc29e5921b496af8b574d8413afcd5e30dfa0ed46c2cc5e/six-1.17.0-py2.py3-none-any.whl", hash = "sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274", size = 11050 },
-]
-
-[[package]]
-name = "src"
-version = "0.0.1"
-source = { virtual = "." }
-dependencies = [
-    { name = "awswrangler" },
-    { name = "numpy" },
-    { name = "pandas" },
-    { name = "pyathena" },
-    { name = "python-dateutil" },
-    { name = "pytz" },
-    { name = "pyyaml" },
-    { name = "scikit-learn" },
-    { name = "scipy" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "awswrangler" },
-    { name = "numpy" },
-    { name = "pandas" },
-    { name = "pyathena", specifier = ">=3.19.0" },
-    { name = "python-dateutil", specifier = ">=2.9.0.post0" },
-    { name = "pytz" },
-    { name = "pyyaml", specifier = ">=6.0.3" },
-    { name = "scikit-learn" },
-    { name = "scipy" },
 ]
 
 [[package]]
