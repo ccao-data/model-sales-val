@@ -110,7 +110,9 @@ if __name__ == "__main__":
     # Run some data integrity checks
     not_null_fields = [PIN_FIELD, SALE_KEY_FIELD, RUN_ID_FIELD]
     for field in not_null_fields:
-        assert flag_df[flag_df[field].isnull()].empty, f"{field} contains nulls"
+        assert flag_df[flag_df[field].isnull()].empty, (
+            f"{field} contains nulls"
+        )
 
     logger.info(f"Got {num_flags} sales with flags")
 
@@ -119,7 +121,9 @@ if __name__ == "__main__":
         OUTLIER_REASON2_FIELD,
         OUTLIER_REASON3_FIELD,
     ]:
-        invalid_values = flag_df[~flag_df[field].isin(OUTLIER_TYPE_CODES.values())]
+        invalid_values = flag_df[
+            ~flag_df[field].isin(OUTLIER_TYPE_CODES.values())
+        ]
         assert invalid_values.empty, f"{field} contains invalid codes"
 
     # Tests confirming that a price outlier reason is needed

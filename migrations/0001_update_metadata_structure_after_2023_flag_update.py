@@ -143,8 +143,8 @@ dfs_sale_parameter["2024-01-19_18:46-clever-boni"]["iso_forest_cols"] = str(
 # Although this structure didn't exist when we ran the sales val program
 # it still can fit into the new structure (all tris/market types
 #  were ran with og_mansueto)
-dfs_sale_parameter["2024-01-19_18:46-clever-boni"]["sales_to_write_filter"] = str(
-    {"column": None, "values": None}
+dfs_sale_parameter["2024-01-19_18:46-clever-boni"]["sales_to_write_filter"] = (
+    str({"column": None, "values": None})
 )
 
 dfs_sale_parameter["2024-01-19_18:46-clever-boni"]["run_filter"] = str(
@@ -159,7 +159,9 @@ dfs_sale_parameter["2024-01-19_18:46-clever-boni"]["run_filter"] = str(
 
 # This run updated all condos and res, I believe leaving this column as null would be sufficient
 # since we didn't have the existing structure when this run happened.
-dfs_sale_parameter["2024-01-19_18:46-clever-boni"]["housing_market_class_codes"] = ""
+dfs_sale_parameter["2024-01-19_18:46-clever-boni"][
+    "housing_market_class_codes"
+] = ""
 
 dfs_sale_parameter["2024-01-19_18:46-clever-boni"] = dfs_sale_parameter[
     "2024-01-19_18:46-clever-boni"
@@ -184,7 +186,9 @@ dfs_sale_parameter["2024-01-19_18:46-clever-boni"] = dfs_sale_parameter[
 
 # Add/Adjust condos city tri updates:
 dfs_sale_parameter["2024-02-01_12:24-nifty-tayun"] = pd.read_parquet(
-    os.path.join(root, "manual_flagging/new_condo_metadata/df_parameters.parquet")
+    os.path.join(
+        root, "manual_flagging/new_condo_metadata/df_parameters.parquet"
+    )
 )
 
 dfs_sale_parameter["2024-02-01_12:24-nifty-tayun"]["stat_groups"] = str(
@@ -208,8 +212,8 @@ dfs_sale_parameter["2024-02-01_12:24-nifty-tayun"]["time_frame"] = str(
     {"start": "2014-01-01", "end": None}
 )
 
-dfs_sale_parameter["2024-02-01_12:24-nifty-tayun"]["sales_to_write_filter"] = str(
-    {"column": None, "values": None}
+dfs_sale_parameter["2024-02-01_12:24-nifty-tayun"]["sales_to_write_filter"] = (
+    str({"column": None, "values": None})
 )
 
 dfs_sale_parameter["2024-02-01_12:24-nifty-tayun"]["run_filter"] = str(
@@ -217,7 +221,9 @@ dfs_sale_parameter["2024-02-01_12:24-nifty-tayun"]["run_filter"] = str(
 )
 
 # Class code structure in yaml wasn't present in this run
-dfs_sale_parameter["2024-02-01_12:24-nifty-tayun"]["housing_market_class_codes"] = ""
+dfs_sale_parameter["2024-02-01_12:24-nifty-tayun"][
+    "housing_market_class_codes"
+] = ""
 
 dfs_sale_parameter["2024-02-01_12:24-nifty-tayun"] = dfs_sale_parameter[
     "2024-02-01_12:24-nifty-tayun"
@@ -242,7 +248,9 @@ dfs_sale_parameter["2024-02-01_12:24-nifty-tayun"] = dfs_sale_parameter[
 
 # Add/Adjust res city tri updates:
 dfs_sale_parameter["2024-01-29_14:40-pensive-rina"] = pd.read_parquet(
-    os.path.join(root, "manual_flagging/new_res_metadata/df_parameters.parquet")
+    os.path.join(
+        root, "manual_flagging/new_res_metadata/df_parameters.parquet"
+    )
 )
 
 dfs_sale_parameter["2024-01-29_14:40-pensive-rina"]["stat_groups"] = str(
@@ -287,9 +295,9 @@ dfs_sale_parameter["2024-01-29_14:40-pensive-rina"]["time_frame"] = str(
     {"start": "2014-01-01", "end": None}
 )
 
-dfs_sale_parameter["2024-01-29_14:40-pensive-rina"]["sales_to_write_filter"] = str(
-    {"column": None, "values": None}
-)
+dfs_sale_parameter["2024-01-29_14:40-pensive-rina"][
+    "sales_to_write_filter"
+] = str({"column": None, "values": None})
 
 dfs_sale_parameter["2024-01-29_14:40-pensive-rina"]["run_filter"] = str(
     {
@@ -299,7 +307,9 @@ dfs_sale_parameter["2024-01-29_14:40-pensive-rina"]["run_filter"] = str(
 )
 
 # Class code structure in yaml wasn't present in this run
-dfs_sale_parameter["2024-01-29_14:40-pensive-rina"]["housing_market_class_codes"] = ""
+dfs_sale_parameter["2024-01-29_14:40-pensive-rina"][
+    "housing_market_class_codes"
+] = ""
 
 dfs_sale_parameter["2024-01-29_14:40-pensive-rina"] = dfs_sale_parameter[
     "2024-01-29_14:40-pensive-rina"
@@ -338,30 +348,34 @@ dfs_sale_group_mean = read_parquets_to_dfs("group_mean")
 
 # Add/Adjust condos city tri updates:
 dfs_sale_group_mean["2024-02-01_12:24-nifty-tayun"] = pd.read_parquet(
-    os.path.join(root, "manual_flagging/new_condo_metadata/df_condo_group_mean.parquet")
+    os.path.join(
+        root, "manual_flagging/new_condo_metadata/df_condo_group_mean.parquet"
+    )
 )
 # Add/Adjust res city tri updates:
 dfs_sale_group_mean["2024-01-29_14:40-pensive-rina"] = pd.read_parquet(
-    os.path.join(root, "manual_flagging/new_res_metadata/df_group_mean.parquet")
+    os.path.join(
+        root, "manual_flagging/new_res_metadata/df_group_mean.parquet"
+    )
 )
 
 # OG initial run
 # 'res_og_mansueto', 'condos_og_mansueto'
-dfs_sale_group_mean["2024-01-19_18:46-clever-boni"]["group"] = dfs_sale_group_mean[
-    "2024-01-19_18:46-clever-boni"
-]["group"].apply(
-    lambda value: value + "-res_all"
-    if value.count("_") == 2
-    else (value + "-condos" if value.count("_") == 1 else value)
+dfs_sale_group_mean["2024-01-19_18:46-clever-boni"]["group"] = (
+    dfs_sale_group_mean["2024-01-19_18:46-clever-boni"]["group"].apply(
+        lambda value: value + "-res_all"
+        if value.count("_") == 2
+        else (value + "-condos" if value.count("_") == 1 else value)
+    )
 )
 
 # Update res run
-dfs_sale_group_mean["2024-01-29_14:40-pensive-rina"]["group"] = dfs_sale_group_mean[
-    "2024-01-29_14:40-pensive-rina"
-]["group"].apply(
-    lambda value: value + "-res_single_family"
-    if "40_years" in value
-    else (value + "-res_multi_family" if "20_years" in value else value)
+dfs_sale_group_mean["2024-01-29_14:40-pensive-rina"]["group"] = (
+    dfs_sale_group_mean["2024-01-29_14:40-pensive-rina"]["group"].apply(
+        lambda value: value + "-res_single_family"
+        if "40_years" in value
+        else (value + "-res_multi_family" if "20_years" in value else value)
+    )
 )
 
 # Update new condos run
@@ -380,7 +394,9 @@ dfs_sale_metadata = read_parquets_to_dfs("metadata")
 
 # Add/Adjust condos city tri updates:
 dfs_sale_metadata["2024-02-01_12:24-nifty-tayun"] = pd.read_parquet(
-    os.path.join(root, "manual_flagging/new_condo_metadata/df_metadata.parquet")
+    os.path.join(
+        root, "manual_flagging/new_condo_metadata/df_metadata.parquet"
+    )
 )
 # Add/Adjust res city tri updates:
 dfs_sale_metadata["2024-01-29_14:40-pensive-rina"] = pd.read_parquet(
