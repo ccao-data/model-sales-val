@@ -6,6 +6,9 @@ import yaml
 
 import utils
 
+root = sp.getoutput("git rev-parse --show-toplevel")
+os.chdir(os.path.join(root, "src"))
+
 # Use yaml as inputs
 with open("inputs.yaml", "r") as stream:
     inputs = yaml.safe_load(stream)

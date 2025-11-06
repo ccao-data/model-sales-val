@@ -1,6 +1,7 @@
 import datetime
 import os
 import subprocess as sp
+import time
 
 import yaml
 from pyathena import connect
@@ -36,6 +37,8 @@ else:
         BETWEEN DATE '{date_floor}'
         AND DATE '{inputs["time_frame"]["end"]}')"""
 
+start_time = time.time()
+print("Starting ingest query...")
 # Fetch sales and characteristics from Athena
 SQL_QUERY = f"""
 WITH CombinedData AS (
@@ -124,9 +127,7 @@ AND (
     NOT data.pin_is_multicard
     OR data.source_table = 'condo_char'
 )
-
 """
-
 
 # Execute query and return as pandas df
 cursor = conn.cursor()
@@ -134,6 +135,9 @@ cursor.execute(SQL_QUERY)
 metadata = cursor.description
 
 df_ingest = as_pandas(cursor)
+end_time = time.time()
+elapsed = end_time - start_time
+print(f"Ingest query completed in {elapsed:.2f} seconds")
 df = df_ingest
 
 conversion_dict = {
@@ -148,4 +152,10 @@ df["ptax_flag_original"].fillna(False, inplace=True)
 current_year = datetime.datetime.now().year
 df["char_bldg_age"] = current_year - df["yrblt"]
 
-df.to_parquet(os.path.join(root, "input", "sales_ingest.parquet"), index=False)
+ingest_output_path = os.path.join(root, "input", "sales_ingest.parquet")
+df.to_parquet(ingest_output_path, index=False)
+print(
+    "Ingest parquet successfully written"
+    if os.path.exists(ingest_output_path)
+    else "Write failed."
+)
