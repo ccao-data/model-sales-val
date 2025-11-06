@@ -1,4 +1,4 @@
 [core]
     remote = storage
 ['remote "storage"']
-    url = s3://ccao-data-dvc-us-east-1/
+    url = s3://ccao-data-dvc-us-east-1/sales_val/
