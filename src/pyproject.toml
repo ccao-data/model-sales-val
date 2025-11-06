@@ -17,3 +17,13 @@ dependencies = [
     "scikit-learn",
     "pyyaml>=6.0.3",
 ]
+
+[tool.ruff]
+line-length = 79
+
+[tool.ruff.lint]
+# Add isort to ruff linting
+extend-select = ["I"]
+
+[tool.uv.workspace]
+members = ["src"]
