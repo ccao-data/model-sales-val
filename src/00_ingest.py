@@ -152,10 +152,4 @@ df["ptax_flag_original"].fillna(False, inplace=True)
 current_year = datetime.datetime.now().year
 df["char_bldg_age"] = current_year - df["yrblt"]
 
-ingest_output_path = os.path.join(root, "input", "sales_ingest.parquet")
-df.to_parquet(ingest_output_path, index=False)
-print(
-    "Ingest parquet successfully written"
-    if os.path.exists(ingest_output_path)
-    else "Write failed."
-)
+df.to_parquet(os.path.join(root, "input", "sales_ingest.parquet"), index=False)
