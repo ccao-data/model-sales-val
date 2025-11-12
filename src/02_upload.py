@@ -2,17 +2,11 @@ import os
 import subprocess as sp
 
 import pandas as pd
-import yaml
 
+import constants
 import utils
 
 root = sp.getoutput("git rev-parse --show-toplevel")
-os.chdir(os.path.join(root, "src"))
-
-# Use yaml as inputs
-with open("inputs.yaml", "r") as stream:
-    inputs = yaml.safe_load(stream)
-
 output_dir = os.path.join(root, "output")
 
 flag = pd.read_parquet(os.path.join(output_dir, "flag.parquet"))
@@ -32,6 +26,6 @@ for table, df in tables_to_write.items():
         df=df,
         table_name=table,
         run_id=metadata.run_id[0],
-        output_environment=inputs["output_environment"],
+        output_environment=constants.INPUTS["output_environment"],
     )
     print(f"{table} table successfully written")

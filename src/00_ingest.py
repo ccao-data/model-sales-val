@@ -3,7 +3,6 @@ import os
 import subprocess as sp
 import time
 
-import yaml
 from pyathena import connect
 from pyathena.pandas.util import as_pandas
 
@@ -11,12 +10,6 @@ import constants
 import utils
 
 root = sp.getoutput("git rev-parse --show-toplevel")
-os.chdir(os.path.join(root, "src"))
-
-# Use yaml as inputs
-with open("inputs.yaml", "r") as stream:
-    inputs = yaml.safe_load(stream)
-
 
 # Connect to Athena
 conn = connect(
@@ -25,17 +18,17 @@ conn = connect(
 )
 
 date_floor = utils.months_back(
-    date_str=inputs["time_frame"]["start"],
-    num_months=inputs["rolling_window_months"] - 1,
+    date_str=constants.INPUTS["time_frame"]["start"],
+    num_months=constants.INPUTS["rolling_window_months"] - 1,
 )
 
 # Parse yaml to get which sales to flag
-if inputs["time_frame"]["end"] is None:
+if constants.INPUTS["time_frame"]["end"] is None:
     sql_time_frame = f"sale.sale_date >= DATE '{date_floor}'"
 else:
     sql_time_frame = f"""(sale.sale_date
         BETWEEN DATE '{date_floor}'
-        AND DATE '{inputs["time_frame"]["end"]}')"""
+        AND DATE '{constants.INPUTS["time_frame"]["end"]}')"""
 
 start_time = time.time()
 print("Starting ingest query...")
