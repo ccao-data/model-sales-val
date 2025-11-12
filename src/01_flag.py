@@ -181,11 +181,17 @@ dfs_flagged = copy.deepcopy(dfs_to_flag)
 for df_name, df_info in dfs_to_flag.items():
     print(f"\nFlagging sales for {df_name}")
     df_copy = df_info["df"].copy()
+
+    market_key = "condos" if df_info["condos_boolean"] else "res"
+    dev_bounds_selected = inputs["standard_deviation_bounds"][
+        "standard_bounds"
+    ][market_key]
+
     df_copy = model.go(
         df=df_copy,
         groups=tuple(df_info["columns"]),
         iso_forest_cols=df_info["iso_forest_cols"],
-        dev_bounds=tuple(inputs["dev_bounds"]),
+        dev_bounds=tuple(dev_bounds_selected),
         condos=df_info["condos_boolean"],
         raw_price_threshold=inputs["raw_price_threshold"],
     )
@@ -204,10 +210,15 @@ for df_name, df_info in dfs_flagged.items():
     print(f"\n Enacting group threshold and creating ptax data for {df_name}")
     df_copy = df_info["df"].copy()
 
+    market_key = "condos" if df_info["condos_boolean"] else "res"
+    ptax_sd_selected = inputs["standard_deviation_bounds"]["ptax_bounds"][
+        market_key
+    ]
+
     df_copy = utils.ptax_adjustment(
         df=df_copy,
         groups=df_info["columns"],
-        ptax_sd=inputs["ptax_sd"],
+        ptax_sd=ptax_sd_selected,
         condos=df_info["condos_boolean"],
     )
 
@@ -289,8 +300,7 @@ df_parameter = utils.get_parameter_df(
     stat_groups=inputs["stat_groups"],
     sales_to_write_filter=inputs["sales_to_write_filter"],
     housing_market_class_codes=inputs["housing_market_class_codes"],
-    dev_bounds=inputs["dev_bounds"],
-    ptax_sd=inputs["ptax_sd"],
+    standard_deviation_bounds=inputs["standard_deviation_bounds"],
     rolling_window=inputs["rolling_window_months"],
     time_frame=inputs["time_frame"],
     short_term_threshold=model.SHORT_TERM_OWNER_THRESHOLD,

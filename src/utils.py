@@ -477,6 +477,7 @@ def modify_dtypes(df):
         "time_frame",
         "sales_to_write_filter",
         "housing_market_class_codes",
+        "standard_deviation_bounds",
     ]
     for col in string_columns:
         if col in df.columns:
@@ -493,8 +494,7 @@ def get_parameter_df(
     stat_groups,
     sales_to_write_filter,
     housing_market_class_codes,
-    dev_bounds,
-    ptax_sd,
+    standard_deviation_bounds,
     rolling_window,
     time_frame,
     short_term_threshold,
@@ -536,8 +536,7 @@ def get_parameter_df(
         "stat_groups": [stat_groups],
         "sales_to_write_filter": [sales_to_write_filter],
         "housing_market_class_codes": [housing_market_class_codes],
-        "dev_bounds": [dev_bounds],
-        "ptax_sd": [ptax_sd],
+        "standard_deviation_bounds": [standard_deviation_bounds],
         "rolling_window": [rolling_window],
         "time_frame": [time_frame],
         "short_term_owner_threshold": [short_term_threshold],
