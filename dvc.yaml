@@ -1,0 +1,38 @@
+stages:
+  ingest:
+    cmd: uv run --env-file .env python3 src/00_ingest.py
+    deps:
+      - src/00_ingest.py
+      - src/constants.py
+      - src/inputs.yaml
+      - src/utils.py
+    outs:
+      - input/sales_ingest.parquet
+  flag:
+    cmd: uv run --env-file .env python3 src/01_flag.py
+    deps:
+      - input/sales_ingest.parquet
+      - src/01_flag.py
+      - src/constants.py
+      - src/inputs.yaml
+      - src/model.py
+      - src/utils.py
+    outs:
+      - output/flag.parquet:
+          cache: false
+      - output/parameter.parquet:
+          cache: false
+      - output/group_mean.parquet:
+          cache: false
+      - output/metadata.parquet:
+          cache: false
+  upload:
+    cmd: uv run --env-file .env python3 src/02_upload.py
+    deps:
+      - output/flag.parquet
+      - output/group_mean.parquet
+      - output/metadata.parquet
+      - output/parameter.parquet
+      - src/02_upload.py
+      - src/inputs.yaml
+      - src/utils.py

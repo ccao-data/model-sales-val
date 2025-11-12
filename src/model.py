@@ -264,18 +264,18 @@ def pricing_info(
         df = df.merge(group_sqft_mean, on=groups)
 
     # Calculate standard deviations
-    df["sv_price_deviation"] = df.groupby(list(groups), group_keys=False)[
+    df["sv_price_deviation"] = df.groupby(list(groups))[
         "meta_sale_price"
-    ].apply(z_normalize_groupby)
+    ].transform(z_normalize_groupby)
 
     if not condos:
-        df["sv_price_per_sqft_deviation"] = df.groupby(
-            list(groups), group_keys=False
-        )["sv_price_per_sqft"].apply(z_normalize_groupby)
+        df["sv_price_per_sqft_deviation"] = df.groupby(list(groups))[
+            "sv_price_per_sqft"
+        ].transform(z_normalize_groupby)
 
-    df[f"sv_cgdr_deviation_{group_string}"] = df.groupby(
-        list(groups), group_keys=False
-    )["sv_cgdr"].apply(z_normalize_groupby)
+    df[f"sv_cgdr_deviation_{group_string}"] = df.groupby(list(groups))[
+        "sv_cgdr"
+    ].transform(z_normalize_groupby)
 
     holds = get_thresh(df, prices, permut, groups)
     df["sv_pricing"] = df.apply(
