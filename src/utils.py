@@ -487,7 +487,8 @@ def modify_dtypes(df):
 
 def get_parameter_df(
     df_to_write,
-    df_ingest,
+    earliest_sale_ingest,
+    latest_sale_ingest,
     run_filter,
     iso_forest_cols,
     stat_groups,
@@ -507,7 +508,8 @@ def get_parameter_df(
     which tracks important information about the flagging run.
     Inputs:
         df_to_write: The final table used to write data to the sale.flag table
-        df_ingest: raw data read in to perform flagging
+        earliest_sale_ingest: Earliest sale pulled in ingest, inclusive of rolling window
+        latest_sale_ingest: Latest sale pulled in ingest
         iso_forest_cols: columns used in iso_forest model in Mansueto's flagging model
         res_stat_groups: which groups were used for mansueto's flagging model
         condo_stat_groups: which groups were used for condos
@@ -523,8 +525,6 @@ def get_parameter_df(
         df_parameters: parameters table associated with flagging run
     """
     sales_flagged = df_to_write.shape[0]
-    earliest_sale_ingest = df_ingest.meta_sale_date.min()
-    latest_sale_ingest = df_ingest.meta_sale_date.max()
 
     parameter_dict_to_df = {
         "run_id": [run_id],

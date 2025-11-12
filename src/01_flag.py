@@ -39,6 +39,8 @@ assert len(constants.INPUTS["run_tri"]) == len(
 
 # Ingest
 df = pd.read_parquet(os.path.join("input", "sales_ingest.parquet"))
+earliest_sale_ingest = df.meta_sale_date.min()
+latest_sale_ingest = df.meta_sale_date.max()
 
 if constants.INPUTS["manual_update"] is True:
     # TODO: grab maxes from this query to avoid large data ingest
@@ -277,7 +279,8 @@ run_filter = str(
 # Get parameters df
 df_parameter = utils.get_parameter_df(
     df_to_write=df_to_write,
-    df_ingest=df,
+    earliest_sale_ingest=earliest_sale_ingest,
+    latest_sale_ingest=latest_sale_ingest,
     run_filter=run_filter,
     iso_forest_cols=constants.INPUTS["iso_forest"],
     stat_groups=constants.INPUTS["stat_groups"],
