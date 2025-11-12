@@ -28,7 +28,7 @@ stages:
     cmd: uv run --env-file .env python3 src/01_flag.py
     deps:
     - path: input/sales_ingest.parquet
-      hash: md
+      hash: md5
       md5: 013af04502243c8ebc367c204c3dbada
       size: 9091686
     - path: src/01_flag.py
