@@ -1,6 +1,5 @@
 import datetime
 import os
-import subprocess as sp
 import time
 
 from pyathena import connect
