@@ -207,9 +207,9 @@ for df_name, df_info in dfs_flagged.items():
     df_copy = df_info["df"].copy()
 
     market_key = "condos" if df_info["condos_boolean"] else "res"
-    ptax_sd_selected = constants.INPUTS["standard_deviation_bounds"]["ptax_bounds"][
-        market_key
-    ]
+    ptax_sd_selected = constants.INPUTS["standard_deviation_bounds"][
+        "ptax_bounds"
+    ][market_key]
 
     df_copy = utils.ptax_adjustment(
         df=df_copy,
