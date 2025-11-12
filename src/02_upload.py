@@ -1,13 +1,11 @@
 import os
-import subprocess as sp
 
 import pandas as pd
 
 import constants
 import utils
 
-root = sp.getoutput("git rev-parse --show-toplevel")
-output_dir = os.path.join(root, "output")
+output_dir = "output"
 
 flag = pd.read_parquet(os.path.join(output_dir, "flag.parquet"))
 parameter = pd.read_parquet(os.path.join(output_dir, "parameter.parquet"))
