@@ -13,9 +13,6 @@ os.chdir(os.path.join(root, "src"))
 with open("inputs.yaml", "r") as stream:
     inputs = yaml.safe_load(stream)
 
-root = sp.getoutput("git rev-parse --show-toplevel")
-os.chdir(os.path.join(root, "src"))
-
 output_dir = os.path.join(root, "output")
 
 df_to_write = pd.read_parquet(os.path.join(output_dir, "df_to_write.parquet"))
