@@ -344,10 +344,10 @@ df_metadata = utils.get_metadata_df(
 # - - - -
 
 tables_to_write = {
-    "df_to_write.parquet": df_to_write,
-    "df_parameter.parquet": df_parameter,
-    "df_group_mean_to_write.parquet": df_group_mean_to_write,
-    "df_metadata.parquet": df_metadata,
+    "flag.parquet": df_to_write,
+    "parameter.parquet": df_parameter,
+    "group_mean.parquet": df_group_mean_to_write,
+    "metadata.parquet": df_metadata,
 }
 
 for filename, df in tables_to_write.items():

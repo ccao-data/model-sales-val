@@ -15,27 +15,23 @@ with open("inputs.yaml", "r") as stream:
 
 output_dir = os.path.join(root, "output")
 
-df_to_write = pd.read_parquet(os.path.join(output_dir, "df_to_write.parquet"))
-df_parameter = pd.read_parquet(
-    os.path.join(output_dir, "df_parameter.parquet")
-)
-df_group_mean_to_write = pd.read_parquet(
-    os.path.join(output_dir, "df_group_mean_to_write.parquet")
-)
-df_metadata = pd.read_parquet(os.path.join(output_dir, "df_metadata.parquet"))
+flag = pd.read_parquet(os.path.join(output_dir, "flag.parquet"))
+parameter = pd.read_parquet(os.path.join(output_dir, "parameter.parquet"))
+group_mean = pd.read_parquet(os.path.join(output_dir, "group_mean.parquet"))
+metadata = pd.read_parquet(os.path.join(output_dir, "metadata.parquet"))
 
 tables_to_write = {
-    "flag": df_to_write,
-    "parameter": df_parameter,
-    "group_mean": df_group_mean_to_write,
-    "metadata": df_metadata,
+    "flag": flag,
+    "parameter": parameter,
+    "group_mean": group_mean,
+    "metadata": metadata,
 }
 
 for table, df in tables_to_write.items():
     utils.write_to_table(
         df=df,
         table_name=table,
-        run_id=df_metadata.run_id[0],
+        run_id=metadata.run_id[0],
         output_environment=inputs["output_environment"],
     )
     print(f"{table} table successfully written")
