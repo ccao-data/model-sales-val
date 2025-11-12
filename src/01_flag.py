@@ -3,52 +3,46 @@ import os
 import subprocess as sp
 
 import pandas as pd
-import yaml
 from pyathena import connect
 from pyathena.pandas.util import as_pandas
 
+import constants
 import model
 import utils
 
-root = sp.getoutput("git rev-parse --show-toplevel")
-os.chdir(os.path.join(root, "src"))
-
-# Use yaml as inputs
-with open("inputs.yaml", "r") as stream:
-    inputs = yaml.safe_load(stream)
-
 # Validate the input specification
-if inputs["output_environment"] not in {"dev", "prod"}:
+if constants.INPUTS["output_environment"] not in {"dev", "prod"}:
     raise ValueError("output_environment must be either 'dev' or 'prod'")
 
 # Check housing_market_type
 # TODO: Add res_all and other res_type exclusivity check
-assert "housing_market_type" in inputs, "Missing key: 'housing_market_type'"
-assert set(inputs["housing_market_type"]).issubset(
+assert "housing_market_type" in constants.INPUTS, (
+    "Missing key: 'housing_market_type'"
+)
+assert set(constants.INPUTS["housing_market_type"]).issubset(
     {"res_single_family", "res_multi_family", "condos", "res_all"}
 ), (
     "housing_market_type can only contain 'res_single_family', 'res_multi_family', 'condos', 'res_all'"
 )
-assert len(inputs["housing_market_type"]) == len(
-    set(inputs["housing_market_type"])
+assert len(constants.INPUTS["housing_market_type"]) == len(
+    set(constants.INPUTS["housing_market_type"])
 ), "Duplicate values in 'housing_market_type'"
 
 # Check run_tri
-assert "run_tri" in inputs, "Missing key: 'run_tri'"
-assert set(inputs["run_tri"]).issubset({1, 2, 3}), (
+assert "run_tri" in constants.INPUTS, "Missing key: 'run_tri'"
+assert set(constants.INPUTS["run_tri"]).issubset({1, 2, 3}), (
     "run_tri can only contain 1, 2, 3"
 )
-assert len(inputs["run_tri"]) == len(set(inputs["run_tri"])), (
-    "Duplicate values in 'run_tri'"
-)
+assert len(constants.INPUTS["run_tri"]) == len(
+    set(constants.INPUTS["run_tri"])
+), "Duplicate values in 'run_tri'"
 
 # Ingest
-df = pd.read_parquet(os.path.join(root, "input", "sales_ingest.parquet"))
-df_ingest = pd.read_parquet(
-    os.path.join(root, "input", "sales_ingest.parquet")
-)
+df = pd.read_parquet(os.path.join("input", "sales_ingest.parquet"))
+earliest_sale_ingest = df.meta_sale_date.min()
+latest_sale_ingest = df.meta_sale_date.max()
 
-if inputs["manual_update"] is True:
+if constants.INPUTS["manual_update"] is True:
     # TODO: grab maxes from this query to avoid large data ingest
     SQL_QUERY_SALES_VAL = """
     SELECT *
@@ -96,10 +90,10 @@ def create_bins_and_labels(input_list):
 
 dfs_to_rolling_window = {}  # Dictionary to store DataFrames
 
-for tri in inputs["run_tri"]:
+for tri in constants.INPUTS["run_tri"]:
     # Iterate over housing types defined in yaml
-    for housing_type in inputs["housing_market_type"]:
-        if housing_type not in inputs["stat_groups"][f"tri{tri}"]:
+    for housing_type in constants.INPUTS["housing_market_type"]:
+        if housing_type not in constants.INPUTS["stat_groups"][f"tri{tri}"]:
             print(
                 f"Skipping flags for '{housing_type}' in tri {tri} since the market is not defined "
                 "as a stat group in the tri"
@@ -111,7 +105,7 @@ for tri in inputs["run_tri"]:
         # Perform filtering based on tri and housing market class codes
         triad_code_filter = df["triad_code"] == str(tri)
         market_filter = df["class"].isin(
-            inputs["housing_market_class_codes"][housing_type]
+            constants.INPUTS["housing_market_class_codes"][housing_type]
         )
 
         # Initialize the DataFrame for the current key
@@ -121,7 +115,9 @@ for tri in inputs["run_tri"]:
         }
 
         # Extract the specific housing type configuration
-        housing_type_config = inputs["stat_groups"][f"tri{tri}"][housing_type]
+        housing_type_config = constants.INPUTS["stat_groups"][f"tri{tri}"][
+            housing_type
+        ]
 
         # Perform column transformations
         columns = housing_type_config["columns"]
@@ -150,9 +146,9 @@ for tri in inputs["run_tri"]:
         dfs_to_rolling_window[key]["columns"] = transformed_columns
 
         # Add rest of config information
-        dfs_to_rolling_window[key]["iso_forest_cols"] = inputs["iso_forest"][
-            "res" if "res" in housing_type else "condos"
-        ]
+        dfs_to_rolling_window[key]["iso_forest_cols"] = constants.INPUTS[
+            "iso_forest"
+        ]["res" if "res" in housing_type else "condos"]
         dfs_to_rolling_window[key]["condos_boolean"] = housing_type == "condos"
         dfs_to_rolling_window[key]["market"] = housing_type
 
@@ -168,7 +164,7 @@ for df_name, df_info in dfs_to_rolling_window.items():
     df_copy = df_info["df"].copy()
 
     df_copy = utils.add_rolling_window(
-        df_copy, num_months=inputs["rolling_window_months"]
+        df_copy, num_months=constants.INPUTS["rolling_window_months"]
     )
     dfs_to_flag[df_name]["df"] = df_copy
 
@@ -183,7 +179,7 @@ for df_name, df_info in dfs_to_flag.items():
     df_copy = df_info["df"].copy()
 
     market_key = "condos" if df_info["condos_boolean"] else "res"
-    dev_bounds_selected = inputs["standard_deviation_bounds"][
+    dev_bounds_selected = constants.INPUTS["standard_deviation_bounds"][
         "standard_bounds"
     ][market_key]
 
@@ -193,7 +189,7 @@ for df_name, df_info in dfs_to_flag.items():
         iso_forest_cols=df_info["iso_forest_cols"],
         dev_bounds=tuple(dev_bounds_selected),
         condos=df_info["condos_boolean"],
-        raw_price_threshold=inputs["raw_price_threshold"],
+        raw_price_threshold=constants.INPUTS["raw_price_threshold"],
     )
 
     # Add the edited or unedited dataframe to the new dictionary
@@ -211,7 +207,7 @@ for df_name, df_info in dfs_flagged.items():
     df_copy = df_info["df"].copy()
 
     market_key = "condos" if df_info["condos_boolean"] else "res"
-    ptax_sd_selected = inputs["standard_deviation_bounds"]["ptax_bounds"][
+    ptax_sd_selected = constants.INPUTS["standard_deviation_bounds"]["ptax_bounds"][
         market_key
     ]
 
@@ -225,7 +221,7 @@ for df_name, df_info in dfs_flagged.items():
     df_copy = utils.classify_outliers(
         df=df_copy,
         stat_groups=df_info["columns"],
-        min_threshold=inputs["min_groups_threshold"],
+        min_threshold=constants.INPUTS["min_groups_threshold"],
     )
 
     """
@@ -246,7 +242,7 @@ for df_name, df_info in dfs_flagged.items():
 # Finalize data to write and create data for all metadata tables
 # - - - - - - - -
 
-if inputs["manual_update"] is True:
+if constants.INPUTS["manual_update"] is True:
     # Group the existing data by 'ID' and find the maximum 'version' for each sale
     existing_max_version = (
         df_flag_table.groupby("meta_sale_document_num")["version"]
@@ -261,12 +257,12 @@ df_to_finalize = pd.concat(dfs_to_finalize_list, axis=0)
 
 df_to_write, run_id, timestamp = utils.finish_flags(
     df=df_to_finalize,
-    start_date=inputs["time_frame"]["start"],
-    manual_update=inputs["manual_update"],
-    sales_to_write_filter=inputs["sales_to_write_filter"],
+    start_date=constants.INPUTS["time_frame"]["start"],
+    manual_update=constants.INPUTS["manual_update"],
+    sales_to_write_filter=constants.INPUTS["sales_to_write_filter"],
 )
 
-if inputs["manual_update"] is True:
+if constants.INPUTS["manual_update"] is True:
     # Merge, compute new version, and drop unnecessary columns
     df_to_write = (
         df_to_write.merge(
@@ -281,31 +277,32 @@ if inputs["manual_update"] is True:
     )
     # Additional filtering if manual_update_only_new_sales is True
     # If this is set to true, only unseen sales will get flag updates
-    if inputs["manual_update_only_new_sales"] is True:
+    if constants.INPUTS["manual_update_only_new_sales"] is True:
         df_to_write = df_to_write[df_to_write["version"] == 1]
 
 run_filter = str(
     {
-        "housing_market_type": inputs["housing_market_type"],
-        "run_tri": inputs["run_tri"],
+        "housing_market_type": constants.INPUTS["housing_market_type"],
+        "run_tri": constants.INPUTS["run_tri"],
     }
 )
 
 # Get parameters df
 df_parameter = utils.get_parameter_df(
     df_to_write=df_to_write,
-    df_ingest=df_ingest,
+    earliest_sale_ingest=earliest_sale_ingest,
+    latest_sale_ingest=latest_sale_ingest,
     run_filter=run_filter,
-    iso_forest_cols=inputs["iso_forest"],
-    stat_groups=inputs["stat_groups"],
-    sales_to_write_filter=inputs["sales_to_write_filter"],
-    housing_market_class_codes=inputs["housing_market_class_codes"],
-    standard_deviation_bounds=inputs["standard_deviation_bounds"],
-    rolling_window=inputs["rolling_window_months"],
-    time_frame=inputs["time_frame"],
+    iso_forest_cols=constants.INPUTS["iso_forest"],
+    stat_groups=constants.INPUTS["stat_groups"],
+    sales_to_write_filter=constants.INPUTS["sales_to_write_filter"],
+    housing_market_class_codes=constants.INPUTS["housing_market_class_codes"],
+    standard_deviation_bounds=constants.INPUTS["standard_deviation_bounds"],
+    rolling_window=constants.INPUTS["rolling_window_months"],
+    time_frame=constants.INPUTS["time_frame"],
     short_term_threshold=model.SHORT_TERM_OWNER_THRESHOLD,
-    min_group_threshold=inputs["min_groups_threshold"],
-    raw_price_threshold=inputs["raw_price_threshold"],
+    min_group_threshold=constants.INPUTS["min_groups_threshold"],
+    raw_price_threshold=constants.INPUTS["raw_price_threshold"],
     run_id=run_id,
 )
 
@@ -335,9 +332,9 @@ commit_sha = sp.getoutput("git rev-parse HEAD")
 
 run_type = (
     "initial_flagging"
-    if not inputs["manual_update"]
+    if not constants.INPUTS["manual_update"]
     else "manual_update_only_new_sales"
-    if inputs["manual_update_only_new_sales"]
+    if constants.INPUTS["manual_update_only_new_sales"]
     else "manual_update"
 )
 
@@ -346,7 +343,7 @@ df_metadata = utils.get_metadata_df(
     timestamp=timestamp,
     run_type=run_type,
     commit_sha=commit_sha,
-    run_note=inputs["run_note"],
+    run_note=constants.INPUTS["run_note"],
 )
 
 # - - - -
@@ -354,13 +351,13 @@ df_metadata = utils.get_metadata_df(
 # - - - -
 
 tables_to_write = {
-    "df_to_write.parquet": df_to_write,
-    "df_parameter.parquet": df_parameter,
-    "df_group_mean_to_write.parquet": df_group_mean_to_write,
-    "df_metadata.parquet": df_metadata,
+    "flag.parquet": df_to_write,
+    "parameter.parquet": df_parameter,
+    "group_mean.parquet": df_group_mean_to_write,
+    "metadata.parquet": df_metadata,
 }
 
 for filename, df in tables_to_write.items():
-    output_path = os.path.join(os.path.join(root, "output"), filename)
+    output_path = os.path.join(os.path.join("output"), filename)
     df.to_parquet(output_path, index=False)
     print(f"Saved {filename}")

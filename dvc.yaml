@@ -18,21 +18,21 @@ stages:
       - src/model.py
       - src/utils.py
     outs:
-      - output/df_to_write.parquet:
+      - output/flag.parquet:
           cache: false
-      - output/df_parameter.parquet:
+      - output/parameter.parquet:
           cache: false
-      - output/df_group_mean_to_write.parquet:
+      - output/group_mean.parquet:
           cache: false
-      - output/df_metadata.parquet:
+      - output/metadata.parquet:
           cache: false
   upload:
     cmd: uv run --env-file .env python3 src/02_upload.py
     deps:
-      - output/df_group_mean_to_write.parquet
-      - output/df_metadata.parquet
-      - output/df_parameter.parquet
-      - output/df_to_write.parquet
+      - output/flag.parquet
+      - output/group_mean.parquet
+      - output/metadata.parquet
+      - output/parameter.parquet
       - src/02_upload.py
       - src/inputs.yaml
       - src/utils.py

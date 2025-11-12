@@ -3,8 +3,8 @@ name = "model-sales-val"
 version = "0.0.1"
 readme = "README.md"
 requires-python = ">=3.11"
-# Note - this command opens ipython terminal using uv venv
-# uv run --with ipython ipython
+# Note - this command opens ipython terminal using uv venv:
+# uv run --env-file .env --with ipython ipython
 
 dependencies = [
     "awswrangler",
