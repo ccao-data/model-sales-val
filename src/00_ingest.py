@@ -143,4 +143,4 @@ df["ptax_flag_original"].fillna(False, inplace=True)
 current_year = datetime.datetime.now().year
 df["char_bldg_age"] = current_year - df["yrblt"]
 
-df.to_parquet(os.path.join(root, "input", "sales_ingest.parquet"), index=False)
+df.to_parquet(os.path.join("input", "sales_ingest.parquet"), index=False)
