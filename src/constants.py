@@ -1,3 +1,5 @@
+import os
+
 import yaml
 
 # It's helpful to factor these tables out into shared constants because we often
@@ -8,5 +10,5 @@ DEFAULT_VW_PIN_CONDO_CHAR_TABLE = "default.vw_pin_condo_char"
 DEFAULT_VW_PIN_SALE_TABLE = "default.vw_pin_sale"
 DEFAULT_VW_PIN_UNIVERSE_TABLE = "default.vw_pin_universe"
 
-with open("src/inputs.yaml", "r") as stream:
+with open(os.path.join("src", "inputs.yaml"), "r") as stream:
     INPUTS = yaml.safe_load(stream)
