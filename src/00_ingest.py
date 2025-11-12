@@ -9,8 +9,6 @@ from pyathena.pandas.util import as_pandas
 import constants
 import utils
 
-root = sp.getoutput("git rev-parse --show-toplevel")
-
 # Connect to Athena
 conn = connect(
     s3_staging_dir=os.getenv("AWS_ATHENA_S3_STAGING_DIR"),
