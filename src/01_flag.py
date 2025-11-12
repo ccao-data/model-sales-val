@@ -10,8 +10,6 @@ import constants
 import model
 import utils
 
-root = sp.getoutput("git rev-parse --show-toplevel")
-
 # Validate the input specification
 if constants.INPUTS["output_environment"] not in {"dev", "prod"}:
     raise ValueError("output_environment must be either 'dev' or 'prod'")
@@ -40,10 +38,8 @@ assert len(constants.INPUTS["run_tri"]) == len(
 ), "Duplicate values in 'run_tri'"
 
 # Ingest
-df = pd.read_parquet(os.path.join(root, "input", "sales_ingest.parquet"))
-df_ingest = pd.read_parquet(
-    os.path.join(root, "input", "sales_ingest.parquet")
-)
+df = pd.read_parquet(os.path.join("input", "sales_ingest.parquet"))
+df_ingest = pd.read_parquet(os.path.join("input", "sales_ingest.parquet"))
 
 if constants.INPUTS["manual_update"] is True:
     # TODO: grab maxes from this query to avoid large data ingest
@@ -350,6 +346,6 @@ tables_to_write = {
 }
 
 for filename, df in tables_to_write.items():
-    output_path = os.path.join(os.path.join(root, "output"), filename)
+    output_path = os.path.join(os.path.join("output"), filename)
     df.to_parquet(output_path, index=False)
     print(f"Saved {filename}")
