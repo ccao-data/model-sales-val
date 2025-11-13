@@ -152,6 +152,14 @@ for tri in constants.INPUTS["run_tri"]:
         dfs_to_rolling_window[key]["condos_boolean"] = housing_type == "condos"
         dfs_to_rolling_window[key]["market"] = housing_type
 
+        market_sd_key = "condos" if housing_type == "condos" else "res"
+        sd_bounds = constants.INPUTS["standard_deviation_bounds"]
+        dfs_to_rolling_window[key]["standard_bounds"] = tuple(
+            sd_bounds["standard_bounds"][market_sd_key]
+        )
+        dfs_to_rolling_window[key]["ptax_bounds"] = tuple(
+            sd_bounds["ptax_bounds"][market_sd_key]
+        )
 
 # - - - - - -
 # Make rolling window
@@ -178,16 +186,11 @@ for df_name, df_info in dfs_to_flag.items():
     print(f"\nFlagging sales for {df_name}")
     df_copy = df_info["df"].copy()
 
-    market_key = "condos" if df_info["condos_boolean"] else "res"
-    dev_bounds_selected = constants.INPUTS["standard_deviation_bounds"][
-        "standard_bounds"
-    ][market_key]
-
     df_copy = model.go(
         df=df_copy,
         groups=tuple(df_info["columns"]),
         iso_forest_cols=df_info["iso_forest_cols"],
-        dev_bounds=tuple(dev_bounds_selected),
+        dev_bounds=df_info["standard_bounds"],
         condos=df_info["condos_boolean"],
         raw_price_threshold=constants.INPUTS["raw_price_threshold"],
     )
@@ -206,15 +209,10 @@ for df_name, df_info in dfs_flagged.items():
     print(f"\n Enacting group threshold and creating ptax data for {df_name}")
     df_copy = df_info["df"].copy()
 
-    market_key = "condos" if df_info["condos_boolean"] else "res"
-    ptax_sd_selected = constants.INPUTS["standard_deviation_bounds"][
-        "ptax_bounds"
-    ][market_key]
-
     df_copy = utils.ptax_adjustment(
         df=df_copy,
         groups=df_info["columns"],
-        ptax_sd=ptax_sd_selected,
+        ptax_sd=df_info["ptax_bounds"],
         condos=df_info["condos_boolean"],
     )
 
