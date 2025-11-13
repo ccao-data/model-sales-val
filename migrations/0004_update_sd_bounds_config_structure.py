@@ -36,7 +36,7 @@ for key, df in dfs_prod_prior.items():
     dev = list(df["dev_bounds"].iloc[0])
     ptax = list(df["ptax_sd"].iloc[0])
 
-    s = json.dumps(
+    json_data = json.dumps(
         {
             "standard_deviation_bounds": {
                 "standard_bounds": {"res": dev, "condos": dev},
@@ -47,7 +47,7 @@ for key, df in dfs_prod_prior.items():
 
     # Output to new dict
     df_updated = df.copy(deep=True)
-    df_updated["standard_deviation_bounds"] = [s] * len(df_updated)
+    df_updated["standard_deviation_bounds"] = [json_data] * len(df_updated)
     df_updated.drop(columns=["dev_bounds", "ptax_sd"], inplace=True)
 
     dfs_prod_updated[key] = df_updated
