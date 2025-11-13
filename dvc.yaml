@@ -36,4 +36,3 @@ stages:
       - src/02_upload.py
       - src/inputs.yaml
       - src/utils.py
-    frozen: true
