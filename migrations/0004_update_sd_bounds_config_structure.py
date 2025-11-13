@@ -1,4 +1,13 @@
-# TODO: Explain the script
+"""
+This migration updates sale.parameter to account for our standard deviation
+bounds configuration change. With the change we can assign differing bounds
+for condos and res in a single run.
+
+The required change to `sale.parameter` is to remove `dev_bounds` and `ptax_sd`
+and replace them with `standard_deviation_bounds`, which is a json/dict structure
+stored as a string type.
+"""
+
 import json
 import os
 
