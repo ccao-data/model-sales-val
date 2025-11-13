@@ -31,7 +31,7 @@ for file in parquet_files_prod_prior:
     df = wr.s3.read_parquet(file)
     dfs_prod_prior[df_name] = df
 
-# Edit existing
+# Iterate through existing data to grab and transform sd bounds
 for key, df in dfs_prod_prior.items():
     dev = list(df["dev_bounds"].iloc[0])
     ptax = list(df["ptax_sd"].iloc[0])
@@ -45,7 +45,7 @@ for key, df in dfs_prod_prior.items():
         }
     )
 
-    # Create a new dataframe instead of modifying the original
+    # Output to new dict
     df_updated = df.copy(deep=True)
     df_updated["standard_deviation_bounds"] = [s] * len(df_updated)
     df_updated.drop(columns=["dev_bounds", "ptax_sd"], inplace=True)
