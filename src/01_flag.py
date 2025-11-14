@@ -152,6 +152,14 @@ for tri in constants.INPUTS["run_tri"]:
         dfs_to_rolling_window[key]["condos_boolean"] = housing_type == "condos"
         dfs_to_rolling_window[key]["market"] = housing_type
 
+        market_sd_key = "condos" if housing_type == "condos" else "res"
+        sd_bounds = constants.INPUTS["standard_deviation_bounds"]
+        dfs_to_rolling_window[key]["standard_bounds"] = tuple(
+            sd_bounds["standard_bounds"][market_sd_key]
+        )
+        dfs_to_rolling_window[key]["ptax_bounds"] = tuple(
+            sd_bounds["ptax_bounds"][market_sd_key]
+        )
 
 # - - - - - -
 # Make rolling window
@@ -177,11 +185,12 @@ dfs_flagged = copy.deepcopy(dfs_to_flag)
 for df_name, df_info in dfs_to_flag.items():
     print(f"\nFlagging sales for {df_name}")
     df_copy = df_info["df"].copy()
+
     df_copy = model.go(
         df=df_copy,
         groups=tuple(df_info["columns"]),
         iso_forest_cols=df_info["iso_forest_cols"],
-        dev_bounds=tuple(constants.INPUTS["dev_bounds"]),
+        dev_bounds=df_info["standard_bounds"],
         condos=df_info["condos_boolean"],
         raw_price_threshold=constants.INPUTS["raw_price_threshold"],
     )
@@ -203,7 +212,7 @@ for df_name, df_info in dfs_flagged.items():
     df_copy = utils.ptax_adjustment(
         df=df_copy,
         groups=df_info["columns"],
-        ptax_sd=constants.INPUTS["ptax_sd"],
+        ptax_sd=df_info["ptax_bounds"],
         condos=df_info["condos_boolean"],
     )
 
@@ -286,8 +295,7 @@ df_parameter = utils.get_parameter_df(
     stat_groups=constants.INPUTS["stat_groups"],
     sales_to_write_filter=constants.INPUTS["sales_to_write_filter"],
     housing_market_class_codes=constants.INPUTS["housing_market_class_codes"],
-    dev_bounds=constants.INPUTS["dev_bounds"],
-    ptax_sd=constants.INPUTS["ptax_sd"],
+    standard_deviation_bounds=constants.INPUTS["standard_deviation_bounds"],
     rolling_window=constants.INPUTS["rolling_window_months"],
     time_frame=constants.INPUTS["time_frame"],
     short_term_threshold=model.SHORT_TERM_OWNER_THRESHOLD,
