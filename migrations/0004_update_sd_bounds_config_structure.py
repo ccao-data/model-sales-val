@@ -13,6 +13,9 @@ import os
 
 import awswrangler as wr
 
+# Note: The directories in this script have a flag_* subdirectory even though
+# the purpose is to migrate parameter data (not flag data). This is just a minor
+# inconsistency in the script, the `sale.flag` table was not involved
 parquet_files_prod_prior = wr.s3.list_objects(
     os.path.join(
         "s3://ccao-data-backup-us-east-1/0004_update_sd_bounds_config_structure/flag_prior/"
