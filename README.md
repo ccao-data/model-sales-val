@@ -50,12 +50,14 @@ Commercial, industrial, and land-only property sales are _not_ flagged by this m
 - Excludes sales less than $10,000
 - Excludes multi-PIN sales
 
-## Outlier Types
+## Outlier Reasons
 
-Outlier flags are broken out into 2 types: statistical outliers and heuristic outliers.
+We generate up to 3 outlier reasons for any given sale. The columns are denoted as `sv_outlier_reason`, `sv_outlier_reason2`, and `sv_outlier_reason3`.
+Sales can have a non-null `sv_outlier_reason` column and still _not_ be classified as an outlier.
 
-- Statistical outliers are sales that are a set number of standard deviations (usually 2) away from the mean of a group of similar properties (e.g. within the same township, class, timeframe, etc.).
-- Heuristic outliers use some sort of existing flag or rule to identify potentially non-arms-length sales. Heuristic outliers are _**always combined with a statistical threshold**_, i.e. a sale with a matching last name must _also_ be N standard deviations from a group mean in order to be flagged. Examples of heuristic outlier flags include:
+`sv_is_outlier` is the column which tells us whether or not a sale is an outlier. The `sv_is_outlier` column is `True` only if one of the price outlier
+reasons is assigned to the sale. The other outlier reasons are purely supplementary information.
+
   - **PTAX flag**: The [PTAX-203](https://tax.illinois.gov/content/dam/soi/en/web/tax/localgovernments/property/documents/ptax-203.pdf) form is required by the Illinois Department of Revenue for most property transfers. Certain fields on this form are highly indicative of a non-arms-length transaction, i.e. Question 10 indicating a short sale.
   - **Non-person sale**: Flagged keyword suggests the sale involves a non-person legal entity (industrial buyer, bank, real estate firm, construction, etc.).
   - **Flip Sale**: Flagged when the owner of the home owned the property for less than 1 year
@@ -63,33 +65,20 @@ Outlier flags are broken out into 2 types: statistical outliers and heuristic ou
 
 The following is a list of all current flag types:
 
-### High Price
-
+### 
 | Indicator               | Criteria                                                      |
 |-------------------------|---------------------------------------------------------------|
-| PTAX outlier (high)     | PTAX flag & [1 high statistical outlier type]                 |
-| Home flip sale (high)   | Short-term owner < 1 year & [1 high statistical outlier type] |
-| Family sale (high)      | Last name match & [1 high statistical outlier type]           |
-| Non-person sale (high)  | Legal / corporate entity & [1 high statistical outlier type]  |
-| Anomaly (High)          | Anomaly algorithm (high) & [1 high statistical outlier type]  |
+| PTAX-203 outlier    | PTAX flag & [1 high statistical outlier type]                 |
+| Home flip sale (high)   | Short-term owner < 1 year  |
+| Family sale (high)      | Last name match          |
+| Non-person sale (high)  | Legal / corporate entity |
+| Anomaly (High)          | Anomaly algorithm (high  |
 | High price (raw & sqft) | High price & high price per sq. ft.                           |
 | High price swing        | Large swing away from mean & high price outlier               |
 | High price (raw)        | High price                                                    |
 | High price (per sqft)   | High price per sq. ft.                                        |
 
-### Low Price
 
-| Indicator               | Criteria                                                      |
-|-------------------------|---------------------------------------------------------------|
-| PTAX outlier (low)      | PTAX flag & [1 low statistical outlier type]                  |
-| Home flip sale (low)    | Short-term owner < 1 year & [1 low statistical outlier type]  |
-| Family sale (low)       | Last name match & [1 low statistical outlier type]            |
-| Non-person sale (low)   | Legal / corporate entity & [1 low statistical outlier type]   |
-| Anomaly                 | Anomaly algorithm (low) & [1 low statistical outlier type]    |
-| Low price (raw & sqft)  | Low price & low price per sq. ft.                             |
-| Low price swing         | Large swing away from mean & low price outlier                |
-| Low price (raw)         | Low price (or under $10k)                                     |
-| Low price (per sqft)    | Low price per sq. ft.                                         |
 
 ### Distribution of Outlier Types
 
