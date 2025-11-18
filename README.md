@@ -64,22 +64,22 @@ the mean of similar properties. The other outlier reasons are purely supplementa
   - **Flip Sale**: Flagged when the owner of the home owned the property for less than 1 year
   - **Anomaly**: Flagged via an unsupervised machine learning model (isolation forest).
 
-The following is a list of all current flag types:
+The following is a list of all current outlier reasons:
 
 ### 
-| Indicator               | Criteria                                                      |
+| Indicator               | Description                                                     |
 |-------------------------|---------------------------------------------------------------|
-| PTAX-203 outlier    | PTAX flag & [1 high statistical outlier type]                 |
-| Home flip sale (high)   | Short-term owner < 1 year  |
-| Family sale (high)      | Last name match          |
-| Non-person sale (high)  | Legal / corporate entity |
-| Anomaly (High)          | Anomaly algorithm (high  |
-| High price (raw & sqft) | High price & high price per sq. ft.                           |
-| High price swing        | Large swing away from mean & high price outlier               |
-| High price (raw)        | High price                                                    |
-| High price (per sqft)   | High price per sq. ft.                                        |
-
-
+| High price                 | Sale price is a certain standard deviations above the mean of the sales in its statistical group           |
+| Low price                  | Sale price is a certain standard deviations below the mean of the sales in its statistical group           |
+| High price per square foot | Sale price per sqft is a certain standard deviations above the mean of the sales in its statistical group  |
+| Low price per square foot  | Sale price per sqft is a certain standard deviations above the mean of the sales in its statistical groupy |
+| Raw price threshoid        | Sale price is over a manually set threshold. Implemented to catch very expensive non-represenative homes   |
+| PTAX - 203 Exclusion       |The [PTAX-203](https://tax.illinois.gov/content/dam/soi/en/web/tax/localgovernments/property/documents/ptax-203.pdf) form is required by the Illinois Department of Revenue for most property transfers. Certain fields on this form are highly indicative of a non-arms-length transaction, i.e. Question 10 indicating a short sale.  |
+| Short-term owner           | The sale does not meet a given threshold for days since prior transaction                                  |
+| Family sale                | Last name match between buyer and seller                                                                   |
+| Non-person sale            | Flagged keyword suggests the sale involves a non-person legal entity (industrial buyer, bank, real estate firm, construction, etc.). |                                       |
+| Statistical Anomaly        | Flagged via an unsupervised machine learning model (isolation forest).                                     |
+| Price swing / Home flip    | Large swing away from mean + short-term owner                                                              |
 
 ### Distribution of Outlier Types
 
