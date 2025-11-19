@@ -328,6 +328,7 @@ df_group_mean_to_write = pd.concat(df_group_means, ignore_index=True)
 # Get sale.metadata table
 commit_sha = sp.getoutput("git rev-parse HEAD")
 
+# Resolve run_type
 run_type = (
     "initial_flagging"
     if not constants.INPUTS["manual_update"]
@@ -336,12 +337,18 @@ run_type = (
     else "manual_update"
 )
 
+# Grab dvc md5 hash
+outs = constants.DVC_LOCKFILE["stages"]["ingest"]["outs"]
+outs_by_path = {o["path"]: o for o in outs}
+dvc_md5_sales_ingest = outs_by_path["input/sales_ingest.parquet"]["md5"]
+
 df_metadata = utils.get_metadata_df(
     run_id=run_id,
     timestamp=timestamp,
     run_type=run_type,
     commit_sha=commit_sha,
     run_note=constants.INPUTS["run_note"],
+    dvc_md5_sales_ingest=dvc_md5_sales_ingest,
 )
 
 # - - - -

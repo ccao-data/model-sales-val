@@ -12,3 +12,6 @@ DEFAULT_VW_PIN_UNIVERSE_TABLE = "default.vw_pin_universe"
 
 with open(os.path.join("src", "inputs.yaml"), "r") as stream:
     INPUTS = yaml.safe_load(stream)
+
+with open("dvc.lock", "r") as stream:
+    INPUTS = yaml.safe_load(stream)

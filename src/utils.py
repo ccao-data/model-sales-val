@@ -549,7 +549,9 @@ def get_parameter_df(
     return df_parameters
 
 
-def get_metadata_df(run_id, timestamp, run_type, commit_sha, run_note):
+def get_metadata_df(
+    run_id, timestamp, run_type, commit_sha, run_note, dvc_md5_sales_ingest
+):
     """
     Function creates a table to be written to s3 with a unique set of
     metadata for the flagging run
@@ -570,6 +572,7 @@ def get_metadata_df(run_id, timestamp, run_type, commit_sha, run_note):
         "run_timestamp": timestamp,
         "run_type": run_type,
         "run_note": run_note,
+        "dvc_md5_sales_ingest": dvc_md5_sales_ingest,
     }
 
     df_metadata = pd.DataFrame(metadata_dict_to_df)
