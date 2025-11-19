@@ -14,4 +14,4 @@ with open(os.path.join("src", "inputs.yaml"), "r") as stream:
     INPUTS = yaml.safe_load(stream)
 
 with open("dvc.lock", "r") as stream:
-    INPUTS = yaml.safe_load(stream)
+    DVC_LOCKFILE = yaml.safe_load(stream)
