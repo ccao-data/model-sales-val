@@ -14,7 +14,8 @@ import os
 import awswrangler as wr
 
 # sale.parameter migration
-# important: we are not touching the 2025-11-17_16:15-blissful-billy.parquet file in sale.parameter
+# Strip top level migration for non-blissful billy data and replace single with double
+# quotes for proper json parsing for blissful billy
 parquet_files_prod_prior = wr.s3.list_objects(
     os.path.join(
         "s3://ccao-data-backup-us-east-1/0005_retroactively_add_dvc_md5_hash_and_fix_sd_bounds/parameter_prior/"
@@ -37,13 +38,24 @@ for file in parquet_files_prod_prior:
 for name, df in dfs_parameter_prod_prior.items():
     updated_df_param = df.copy()
 
-    def strip_top_level(row):
-        data = json.loads(row)
-        return json.dumps(data["standard_deviation_bounds"])
+    if name == "2025-11-17_16:15-blissful-billy":
 
-    updated_df_param["standard_deviation_bounds"] = updated_df_param[
-        "standard_deviation_bounds"
-    ].apply(strip_top_level)
+        def normalize_quotes(row):
+            return json.dumps(json.loads(row.replace("'", '"')))
+
+        updated_df_param["standard_deviation_bounds"] = updated_df_param[
+            "standard_deviation_bounds"
+        ].apply(normalize_quotes)
+
+    else:
+
+        def strip_top_level(row):
+            data = json.loads(row)
+            return json.dumps(data["standard_deviation_bounds"])
+
+        updated_df_param["standard_deviation_bounds"] = updated_df_param[
+            "standard_deviation_bounds"
+        ].apply(strip_top_level)
 
     dfs_parameter_prod_updated[name] = updated_df_param
 
