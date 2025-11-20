@@ -3,6 +3,7 @@ import os
 import subprocess as sp
 
 import pandas as pd
+import yaml
 from pyathena import connect
 from pyathena.pandas.util import as_pandas
 
@@ -338,7 +339,10 @@ run_type = (
 )
 
 # Grab dvc md5 hash
-outs = constants.DVC_LOCKFILE["stages"]["ingest"]["outs"]
+with open("dvc.lock", "r") as stream:
+    dvc_lockfile = yaml.safe_load(stream)
+
+outs = dvc_lockfile["stages"]["ingest"]["outs"]
 outs_by_path = {o["path"]: o for o in outs}
 dvc_md5_sales_ingest = outs_by_path["input/sales_ingest.parquet"]["md5"]
 

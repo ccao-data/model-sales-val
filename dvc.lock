@@ -13,89 +13,89 @@ stages:
       size: 540
     - path: src/inputs.yaml
       hash: md5
-      md5: b510b36351fe3f6cb500f66334b5137b
-      size: 4888
+      md5: b1025386a92417a5ef58730cca961ad1
+      size: 4774
     - path: src/utils.py
       hash: md5
-      md5: 4bd28f91c155e96d221b722bc3702156
-      size: 21576
+      md5: 0608bb585e246557c6cb151cf1839cec
+      size: 21658
     outs:
     - path: input/sales_ingest.parquet
       hash: md5
-      md5: 75cceeac0b21f484f184668e06935c8b
-      size: 43829541
+      md5: eaadf528757e2d3461bc0a5cc49e9d0c
+      size: 9302981
   flag:
     cmd: uv run --env-file .env python3 src/01_flag.py
     deps:
     - path: input/sales_ingest.parquet
       hash: md5
-      md5: 75cceeac0b21f484f184668e06935c8b
-      size: 43829541
+      md5: eaadf528757e2d3461bc0a5cc49e9d0c
+      size: 9302981
     - path: src/01_flag.py
       hash: md5
-      md5: f1da6e300c479f38a4b9ad120fbbc307
-      size: 12311
+      md5: b84b8adb751de6b82fc7105d8c689a57
+      size: 12660
     - path: src/constants.py
       hash: md5
       md5: 7c69d793d7e5917f4d6413316e64166f
       size: 540
     - path: src/inputs.yaml
       hash: md5
-      md5: b510b36351fe3f6cb500f66334b5137b
-      size: 4888
+      md5: b1025386a92417a5ef58730cca961ad1
+      size: 4774
     - path: src/model.py
       hash: md5
       md5: 2c62d8d46102925619eebc81e7d75584
       size: 44748
     - path: src/utils.py
       hash: md5
-      md5: 4bd28f91c155e96d221b722bc3702156
-      size: 21576
+      md5: 0608bb585e246557c6cb151cf1839cec
+      size: 21658
     outs:
     - path: output/flag.parquet
       hash: md5
-      md5: 430f2e0748243c56865864ff38444ee3
-      size: 17596528
+      md5: 9b0a454050c76743aff686a75610deb2
+      size: 885716
     - path: output/group_mean.parquet
       hash: md5
-      md5: b2ac7a9dc397347626ec2065644eee57
-      size: 4120998
+      md5: 6c8650c90d260ab3ac7ab4263faac600
+      size: 332870
     - path: output/metadata.parquet
       hash: md5
-      md5: de149ae0ae27b8c7e3cae0508055e57f
-      size: 4612
+      md5: 1b9761357aff99399775db0fecb9d740
+      size: 4993
     - path: output/parameter.parquet
       hash: md5
-      md5: 4e56318d7d425072503c2d1a519a1b98
-      size: 16307
+      md5: 0e9ec17bf623bbb3c1247077cfbfa025
+      size: 16125
   upload:
     cmd: uv run --env-file .env python3 src/02_upload.py
     deps:
     - path: output/flag.parquet
       hash: md5
-      md5: 430f2e0748243c56865864ff38444ee3
-      size: 17596528
+      md5: 9b0a454050c76743aff686a75610deb2
+      size: 885716
     - path: output/group_mean.parquet
       hash: md5
-      md5: b2ac7a9dc397347626ec2065644eee57
-      size: 4120998
+      md5: 6c8650c90d260ab3ac7ab4263faac600
+      size: 332870
     - path: output/metadata.parquet
       hash: md5
-      md5: de149ae0ae27b8c7e3cae0508055e57f
-      size: 4612
+      md5: 1b9761357aff99399775db0fecb9d740
+      size: 4993
     - path: output/parameter.parquet
       hash: md5
-      md5: 4e56318d7d425072503c2d1a519a1b98
-      size: 16307
+      md5: 0e9ec17bf623bbb3c1247077cfbfa025
+      size: 16125
     - path: src/02_upload.py
       hash: md5
       md5: 6d9d84513d3bb7bf9b8bf8e9481fef57
       size: 768
     - path: src/inputs.yaml
       hash: md5
-      md5: b510b36351fe3f6cb500f66334b5137b
-      size: 4888
+      md5: b1025386a92417a5ef58730cca961ad1
+      size: 4774
     - path: src/utils.py
       hash: md5
-      md5: 4bd28f91c155e96d221b722bc3702156
-      size: 21576
+      md5: 0608bb585e246557c6cb151cf1839cec
+      size: 21658
