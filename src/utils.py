@@ -1,4 +1,5 @@
 import datetime
+import json
 import os
 
 import awswrangler as wr
@@ -477,11 +478,14 @@ def modify_dtypes(df):
         "time_frame",
         "sales_to_write_filter",
         "housing_market_class_codes",
-        "standard_deviation_bounds",
     ]
     for col in string_columns:
         if col in df.columns:
             df[col] = df[col].astype(str)
+
+    json_columns = ["standard_deviation_bounds"]
+    for col in json_columns:
+        df[col] = df[col].apply(json.dumps)
 
     return df
 
