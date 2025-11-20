@@ -1,4 +1,5 @@
 import datetime
+import json
 import os
 
 import awswrangler as wr
@@ -477,11 +478,14 @@ def modify_dtypes(df):
         "time_frame",
         "sales_to_write_filter",
         "housing_market_class_codes",
-        "standard_deviation_bounds",
     ]
     for col in string_columns:
         if col in df.columns:
             df[col] = df[col].astype(str)
+
+    json_columns = ["standard_deviation_bounds"]
+    for col in json_columns:
+        df[col] = df[col].apply(json.dumps)
 
     return df
 
@@ -549,7 +553,9 @@ def get_parameter_df(
     return df_parameters
 
 
-def get_metadata_df(run_id, timestamp, run_type, commit_sha, run_note):
+def get_metadata_df(
+    run_id, timestamp, run_type, commit_sha, run_note, dvc_md5_sales_ingest
+):
     """
     Function creates a table to be written to s3 with a unique set of
     metadata for the flagging run
@@ -570,6 +576,7 @@ def get_metadata_df(run_id, timestamp, run_type, commit_sha, run_note):
         "run_timestamp": timestamp,
         "run_type": run_type,
         "run_note": run_note,
+        "dvc_md5_sales_ingest": dvc_md5_sales_ingest,
     }
 
     df_metadata = pd.DataFrame(metadata_dict_to_df)
