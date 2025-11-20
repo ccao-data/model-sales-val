@@ -71,7 +71,6 @@ df_metadata_prod_updated["dvc_md5_sales_ingest"] = (
     "75cceeac0b21f484f184668e06935c8b"
 )
 
-# Iterate through existing data to grab and transform sd bounds
 df_metadata_updated_output_path = "s3://ccao-data-backup-us-east-1/0005_retroactively_add_dvc_md5_hash_and_fix_sd_bounds/metadata_updated/2025-11-17_16:15-blissful-billy.parquet"
 
 wr.s3.to_parquet(
