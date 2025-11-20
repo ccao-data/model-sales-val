@@ -1,5 +1,11 @@
 """
-TODO: Add context
+This PR makes two small migrations.
+
+sale.parameter migration is to correct an erroneous inclusion of the top level
+keystandard_deviation_bounds from src/inputs.yaml
+
+sale.metadata migration is to include an md5 hash for input data for a sales val
+run after we implemented dvc into the pipeline
 """
 
 import json
@@ -57,7 +63,6 @@ for name, df in dfs_parameter_prod_updated.items():
 # sale.metadata migration
 # important: during the migration we will only delete and add the 2025-11-17_16:15-blissful-billy.parquet
 # file since this is the only run we have done with dvc implementation
-
 
 # Ingest single parquet we want to change
 df_metadata_prod_prior = wr.s3.read_parquet(
