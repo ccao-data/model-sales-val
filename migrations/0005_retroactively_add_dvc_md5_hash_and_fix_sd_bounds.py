@@ -2,7 +2,7 @@
 This PR makes two small migrations.
 
 sale.parameter migration is to correct an erroneous inclusion of the top level
-keystandard_deviation_bounds from src/inputs.yaml
+key standard_deviation_bounds from src/inputs.yaml
 
 sale.metadata migration is to include an md5 hash for input data for a sales val
 run after we implemented dvc into the pipeline
