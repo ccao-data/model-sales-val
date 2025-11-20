@@ -37,10 +37,8 @@ for file in parquet_files_prod_prior:
 for name, df in dfs_parameter_prod_prior.items():
     updated_df_param = df.copy()
 
-    # Assumes column name is exactly "standard_deviation_bounds"
     def strip_top_level(row):
         data = json.loads(row)
-        # Directly extract the nested object
         return json.dumps(data["standard_deviation_bounds"])
 
     updated_df_param["standard_deviation_bounds"] = updated_df_param[
