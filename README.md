@@ -82,7 +82,7 @@ The following is a list of all current outlier reasons:
 
 The model can be executed in three distinct run modes, depending on the state of the sales data and the specific requirements for flagging:
 
-1. **Initial Run:** This mode is triggered when no sales have been flagged. It's the first step in the model to instantiate tables and flag sales.
+1. **Initial Flagging:** This mode is triggered when no sales have been flagged. It's the first step in the model to instantiate tables and flag sales. It's also useful to use this mode for quick development testing, as it has the least overhead.
 2. **Manual Update:** This mode is used when sales need to be re-flagged, either due to errors or methodology updates. This allows for the selective re-flagging of sales. It also assigns flags to unflagged sales.
 3. **Manual Update (New Sales Only):** This mode borrows much of the same logic as the normal 'Manual Update' mode, but is used
 only to flag sales that do not have a current sales-val model determination. It will not re-flag any sales like the normal
@@ -92,12 +92,13 @@ only to flag sales that do not have a current sales-val model determination. It 
 graph TD
     subgraph "Manual Update Mode"
         A3{{"Sales must be re-flagged"}}
-        B3[Specify subset in yaml]
-        C3[Run manual_update.py]
+        B3{{"Set manual_update=True in src/inputs.yaml"}}
+        C3[Run pipeline]
         D3[Increment version if sale already flagged]
         E3[Assign Version = 1 if sale unflagged]
-        F3[Update flags in default.vw_pin_sale]
-        G3[Save results to S3 with new run ID]
+        F3[Save results to S3 with new run ID]
+        G3[Update flags in default.vw_pin_sale]
+
 
         A3 -->|Manual selection| B3
         B3 -->|Run update| C3
@@ -110,11 +111,11 @@ graph TD
 
     subgraph "Manual Update (New Sales Only) Mode"
         A4{{"Flag only new sales"}}
-        B4[Identify sales with no current model determination]
-        C4[Run manual_update.py]
+        B4[Run pipeline]
+        C4[Identify sales with no current model determination]
         E4[Assign Version = 1 if sale unflagged]
-        F4[Update flags in default.vw_pin_sale]
-        G4[Save results to S3 with new run ID]
+        F4[Save results to S3 with new run ID]
+        G4[Update flags in default.vw_pin_sale]
 
         A4 -->|Filter new sales| B4
         B4 -->|Run update| C4
@@ -125,10 +126,11 @@ graph TD
 
     subgraph "Initial Run Mode"
         A1{{"No sales are flagged"}}
-        B1[Run initial_flagging.py]
+        B1[Run the pipeline]
         C1[Flag sales as outliers or non-outliers<br>with Version = 1]
-        D1[Join flags to<br>default.vw_pin_sale]
-        E1[Save results to S3 with unique run ID]
+        D1[Save results to S3 with unique run ID]
+        E1[Join flags to<br>default.vw_pin_sale]
+
 
         A1 -->|Initial setup| B1
         B1 -->|Flag sales| C1
