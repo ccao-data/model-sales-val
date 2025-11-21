@@ -177,6 +177,8 @@ erDiagram
         string group
         string run_id FK
         bigint version PK
+        double sv_price_deviation
+        double sv_price_per_sqft_deviation
     }
 
     metadata {
@@ -185,7 +187,8 @@ erDiagram
         string short_commit_sha
         string run_timestamp
         string run_type
-        string run_note 
+        string run_note
+        string dvc_md5_sales_ingest
     }
 
     parameter {
@@ -197,12 +200,13 @@ erDiagram
         string iso_forest_cols
         string stat_groups
         string sales_to_write_filter
-        arraydouble dev_bounds
-        arraydouble ptax_sd
         bigint rolling_window
         string time_frame
         bigint short_term_owner_threshold
-        bigint min_group_threshold
+        bigint min_group_thresh
+        string standard_deviation_bounds
+        string housing_market_class_codes
+        bigint raw_price_threshold
     }
 
     group_mean {
