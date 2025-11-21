@@ -143,17 +143,18 @@ graph TD
     style A3 fill:#bbf,stroke:#333,stroke-width:2px,color:#000;
 ```
 
-### Rolling window
+## Pipeline stages and DVC integration
 
-The flagging model uses group means to determine the statistical deviation of sales, and flags them beyond a certain threshold. Group means are constructed using a rolling window strategy.
+### Pipeline stages
+The pipeline is split up into 3 stages:
+- `src/00_ingest.py` - This file queries the input data needed to run the pipeline
+- `src/01_flag.py` - This file is where the flagging model runs and the flags are assigned.
+- `src/02_upload.py` - This script grabs the output from `01_flag.py` and uploads them to S3, where athena will look to populate the relevant tables
 
-The current implementation uses a 12 month rolling window. This means that for any sale, the "group" contains all sales within the same month, along with all sales from the previous 11 months. This 12 month window can be changed by editing the configuration files: `manual_flagging/yaml/` and `main.tf`. Additional notes on the rolling window implementation:
+### DVC integration
 
-- We take every sale in the same month of the sale date, along with all sale data from the previous N months. This window contains roughly 1 year of data.
-- This process starts with an `.explode()` call. Example [here](https://github.com/ccao-data/model-sales-val/blob/283a1403545019be135b4b9dbc67d86dabb278f4/glue/sales_val_flagging.py#L15).
-- It ends by subsetting to the `original_observation` data. Example [here](https://github.com/ccao-data/model-sales-val/blob/499f9e31c92882312051837f35455d078d2507ee/glue/sales_val_flagging.py#L57).
 
-## Structure of Data
+## Structure of the output tables
 
 All flagging runs populate 3 Athena tables with metadata, flag results, and other information. These tables can be used to determine _why_ an individual sale was flagged as an outlier. The structure of the tables is:
 
@@ -219,6 +220,17 @@ erDiagram
         string run_id PK
     }
 ```
+
+### Rolling window
+
+The flagging model uses group means to determine the statistical deviation of sales, and flags them beyond a certain threshold. Group means are constructed using a rolling window strategy.
+
+The current implementation uses a 12 month rolling window. This means that for any sale, the "group" contains all sales within the same month, along with all sales from the previous 11 months. This 12 month window can be changed by editing the configuration file: `src/inputs.yaml`. Additional notes on the rolling window implementation:
+
+- We take every sale in the same month of the sale date, along with all sale data from the previous N months. This window contains roughly 1 year of data.
+- This process starts with an `.explode()` call. Example [here](https://github.com/ccao-data/model-sales-val/blob/283a1403545019be135b4b9dbc67d86dabb278f4/glue/sales_val_flagging.py#L15).
+- It ends by subsetting to the `original_observation` data. Example [here](https://github.com/ccao-data/model-sales-val/blob/499f9e31c92882312051837f35455d078d2507ee/glue/sales_val_flagging.py#L57).
+
 
 ## Developing the sales val pipeline and testing changes
 
