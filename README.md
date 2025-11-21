@@ -76,23 +76,6 @@ The following is a list of all current outlier reasons:
 | Statistical Anomaly        | Flagged via an unsupervised machine learning model (isolation forest).                                     |
 | Price swing / Home flip    | Large swing away from mean + short-term owner                                                              |
 
-### Distribution of Outlier Types
-
-<!--
-/*
-This query is used to generate the total sales that have some sort of outlier classification
-/*
-
--->
-
-As of 2024-03-15, around **6.9%** of the total sales have some sort of outlier classification. Within that 6.9%, the proportion of each outlier type is:
-
-<!--
-/*
-This query is used to generate the proportion of different outlier types
-/*
--->
-
 ## Flagging Details
 
 ### Model run modes
