@@ -143,7 +143,7 @@ graph TD
     style A3 fill:#bbf,stroke:#333,stroke-width:2px,color:#000;
 ```
 
-## Pipeline stages and DVC integration
+## Pipeline and DVC integration
 
 ### Pipeline stages
 The pipeline is split up into 3 stages:
@@ -153,6 +153,64 @@ The pipeline is split up into 3 stages:
 
 ### DVC integration
 
+This repository
+  uses DVC in 2 ways:
+  1.  The input data is versioned, tracked, and
+      stored using DVC. Previous input data sets are stored in
+      perpetuity on S3.
+  3.  [DVC
+      pipelines](https://dvc.org/doc/user-guide/project-structure/pipelines-files)
+      are used to sequentially run R pipeline scripts and track/cache
+      inputs and outputs.
+
+
+To pull all the necessary input data based on the information in
+`dvc.lock`, run:
+
+``` bash
+dvc pull
+```
+
+To run the entire pipeline (excluding the export stage), run:
+
+``` bash
+dvc repro
+```
+
+Note that each stage will run only if necessary i.e. the ingest stage
+will *not* run if no parameters (ins, outs, deps) related to that stage have changed. To
+force a stage to re-run, run:
+
+``` bash
+# Change ingest to any stage name
+dvc repro -f ingest
+```
+
+To force the entire pipeline to re-run, run:
+
+``` bash
+dvc repro -f
+```
+
+## Developing the sales val pipeline and testing changes
+
+### Choose output target (in `src/inputs.yaml`)
+
+```yaml
+output_environment: "dev"  # or "prod"
+```
+
+- `"prod"` → writes to production tables & S3 paths
+- `"dev"`: writes to user-scoped dev tables & S3 paths, athena database will appear as `z_dev_${USER}_sale`
+
+### First-time dev setup
+Once outputs arrive at the development S3 bucket, a crawler will need to be run to populate the Athena tables.
+
+### Required environment variables
+
+Ensure you have the following environment variables set:
+- `AWS_S3_WAREHOUSE_BUCKET`
+- `AWS_S3_WAREHOUSE_BUCKET_DEV`
 
 ## Structure of the output tables
 
@@ -230,27 +288,6 @@ The current implementation uses a 12 month rolling window. This means that for a
 - We take every sale in the same month of the sale date, along with all sale data from the previous N months. This window contains roughly 1 year of data.
 - This process starts with an `.explode()` call. Example [here](https://github.com/ccao-data/model-sales-val/blob/283a1403545019be135b4b9dbc67d86dabb278f4/glue/sales_val_flagging.py#L15).
 - It ends by subsetting to the `original_observation` data. Example [here](https://github.com/ccao-data/model-sales-val/blob/499f9e31c92882312051837f35455d078d2507ee/glue/sales_val_flagging.py#L57).
-
-
-## Developing the sales val pipeline and testing changes
-
-### Choose output target (in `src/inputs.yaml`)
-
-```yaml
-output_environment: "dev"  # or "prod"
-```
-
-- `"prod"` → writes to production tables & S3 paths
-- `"dev"`: writes to user-scoped dev tables & S3 paths, athena database will appear as `z_dev_${USER}_sale`
-
-### First-time dev setup
-Once outputs arrive at the development S3 bucket, a crawler will need to be run to populate the Athena tables.
-
-### Required environment variables
-
-Ensure you have the following environment variables set:
-- `AWS_S3_WAREHOUSE_BUCKET`
-- `AWS_S3_WAREHOUSE_BUCKET_DEV`
 
 ## Exporting Flags to iasWorld
 
