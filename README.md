@@ -76,11 +76,9 @@ The following is a list of all current outlier reasons:
 | Statistical Anomaly        | Flagged via an unsupervised machine learning model (isolation forest).                                     |
 | Price swing / Home flip    | Large swing away from mean + short-term owner                                                              |
 
-## Flagging Details
+## Model run modes
 
-### Model run modes
-
-The model can be executed in three distinct run modes, depending on the state of the sales data and the specific requirements for flagging:
+The model can be executed in three distinct run modes, depending on the state of the sales data and the specific requirements for flagging. These modes are configurable through the `manual_update` and `manual_update_only_new_sales` variables in our config file `src/inputs.yaml`
 
 1. **Initial Flagging:** This mode is triggered when no sales have been flagged. It's the first step in the model to instantiate tables and flag sales. It's also useful to use this mode for quick development testing, as it has the least overhead.
 2. **Manual Update:** This mode is used when sales need to be re-flagged, either due to errors or methodology updates. This allows for the selective re-flagging of sales. It also assigns flags to unflagged sales.
