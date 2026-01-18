@@ -4,6 +4,7 @@
 # Note included with each run. Use this to summarize what changed about the run
 # or add context
 run_note: |
+  Testing full run of south tri nbhd_groups edit
 
 # 'dev' or 'prod'
 output_environment: dev
@@ -86,7 +87,7 @@ stat_groups:
     res_all:
       columns:
         - "rolling_window"
-        - "township_code"
+        - "geography_split"
         - "class"
     condos:
       columns:
