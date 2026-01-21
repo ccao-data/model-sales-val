@@ -86,7 +86,7 @@ stat_groups:
     res_all:
       columns:
         - "rolling_window"
-        - "township_code"
+        - "geography_split"
         - "class"
     condos:
       columns:
