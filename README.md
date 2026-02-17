@@ -25,9 +25,9 @@ In the future, it is likely the flagging outputs from this model will be used fu
 
 ## What Gets Flagged
 
-Sales are flagged dynamically based on the training data sales window of the most recent X years used for model
-training. In certain cases, additional historical periods outside the training window are also flagged to
-support feature construction.
+Sales are flagged based on the defined training data window, consisting of the most recent X years used for
+model training. When required, earlier historical periods outside this window are also flagged to support
+[feature engineering](https://github.com/ccao-data/model-condo-avm/blob/a9e272feadad9e4717b6ba2b68c0a6c934af7115/pipeline/00-ingest.R#L466-L469).
 
 Ongoing sales are flagged on an ad-hoc basis as they are collected by the Department of Revenue and made available to the Data Department. See [Model run modes](#model-run-modes) for more information.
 
@@ -157,9 +157,9 @@ The pipeline is split up into 3 stages:
 
 This repository
   uses DVC in 2 ways:
-  1.  The input data is versioned, tracked, and
-      stored using DVC. Previous input data sets are stored on S3 starting after the DVC PR landed in Nov 2025.
-  3.  [DVC
+  1.  The input data is versioned, tracked, and stored using DVC. Previous input data sets are stored on
+      S3 starting after the DVC PR landed in Nov 2025.
+  2.  [DVC
       pipelines](https://dvc.org/doc/user-guide/project-structure/pipelines-files)
       are used to sequentially run pipeline scripts and track/cache
       inputs and outputs.
@@ -201,7 +201,7 @@ dvc repro -f
 output_environment: "dev"  # or "prod"
 ```
 
-- `"prod"` → writes to production tables & S3 paths
+- `"prod"`: writes to production tables & S3 paths
 - `"dev"`: writes to user-scoped dev tables & S3 paths, athena database will appear as `z_dev_${USER}_sale`
 
 ### First-time dev setup
@@ -284,11 +284,7 @@ erDiagram
 
 The flagging model uses group means to determine the statistical deviation of sales, and flags them beyond a certain threshold. Group means are constructed using a rolling window strategy.
 
-The current implementation uses a 12 month rolling window. This means that for any sale, the "group" contains all sales within the same month, along with all sales from the previous 11 months. This 12 month window can be changed by editing the configuration file: `src/inputs.yaml`. Additional notes on the rolling window implementation:
-
-- We take every sale in the same month of the sale date, along with all sale data from the previous N months. This window contains roughly 1 year of data.
-- This process starts with an `.explode()` call. Example [here](https://github.com/ccao-data/model-sales-val/blob/283a1403545019be135b4b9dbc67d86dabb278f4/glue/sales_val_flagging.py#L15).
-- It ends by subsetting to the `original_observation` data. Example [here](https://github.com/ccao-data/model-sales-val/blob/499f9e31c92882312051837f35455d078d2507ee/glue/sales_val_flagging.py#L57).
+The current implementation uses a 12 month rolling window. This means that for any sale, the "group" contains all sales within the same month, along with all sales from the previous 11 months. This 12 month window can be changed by editing the configuration file: `src/inputs.yaml`.
 
 ## Exporting Flags to iasWorld
 
