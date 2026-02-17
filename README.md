@@ -16,7 +16,7 @@ This repository contains code to identify and flag sales that may be non-arms-le
 
 The sales validation model (hereafter referred to as "the model") uses simple statistics and heuristics to identify such sales. For example, it calculates the standard deviation in (log) sale price by area and property type, then flags any sales beyond a certain number of standard deviations from the mean. It also uses a variety of common heuristics, such as matching last names, foreclosure information, etc.
 
-Non-arms-length transactions can affect any process that uses sales data. As such, we currently use the output of this model to exclude flagged transactions from:
+Non-arms-length transactions can affect any process that uses sales data. As such, we currently use the output of this model, along with human analyst review information, to exclude flagged transactions from:
 
 - The training data of our [valuation models](https://github.com/ccao-data/model-res-avm#model-overview)
 - [Sales ratio statistics reports](https://www.cookcountyassessor.com/riverside-2023) produced by our valuation models
@@ -25,7 +25,11 @@ In the future, it is likely the flagging outputs from this model will be used fu
 
 ## What Gets Flagged
 
-Sales from 2014 through present are flagged using this model. Ongoing sales are flagged on an ad-hoc basis as they are collected by the Department of Revenue and made available to the Data Department. See [Model run modes](#model-run-modes) for more information.
+Sales are flagged dynamically based on the training data sales window of the most recent X years used for model
+training. In certain cases, additional historical periods outside the training window are also flagged to
+support feature construction.
+
+Ongoing sales are flagged on an ad-hoc basis as they are collected by the Department of Revenue and made available to the Data Department. See [Model run modes](#model-run-modes) for more information.
 
 Commercial, industrial, and land-only property sales are _not_ flagged by this model. Residential and condominium sales are flagged with the following specifications:
 
