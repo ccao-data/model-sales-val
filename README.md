@@ -149,9 +149,9 @@ graph TD
 
 ### Pipeline stages
 The pipeline is split up into 3 stages:
-- `src/00_ingest.py` - This file queries the input data needed to run the pipeline
-- `src/01_flag.py` - This file is where the flagging model runs and the flags are assigned.
-- `src/02_upload.py` - This script grabs the output from `01_flag.py` and uploads them to S3, where athena will look to populate the relevant tables
+- `src/00_ingest.py` - Queries the input data needed to run the pipeline
+- `src/01_flag.py` - Where the flagging model runs and the flags are assigned.
+- `src/02_upload.py` - Grabs the outputs from `01_flag.py` and uploads them to S3, making the flags available through athena.
 
 ### DVC integration
 
