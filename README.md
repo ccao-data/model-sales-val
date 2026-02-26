@@ -114,7 +114,7 @@ graph TB
         D3[Increment version if sale already flagged]
         E3[Assign Version = 1 if sale unflagged]
         F3[Save results to S3 with new run ID]
-        G3[Update flags in default.vw_pin_sale]
+        G3[Update flags in <br>vw_pin_sale]
 
         A3 -->|Manual selection| B3
         B3 -->|Run update| C3
@@ -125,7 +125,7 @@ graph TB
         F3 -->|Persist results| G3
     end
 
-    subgraph new_only["Manual Update (New Sales Only) Mode"]
+    subgraph new_only["Manual Update (New <br> Sales Only) Mode"]
         direction LR
         A4{{"Flag only new sales"}}
         B4[Run pipeline]
