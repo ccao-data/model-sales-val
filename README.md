@@ -127,6 +127,7 @@ graph TB
 
     subgraph new_only["Manual Update (New <br> Sales Only) Mode"]
         direction LR
+        <br>
         A4{{"Flag only new sales"}}
         B4[Run pipeline]
         C4[Identify sales with no current model determination]
