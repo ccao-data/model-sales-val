@@ -68,10 +68,10 @@ The following is a list of all current outlier reasons:
 ### 
 | Indicator               | Description                                                     |
 |-------------------------|---------------------------------------------------------------|
-| High price                 | Sale price is a certain standard deviations above the mean of the sales in its statistical group           |
-| Low price                  | Sale price is a certain standard deviations below the mean of the sales in its statistical group           |
-| High price per square foot | Sale price per sqft is a certain standard deviations above the mean of the sales in its statistical group  |
-| Low price per square foot  | Sale price per sqft is a certain standard deviations above the mean of the sales in its statistical groupy |
+| High price                 | Sale price is a certain number of standard deviations above the mean of the sales in its statistical group           |
+| Low price                  | Sale price is a certain number of standard deviations below the mean of the sales in its statistical group           |
+| High price per square foot | Sale price per sqft is a certain number of standard deviations above the mean of the sales in its statistical group  |
+| Low price per square foot  | Sale price per sqft is a certain number of standard deviations above the mean of the sales in its statistical group |
 | Raw price threshoid        | Sale price is over a manually set threshold. Implemented to catch very expensive non-represenative homes   |
 | PTAX - 203 Exclusion       |The [PTAX-203](https://tax.illinois.gov/content/dam/soi/en/web/tax/localgovernments/property/documents/ptax-203.pdf) form is required by the Illinois Department of Revenue for most property transfers. Certain fields on this form are highly indicative of a non-arms-length transaction, i.e. Question 10 indicating a short sale.  |
 | Short-term owner           | The sale does not meet a given threshold for days since prior transaction                                  |
