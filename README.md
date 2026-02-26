@@ -193,25 +193,53 @@ To force the entire pipeline to re-run, run:
 dvc repro -f
 ```
 
-## Developing the sales val pipeline and testing changes
+## Developing the sales val pipeline and querying your development flags in athena
 
 ### Choose output target (in `src/inputs.yaml`)
 
 ```yaml
-output_environment: "dev"  # or "prod"
+output_environment: "dev" 
 ```
 
 - `"prod"`: writes to production tables & S3 paths
-- `"dev"`: writes to user-scoped dev tables & S3 paths, athena database will appear as `z_dev_${USER}_sale`
+- `"dev"`: writes to user-scoped dev tables & S3 paths
 
-### First-time dev setup
-Once outputs arrive at the development S3 bucket, a crawler will need to be run to populate the Athena tables.
+Your setup process depends on which environment you selected in `src/inputs.yaml`.
 
-### Required environment variables
+### If using `"prod"`
+No additional setup is required.
 
-Ensure you have the following environment variables set:
-- `AWS_S3_WAREHOUSE_BUCKET`
-- `AWS_S3_WAREHOUSE_BUCKET_DEV`
+Once `02_upload.py` writes outputs to S3, the data will automatically be available in Athena.
+
+---
+
+### If using `"dev"`
+Additional one-time setup is required to make your data queryable in Athena.
+
+In the development environment, Athena tables are not automatically created when
+data is written to S3. Instead, this is handled through an AWS Glue Crawler.
+
+After running `02_upload.py`:
+
+#### Step 1 — Confirm data exists in the dev S3 bucket
+Your outputs should now be written to your user-scoped development path.
+
+#### Step 2 — Request a Glue Crawler
+Because of how AWS Glue manages resources:
+- Each user needs their own crawler
+- Crawlers populate tables in athena database: z_dev_${USER}_sale
+
+You will need a dedicated Glue Crawler to register your dev tables in Athena.
+Reach out to a senior staff member for assistance in the creation of this
+crawler. They can copy existing crawler configs from an existing crawler with
+a name like `z_dev_*-ccao-data-warehouse-dev-sale-crawler`.
+
+#### Step 3 — Run the Crawler
+Once created, run the crawler to:
+- Scan your dev S3 output
+- Create/update tables in Athena
+
+After the crawler completes, your development data will be queryable in Athena.
 
 ## Structure of the output tables
 
