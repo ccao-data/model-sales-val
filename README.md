@@ -91,8 +91,23 @@ only to flag sales that do not have a current sales-val model determination. It 
 'Manual Update' would.
 
 ```mermaid
-graph TD
-    subgraph "Manual Update Mode"
+graph TB
+    subgraph initial["Initial Run Mode"]
+        direction LR
+        A1{{"No sales are flagged"}}
+        B1[Run the pipeline]
+        C1[Flag sales as outliers or non-outliers<br>with Version = 1]
+        D1[Save results to S3 with unique run ID]
+        E1[Join flags to<br>default.vw_pin_sale]
+
+        A1 -->|Initial setup| B1
+        B1 -->|Flag sales| C1
+        C1 -->|Store flags| D1
+        D1 -->|Persist results| E1
+    end
+
+    subgraph manual["Manual Update Mode"]
+        direction LR
         A3{{"Sales must be re-flagged"}}
         B3{{"Set manual_update=True in src/inputs.yaml"}}
         C3[Run pipeline]
@@ -100,7 +115,6 @@ graph TD
         E3[Assign Version = 1 if sale unflagged]
         F3[Save results to S3 with new run ID]
         G3[Update flags in default.vw_pin_sale]
-
 
         A3 -->|Manual selection| B3
         B3 -->|Run update| C3
@@ -111,7 +125,8 @@ graph TD
         F3 -->|Persist results| G3
     end
 
-    subgraph "Manual Update (New Sales Only) Mode"
+    subgraph new_only["Manual Update (New Sales Only) Mode"]
+        direction LR
         A4{{"Flag only new sales"}}
         B4[Run pipeline]
         C4[Identify sales with no current model determination]
@@ -126,23 +141,12 @@ graph TD
         F4 -->|Persist results| G4
     end
 
-    subgraph "Initial Run Mode"
-        A1{{"No sales are flagged"}}
-        B1[Run the pipeline]
-        C1[Flag sales as outliers or non-outliers<br>with Version = 1]
-        D1[Save results to S3 with unique run ID]
-        E1[Join flags to<br>default.vw_pin_sale]
+    initial ~~~ manual
+    manual ~~~ new_only
 
-
-        A1 -->|Initial setup| B1
-        B1 -->|Flag sales| C1
-        C1 -->|Store flags| D1
-        D1 -->|Persist results| E1
-    end
-
-    style A1 fill:#bbf,stroke:#333,stroke-width:2px,color:#000;
-    style A4 fill:#bbf,stroke:#333,stroke-width:2px,color:#000;
-    style A3 fill:#bbf,stroke:#333,stroke-width:2px,color:#000;
+    style A1 fill:#bbf,stroke:#333,stroke-width:2px,color:#000
+    style A3 fill:#bbf,stroke:#333,stroke-width:2px,color:#000
+    style A4 fill:#bbf,stroke:#333,stroke-width:2px,color:#000
 ```
 
 ## Pipeline and DVC integration
