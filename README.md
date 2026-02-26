@@ -14,9 +14,7 @@ Table of Contents
 
 This repository contains code to identify and flag sales that may be non-arms-length transactions. A non-arms-length sale occurs when the buyer and seller have a relationship that influences the transaction price, leading to a sale that doesn't reflect the true market value of the property.
 
-The sales validation model (hereafter referred to as "the model") uses simple statistics and heuristics to identify such sales. It groups sales by geographic area and property type, then uses group-level statistics to flag sales whose prices deviate significantly from comparable properties. It also uses a variety of common heuristics, such as matching last names, foreclosure information, etc.
-
-Specifically, the model calculates the mean and standard deviation of log sale price and price per square foot for each group using a rolling time window. A sale is flagged as a price outlier if it falls beyond a configured number of standard deviations from its group's mean. This ensures comparisons are made among similar properties in similar locations, rather than against countywide averages.
+The sales validation model (hereafter referred to as "the model") uses simple statistics and heuristics to identify such sales. Each sale is assigned to a statistical group defined by its geographic area, property type, and a rolling time window. The model calculates the mean and standard deviation of log sale price and price per square foot within each group, then flags any sale that falls beyond a configured number of standard deviations from its group's mean. It also uses a variety of common heuristics, such as matching last names, foreclosure information, etc.
 
 Non-arms-length transactions can affect any process that uses sales data. As such, we currently use the output of this model, along with human analyst review information, to exclude flagged transactions from:
 
