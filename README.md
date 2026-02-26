@@ -27,7 +27,7 @@ In the future, it is likely the flagging outputs from this model will be used fu
 
 Sales are flagged based on the defined training data window, consisting of the most recent X years used for
 model training. When required, earlier historical periods outside this window are also flagged to support
-[feature engineering](https://github.com/ccao-data/model-condo-avm/blob/a9e272feadad9e4717b6ba2b68c0a6c934af7115/pipeline/00-ingest.R#L466-L469).
+feature engineering.
 
 Ongoing sales are flagged on an ad-hoc basis as they are collected by the Department of Revenue and made available to the Data Department. See [Model run modes](#model-run-modes) for more information.
 
