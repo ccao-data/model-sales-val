@@ -14,7 +14,9 @@ Table of Contents
 
 This repository contains code to identify and flag sales that may be non-arms-length transactions. A non-arms-length sale occurs when the buyer and seller have a relationship that influences the transaction price, leading to a sale that doesn't reflect the true market value of the property.
 
-The sales validation model (hereafter referred to as "the model") uses simple statistics and heuristics to identify such sales. For example, it calculates the standard deviation in (log) sale price by area and property type, then flags any sales beyond a certain number of standard deviations from the mean. It also uses a variety of common heuristics, such as matching last names, foreclosure information, etc.
+The sales validation model (hereafter referred to as "the model") uses simple statistics and heuristics to identify such sales. It groups sales by geographic area and property type, then uses group-level statistics to flag sales whose prices deviate significantly from comparable properties. It also uses a variety of common heuristics, such as matching last names, foreclosure information, etc.
+
+Specifically, the model calculates the mean and standard deviation of log sale price and price per square foot for each group using a rolling time window. A sale is flagged as a price outlier if it falls beyond a configured number of standard deviations from its group's mean. This ensures comparisons are made among similar properties in similar locations, rather than against countywide averages.
 
 Non-arms-length transactions can affect any process that uses sales data. As such, we currently use the output of this model, along with human analyst review information, to exclude flagged transactions from:
 
@@ -68,10 +70,10 @@ The following is a list of all current outlier reasons:
 ### 
 | Indicator               | Description                                                     |
 |-------------------------|---------------------------------------------------------------|
-| High price                 | Sale price is a certain number of standard deviations above the mean of the sales in its statistical group           |
-| Low price                  | Sale price is a certain number of standard deviations below the mean of the sales in its statistical group           |
-| High price per square foot | Sale price per sqft is a certain number of standard deviations above the mean of the sales in its statistical group  |
-| Low price per square foot  | Sale price per sqft is a certain number of standard deviations above the mean of the sales in its statistical group |
+| High price                 | Sale price is a certain number of standard deviations above the mean of the sales in its group           |
+| Low price                  | Sale price is a certain number of standard deviations below the mean of the sales in its group           |
+| High price per square foot | Sale price per sqft is a certain number of standard deviations above the mean of the sales in its group  |
+| Low price per square foot  | Sale price per sqft is a certain number of standard deviations above the mean of the sales in its group |
 | Raw price threshoid        | Sale price is over a manually set threshold. Implemented to catch very expensive non-represenative homes   |
 | PTAX - 203 Exclusion       |The [PTAX-203](https://tax.illinois.gov/content/dam/soi/en/web/tax/localgovernments/property/documents/ptax-203.pdf) form is required by the Illinois Department of Revenue for most property transfers. Certain fields on this form are highly indicative of a non-arms-length transaction, i.e. Question 10 indicating a short sale.  |
 | Short-term owner           | The sale does not meet a given threshold for days since prior transaction                                  |
