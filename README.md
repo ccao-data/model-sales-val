@@ -135,8 +135,10 @@ graph TB
         F4[Save results to S3 with new run ID]
         G4[Update flags in <br>default.vw_pin_sale]
 
+
         A4 -->|Filter new sales| B4
-        C4 -->|Run update| C4
+        B4 -->|Run pipeline| C4
+        C4 -->|Run update| D4
         D4 -->|New flag only| E4
         E4 -->|Update process| F4
         F4 -->|Persist results| G4
