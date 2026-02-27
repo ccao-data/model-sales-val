@@ -312,7 +312,7 @@ erDiagram
     }
 ```
 
-## Warehouse Debugging Views
+## Other key views
 
 In addition to the Athena output tables, two warehouse views are commonly used when debugging/exploring the sales validation flags:
 
