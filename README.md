@@ -109,10 +109,10 @@ graph TB
     subgraph manual["Manual Update Mode"]
         direction LR
         A3{{"Sales must be re-flagged"}}
-        B3{{"Set manual_update=True in src/inputs.yaml"}}
+        B3{{"Set manual_update=True<br> in src/inputs.yaml"}}
         C3[Run pipeline]
-        D3[Increment version if sale already flagged]
-        E3[Assign Version = 1 if sale unflagged]
+        D3[Increment version if <br>sale already flagged]
+        E3[Assign Version = 1 <br>if sale unflagged]
         F3[Save results to S3 with new run ID]
         G3[Update flags in <br>vw_pin_sale]
 
@@ -132,7 +132,7 @@ graph TB
         C4[Identify sales with no current model determination]
         E4[Assign Version = 1 if sale unflagged]
         F4[Save results to S3 with new run ID]
-        G4[Update flags in default.vw_pin_sale]
+        G4[Update flags in <br>default.vw_pin_sale]
 
         A4 -->|Filter new sales| B4
         B4 -->|Run update| C4
