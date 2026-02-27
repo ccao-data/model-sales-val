@@ -316,15 +316,13 @@ erDiagram
 
 In addition to the Athena output tables, two warehouse views are commonly used when debugging/exploring the sales validation flags:
 
-### `sale.vw_flag`
+**`sale.vw_flag`**
 
 Provides the **current flag status** of each sale.
 
 The underlying `sale.flag` table stores historical versions of flags. This view resolves those into the most recent determination per sale (`doc_no`). This it the version that is held in `default.vw_pin_sale`
 
----
-
-### `sale.vw_flag_group`
+**`sale.vw_flag_group`**
 
 Provides **context about the statistical group used in flagging**.
 
@@ -332,7 +330,7 @@ Includes whether a sale’s group met the minimum observation threshold (`meets_
 
 In some cases, a sale may still be flagged even if the threshold was not met — typically due to PTAX-203 indicators combined with extreme price deviation.
 
-### Rolling window
+## Rolling window
 
 The flagging model uses group means to determine the statistical deviation of sales, and flags them beyond a certain threshold. Group means are constructed using a rolling window strategy.
 
