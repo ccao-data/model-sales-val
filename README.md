@@ -125,7 +125,7 @@ graph TB
         F3 -->|Persist results| G3
     end
 
-    subgraph new_only["Manual Update (New Sales Only)"]
+    subgraph new_only["Man. Update Only New Sales"]
         direction LR
         A4{{"Flag only new sales"}}
         B4[Set manual_update_only_new_sales<br> = True]
