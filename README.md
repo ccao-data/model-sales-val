@@ -97,7 +97,7 @@ graph TB
         A1{{"No sales are flagged"}}
         B1[Run the pipeline]
         C1[Flag sales as outliers or non-outliers<br>with Version = 1]
-        D1[Save results to S3 with unique run ID]
+        D1[Save results to S3 with <br>unique run ID]
         E1[Join flags to<br>default.vw_pin_sale]
 
         A1 -->|Initial setup| B1
@@ -128,8 +128,9 @@ graph TB
     subgraph new_only["Manual Update (New Sales Only)"]
         direction LR
         A4{{"Flag only new sales"}}
-        B4[Run pipeline]
-        C4[Identify sales with no current model determination]
+        B4[Set manual_update_only_new_sales<br> = True]
+        C4[Run pipeline]
+        D4[Identify sales with no current model determination]
         E4[Assign Version = 1 if sale unflagged]
         F4[Save results to S3 with new run ID]
         G4[Update flags in <br>default.vw_pin_sale]
