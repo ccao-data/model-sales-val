@@ -125,7 +125,7 @@ graph TB
         F3 -->|Persist results| G3
     end
 
-    subgraph new_only["Manual Update (New <br> Sales Only) Mode"<br>&nbsp;]
+    subgraph new_only["Manual Update (New Sales Only)"]
         direction LR
         A4{{"Flag only new sales"}}
         B4[Run pipeline]
