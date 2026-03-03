@@ -132,7 +132,7 @@ graph TB
         B4[Set manual_update_only_new_sales<br> = True]
         C4[Run pipeline]
         D4[Identify sales with no current model determination]
-        E4[Assign Version = 1 if sale unflagged]
+        E4[Assign Version = 1<br> if sale unflagged]
         F4[Save results to S3 with new run ID]
         G4[Update flags in <br>default.vw_pin_sale]
 
