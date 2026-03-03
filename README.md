@@ -329,7 +329,7 @@ In addition to the Athena output tables, two warehouse views are commonly used w
 
 Provides the **current flag status** of each sale.
 
-The underlying `sale.flag` table stores historical versions of flags. This view resolves those into the most recent determination per sale (`doc_no`). This it the version that is held in `default.vw_pin_sale`
+The underlying `sale.flag` table stores historical versions of flags. This view resolves those into the most recent determination per sale (`doc_no`). This is the version that is held in `default.vw_pin_sale`.
 
 **`sale.vw_flag_group`**
 
