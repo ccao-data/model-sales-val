@@ -222,7 +222,11 @@ Once `02_upload.py` writes outputs to S3, the data will automatically be availab
 ---
 
 ### If using `"dev"`
-Additional one-time setup is required to make your data queryable in Athena.
+
+If you've already completed the one-time setup for your development tables,
+the data will be queryable at `z_dev_${USER}_sale`.
+
+Otherwise, one-time setup is required to make your data queryable in Athena.
 
 In the development environment, Athena tables are not automatically created when
 data is written to S3. Instead, this is handled through an AWS Glue Crawler.
@@ -235,7 +239,7 @@ Your outputs should now be written to your user-scoped development path.
 #### Step 2 — Request a Glue Crawler
 Because of how AWS Glue manages resources:
 - Each user needs their own crawler
-- Crawlers populate tables in athena database: z_dev_${USER}_sale
+- Crawlers populate tables in athena database: `z_dev_${USER}_sale`
 
 You will need a dedicated Glue Crawler to register your dev tables in Athena.
 Reach out to a senior staff member for assistance in the creation of this
