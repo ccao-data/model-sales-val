@@ -166,7 +166,8 @@ The pipeline is split up into 3 stages:
 This repository
   uses DVC in 2 ways:
   1.  The input data is versioned, tracked, and stored using DVC. Previous input data sets are stored on
-      S3 starting after the DVC PR landed in Nov 2025.
+      S3 starting after [the DVC PR](https://github.com/ccao-data/model-sales-val/pull/164) landed in
+      Nov 2025.
   2.  [DVC
       pipelines](https://dvc.org/doc/user-guide/project-structure/pipelines-files)
       are used to sequentially run pipeline scripts and track/cache
