@@ -3,11 +3,12 @@ Table of Contents
 
 - [Model Overview](#model-overview)
 - [What Gets Flagged](#what-gets-flagged)
-- [Outlier Types](#outlier-types)
-- [Flagging Details](#flagging-details)
-- [Structure of Data](#structure-of-data)
-- [Developing the sales val pipeline and testing changes](#developing-the-sales-val-pipeline-and-testing-changes)
-- [AWS Glue Job Documentation](#aws-glue-job-documentation)
+- [Outlier Reasons](#outlier-reasons)
+- [Model Run Modes](#model-run-modes)
+- [Pipeline and DVC Integration](#pipeline-and-dvc-integration)
+- [Developing the Sales Val Pipeline and Querying Your Development Flags in Athena](#developing-the-sales-val-pipeline-and-querying-your-development-flags-in-athena)
+- [Structure of the Output Tables](#structure-of-the-output-tables)
+- [Other Key Views](#other-key-views)
 - [Exporting Flags to iasWorld](#exporting-flags-to-iasworld)
 
 ## Model Overview
@@ -332,12 +333,6 @@ Provides **context about the statistical group used in flagging**.
 Includes whether a sale’s group met the minimum observation threshold (`meets_group_threshold`) required for standard deviation-based outlier detection.
 
 In some cases, a sale may still be flagged even if the threshold was not met — typically due to PTAX-203 indicators combined with extreme price deviation.
-
-## Rolling window
-
-The flagging model uses group means to determine the statistical deviation of sales, and flags them beyond a certain threshold. Group means are constructed using a rolling window strategy.
-
-The current implementation uses a 12 month rolling window. This means that for any sale, the "group" contains all sales within the same month, along with all sales from the previous 11 months. This 12 month window can be changed by editing the configuration file: `src/inputs.yaml`.
 
 ## Exporting Flags to iasWorld
 
