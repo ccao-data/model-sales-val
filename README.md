@@ -3,20 +3,21 @@ Table of Contents
 
 - [Model Overview](#model-overview)
 - [What Gets Flagged](#what-gets-flagged)
-- [Outlier Types](#outlier-types)
-- [Flagging Details](#flagging-details)
-- [Structure of Data](#structure-of-data)
-- [Developing the sales val pipeline and testing changes](#developing-the-sales-val-pipeline-and-testing-changes)
-- [AWS Glue Job Documentation](#aws-glue-job-documentation)
+- [Outlier Reasons](#outlier-reasons)
+- [Model Run Modes](#model-run-modes)
+- [Pipeline and DVC Integration](#pipeline-and-dvc-integration)
+- [Developing the Sales Val Pipeline and Querying Your Development Flags in Athena](#developing-the-sales-val-pipeline-and-querying-your-development-flags-in-athena)
+- [Structure of the Output Tables](#structure-of-the-output-tables)
+- [Other Key Views](#other-key-views)
 - [Exporting Flags to iasWorld](#exporting-flags-to-iasworld)
 
 ## Model Overview
 
 This repository contains code to identify and flag sales that may be non-arms-length transactions. A non-arms-length sale occurs when the buyer and seller have a relationship that influences the transaction price, leading to a sale that doesn't reflect the true market value of the property.
 
-The sales validation model (hereafter referred to as "the model") uses simple statistics and heuristics to identify such sales. For example, it calculates the standard deviation in (log) sale price by area and property type, then flags any sales beyond a certain number of standard deviations from the mean. It also uses a variety of common heuristics, such as matching last names, foreclosure information, etc.
+The sales validation model (hereafter referred to as "the model") uses simple statistics and heuristics to identify such sales. Each sale is assigned to a statistical group defined by its geographic area, property type, and a rolling time window. The model calculates the mean and standard deviation of log sale price and price per square foot within each group, then flags any sale that falls beyond a configured number of standard deviations from its group's mean. It also uses a variety of common heuristics, such as matching last names, foreclosure information, etc.
 
-Non-arms-length transactions can affect any process that uses sales data. As such, we currently use the output of this model to exclude flagged transactions from:
+Non-arms-length transactions can affect any process that uses sales data. As such, we currently use the output of this model, along with human analyst review information, to exclude flagged transactions from:
 
 - The training data of our [valuation models](https://github.com/ccao-data/model-res-avm#model-overview)
 - [Sales ratio statistics reports](https://www.cookcountyassessor.com/riverside-2023) produced by our valuation models
@@ -25,7 +26,11 @@ In the future, it is likely the flagging outputs from this model will be used fu
 
 ## What Gets Flagged
 
-Sales from 2014 through present are flagged using this model. Ongoing sales are flagged on an ad-hoc basis as they are collected by the Department of Revenue and made available to the Data Department. See [Model run modes](#model-run-modes) for more information.
+Sales are flagged based on the defined training data window, consisting of the most recent X years used for
+model training. When required, earlier historical periods outside this window are also flagged to support
+feature engineering.
+
+Ongoing sales are flagged on an ad-hoc basis as they are collected by the Department of Revenue and made available to the Data Department. See [Model run modes](#model-run-modes) for more information.
 
 Commercial, industrial, and land-only property sales are _not_ flagged by this model. Residential and condominium sales are flagged with the following specifications:
 
@@ -50,86 +55,67 @@ Commercial, industrial, and land-only property sales are _not_ flagged by this m
 - Excludes sales less than $10,000
 - Excludes multi-PIN sales
 
-## Outlier Types
+## Outlier Reasons
 
-Outlier flags are broken out into 2 types: statistical outliers and heuristic outliers.
+We generate up to 3 outlier reasons for any given sale. The columns are denoted as `sv_outlier_reason`, `sv_outlier_reason2`, and `sv_outlier_reason3`.
+Sales can have a non-null `sv_outlier_reason` column and still _not_ be classified as an outlier.
 
-- Statistical outliers are sales that are a set number of standard deviations (usually 2) away from the mean of a group of similar properties (e.g. within the same township, class, timeframe, etc.).
-- Heuristic outliers use some sort of existing flag or rule to identify potentially non-arms-length sales. Heuristic outliers are _**always combined with a statistical threshold**_, i.e. a sale with a matching last name must _also_ be N standard deviations from a group mean in order to be flagged. Examples of heuristic outlier flags include:
-  - **PTAX flag**: The [PTAX-203](https://tax.illinois.gov/content/dam/soi/en/web/tax/localgovernments/property/documents/ptax-203.pdf) form is required by the Illinois Department of Revenue for most property transfers. Certain fields on this form are highly indicative of a non-arms-length transaction, i.e. Question 10 indicating a short sale.
-  - **Non-person sale**: Flagged keyword suggests the sale involves a non-person legal entity (industrial buyer, bank, real estate firm, construction, etc.).
-  - **Flip Sale**: Flagged when the owner of the home owned the property for less than 1 year
-  - **Anomaly**: Flagged via an unsupervised machine learning model (isolation forest).
+`sv_is_outlier` is the column which tells us whether or not a sale is an outlier. The `sv_is_outlier` column is `True` only if one of the price outlier
+reasons is assigned to the sale. These price reasons are generated by determining the number of standard deviations a property's sale price is away from 
+the mean of similar properties. The other outlier reasons are purely supplementary information.
 
-The following is a list of all current flag types:
+The following is a list of all current outlier reasons:
 
-### High Price
-
-| Indicator               | Criteria                                                      |
+### 
+| Indicator               | Description                                                     |
 |-------------------------|---------------------------------------------------------------|
-| PTAX outlier (high)     | PTAX flag & [1 high statistical outlier type]                 |
-| Home flip sale (high)   | Short-term owner < 1 year & [1 high statistical outlier type] |
-| Family sale (high)      | Last name match & [1 high statistical outlier type]           |
-| Non-person sale (high)  | Legal / corporate entity & [1 high statistical outlier type]  |
-| Anomaly (High)          | Anomaly algorithm (high) & [1 high statistical outlier type]  |
-| High price (raw & sqft) | High price & high price per sq. ft.                           |
-| High price swing        | Large swing away from mean & high price outlier               |
-| High price (raw)        | High price                                                    |
-| High price (per sqft)   | High price per sq. ft.                                        |
+| High price                 | Sale price is a certain number of standard deviations above the mean of the sales in its group           |
+| Low price                  | Sale price is a certain number of standard deviations below the mean of the sales in its group           |
+| High price per square foot | Sale price per sqft is a certain number of standard deviations above the mean of the sales in its group  |
+| Low price per square foot  | Sale price per sqft is a certain number of standard deviations above the mean of the sales in its group |
+| Raw price threshoid        | Sale price is over a manually set threshold. Implemented to catch very expensive non-represenative homes   |
+| PTAX - 203 Exclusion       |The [PTAX-203](https://tax.illinois.gov/content/dam/soi/en/web/tax/localgovernments/property/documents/ptax-203.pdf) form is required by the Illinois Department of Revenue for most property transfers. Certain fields on this form are highly indicative of a non-arms-length transaction, i.e. Question 10 indicating a short sale.  |
+| Short-term owner           | The sale does not meet a given threshold for days since prior transaction                                  |
+| Family sale                | Last name match between buyer and seller                                                                   |
+| Non-person sale            | Flagged keyword suggests the sale involves a non-person legal entity (industrial buyer, bank, real estate firm, construction, etc.). |                                       |
+| Statistical Anomaly        | Flagged via an unsupervised machine learning model (isolation forest).                                     |
+| Price swing / Home flip    | Large swing away from mean + short-term owner                                                              |
 
-### Low Price
+## Model run modes
 
-| Indicator               | Criteria                                                      |
-|-------------------------|---------------------------------------------------------------|
-| PTAX outlier (low)      | PTAX flag & [1 low statistical outlier type]                  |
-| Home flip sale (low)    | Short-term owner < 1 year & [1 low statistical outlier type]  |
-| Family sale (low)       | Last name match & [1 low statistical outlier type]            |
-| Non-person sale (low)   | Legal / corporate entity & [1 low statistical outlier type]   |
-| Anomaly                 | Anomaly algorithm (low) & [1 low statistical outlier type]    |
-| Low price (raw & sqft)  | Low price & low price per sq. ft.                             |
-| Low price swing         | Large swing away from mean & low price outlier                |
-| Low price (raw)         | Low price (or under $10k)                                     |
-| Low price (per sqft)    | Low price per sq. ft.                                         |
+The model can be executed in three distinct run modes, depending on the state of the sales data and the specific requirements for flagging. These modes are configurable through the `manual_update` and `manual_update_only_new_sales` variables in our config file `src/inputs.yaml`
 
-### Distribution of Outlier Types
-
-<!--
-/*
-This query is used to generate the total sales that have some sort of outlier classification
-/*
-
--->
-
-As of 2024-03-15, around **6.9%** of the total sales have some sort of outlier classification. Within that 6.9%, the proportion of each outlier type is:
-
-<!--
-/*
-This query is used to generate the proportion of different outlier types
-/*
--->
-
-## Flagging Details
-
-### Model run modes
-
-The model can be executed in three distinct run modes, depending on the state of the sales data and the specific requirements for flagging:
-
-1. **Initial Run:** This mode is triggered when no sales have been flagged. It's the first step in the model to instantiate tables and flag sales.
+1. **Initial Flagging:** This mode is triggered when no sales have been flagged. It's the first step in the model to instantiate tables and flag sales. It's also useful to use this mode for quick development testing, as it has the least overhead.
 2. **Manual Update:** This mode is used when sales need to be re-flagged, either due to errors or methodology updates. This allows for the selective re-flagging of sales. It also assigns flags to unflagged sales.
 3. **Manual Update (New Sales Only):** This mode borrows much of the same logic as the normal 'Manual Update' mode, but is used
 only to flag sales that do not have a current sales-val model determination. It will not re-flag any sales like the normal
 'Manual Update' would.
 
 ```mermaid
-graph TD
-    subgraph "Manual Update Mode"
+graph TB
+    subgraph initial["Initial Run Mode"]
+        direction LR
+        A1{{"No sales are flagged"}}
+        B1[Run the pipeline]
+        C1[Flag sales as outliers or non-outliers<br>with Version = 1]
+        D1[Save results to S3 with <br>unique run ID]
+        E1[Join flags to<br>default.vw_pin_sale]
+
+        A1 -->|Initial setup| B1
+        B1 -->|Flag sales| C1
+        C1 -->|Store flags| D1
+        D1 -->|Persist results| E1
+    end
+
+    subgraph manual["Manual Update Mode"]
+        direction LR
         A3{{"Sales must be re-flagged"}}
-        B3[Specify subset in yaml]
-        C3[Run manual_update.py]
-        D3[Increment version if sale already flagged]
-        E3[Assign Version = 1 if sale unflagged]
-        F3[Update flags in default.vw_pin_sale]
-        G3[Save results to S3 with new run ID]
+        B3{{"Set manual_update=True<br> in src/inputs.yaml"}}
+        C3[Run pipeline]
+        D3[Increment version if <br>sale already flagged]
+        E3[Assign Version = 1 <br>if sale unflagged]
+        F3[Save results to S3 with new run ID]
+        G3[Update flags in <br>vw_pin_sale]
 
         A3 -->|Manual selection| B3
         B3 -->|Run update| C3
@@ -140,50 +126,135 @@ graph TD
         F3 -->|Persist results| G3
     end
 
-    subgraph "Manual Update (New Sales Only) Mode"
+    subgraph new_only["Man. Update Only New Sales"]
+        direction LR
         A4{{"Flag only new sales"}}
-        B4[Identify sales with no current model determination]
-        C4[Run manual_update.py]
-        E4[Assign Version = 1 if sale unflagged]
-        F4[Update flags in default.vw_pin_sale]
-        G4[Save results to S3 with new run ID]
+        B4[Set manual_update_only_new_sales<br> = True]
+        C4[Run pipeline]
+        D4[Identify sales with no current model determination]
+        E4[Assign Version = 1<br> if sale unflagged]
+        F4[Save results to S3 with new run ID]
+        G4[Update flags in <br>default.vw_pin_sale]
+
 
         A4 -->|Filter new sales| B4
-        B4 -->|Run update| C4
-        C4 -->|New flag only| E4
+        B4 -->|Run pipeline| C4
+        C4 -->|Run update| D4
+        D4 -->|New flag only| E4
         E4 -->|Update process| F4
         F4 -->|Persist results| G4
     end
 
-    subgraph "Initial Run Mode"
-        A1{{"No sales are flagged"}}
-        B1[Run initial_flagging.py]
-        C1[Flag sales as outliers or non-outliers<br>with Version = 1]
-        D1[Join flags to<br>default.vw_pin_sale]
-        E1[Save results to S3 with unique run ID]
+    initial ~~~ manual
+    manual ~~~ new_only
 
-        A1 -->|Initial setup| B1
-        B1 -->|Flag sales| C1
-        C1 -->|Store flags| D1
-        D1 -->|Persist results| E1
-    end
-
-    style A1 fill:#bbf,stroke:#333,stroke-width:2px,color:#000;
-    style A4 fill:#bbf,stroke:#333,stroke-width:2px,color:#000;
-    style A3 fill:#bbf,stroke:#333,stroke-width:2px,color:#000;
+    style A1 fill:#bbf,stroke:#333,stroke-width:2px,color:#000
+    style A3 fill:#bbf,stroke:#333,stroke-width:2px,color:#000
+    style A4 fill:#bbf,stroke:#333,stroke-width:2px,color:#000
 ```
 
-### Rolling window
+## Pipeline and DVC integration
 
-The flagging model uses group means to determine the statistical deviation of sales, and flags them beyond a certain threshold. Group means are constructed using a rolling window strategy.
+### Pipeline stages
+The pipeline is split up into 3 stages:
+- `src/00_ingest.py` - Queries the input data needed to run the pipeline
+- `src/01_flag.py` - Where the flagging model runs and the flags are assigned.
+- `src/02_upload.py` - Grabs the outputs from `01_flag.py` and uploads them to S3, making the flags available through athena.
 
-The current implementation uses a 12 month rolling window. This means that for any sale, the "group" contains all sales within the same month, along with all sales from the previous 11 months. This 12 month window can be changed by editing the configuration files: `manual_flagging/yaml/` and `main.tf`. Additional notes on the rolling window implementation:
+### DVC integration
 
-- We take every sale in the same month of the sale date, along with all sale data from the previous N months. This window contains roughly 1 year of data.
-- This process starts with an `.explode()` call. Example [here](https://github.com/ccao-data/model-sales-val/blob/283a1403545019be135b4b9dbc67d86dabb278f4/glue/sales_val_flagging.py#L15).
-- It ends by subsetting to the `original_observation` data. Example [here](https://github.com/ccao-data/model-sales-val/blob/499f9e31c92882312051837f35455d078d2507ee/glue/sales_val_flagging.py#L57).
+This repository
+  uses DVC in 2 ways:
+  1.  The input data is versioned, tracked, and stored using DVC. Previous input data sets are stored on
+      S3 starting after [the DVC PR](https://github.com/ccao-data/model-sales-val/pull/164) landed in
+      Nov 2025.
+  2.  [DVC
+      pipelines](https://dvc.org/doc/user-guide/project-structure/pipelines-files)
+      are used to sequentially run pipeline scripts and track/cache
+      inputs and outputs.
 
-## Structure of Data
+
+To pull all the necessary input data based on the information in
+`dvc.lock`, run:
+
+``` bash
+dvc pull
+```
+
+To run the entire pipeline (excluding the export stage), run:
+
+``` bash
+dvc repro
+```
+
+Note that each stage will run only if necessary i.e. the ingest stage
+will *not* run if no parameters (ins, outs, deps) related to that stage have changed. To
+force a stage to re-run, run:
+
+``` bash
+# Change ingest to any stage name
+dvc repro -f ingest
+```
+
+To force the entire pipeline to re-run, run:
+
+``` bash
+dvc repro -f
+```
+
+## Developing the sales val pipeline and querying your development flags in athena
+
+### Choose output target (in `src/inputs.yaml`)
+
+```yaml
+output_environment: "dev" 
+```
+
+- `"prod"`: writes to production tables & S3 paths
+- `"dev"`: writes to user-scoped dev tables & S3 paths
+
+Your setup process depends on which environment you selected in `src/inputs.yaml`.
+
+### If using `"prod"`
+No additional setup is required.
+
+Once `02_upload.py` writes outputs to S3, the data will automatically be available in Athena.
+
+---
+
+### If using `"dev"`
+
+If you've already completed the one-time setup for your development tables,
+the data will be queryable at `z_dev_${USER}_sale`.
+
+Otherwise, one-time setup is required to make your data queryable in Athena.
+
+In the development environment, Athena tables are not automatically created when
+data is written to S3. Instead, this is handled through an AWS Glue Crawler.
+
+After running `02_upload.py`:
+
+#### Step 1 — Confirm data exists in the dev S3 bucket
+Your outputs should now be written to your user-scoped development path.
+
+#### Step 2 — Request a Glue Crawler
+Because of how AWS Glue manages resources:
+- Each user needs their own crawler
+- Crawlers populate tables in athena database: `z_dev_${USER}_sale`
+
+You will need a dedicated Glue Crawler to register your dev tables in Athena.
+Reach out to a senior staff member for assistance in the creation of this
+crawler. They can copy existing crawler configs from an existing crawler with
+a name like `z_dev_*-ccao-data-warehouse-dev-sale-crawler`.
+
+#### Step 3 — Run the Crawler
+Once created, run the crawler to:
+- Scan your dev S3 output
+- Create/update tables in Athena
+
+After the crawler completes, your development data will be queryable in Athena.
+
+## Structure of the output tables
 
 All flagging runs populate 3 Athena tables with metadata, flag results, and other information. These tables can be used to determine _why_ an individual sale was flagged as an outlier. The structure of the tables is:
 
@@ -207,6 +278,8 @@ erDiagram
         string group
         string run_id FK
         bigint version PK
+        double sv_price_deviation
+        double sv_price_per_sqft_deviation
     }
 
     metadata {
@@ -215,7 +288,8 @@ erDiagram
         string short_commit_sha
         string run_timestamp
         string run_type
-        string run_note 
+        string run_note
+        string dvc_md5_sales_ingest
     }
 
     parameter {
@@ -227,12 +301,13 @@ erDiagram
         string iso_forest_cols
         string stat_groups
         string sales_to_write_filter
-        arraydouble dev_bounds
-        arraydouble ptax_sd
         bigint rolling_window
         string time_frame
         bigint short_term_owner_threshold
-        bigint min_group_threshold
+        bigint min_group_thresh
+        string standard_deviation_bounds
+        string housing_market_class_codes
+        bigint raw_price_threshold
     }
 
     group_mean {
@@ -246,55 +321,23 @@ erDiagram
     }
 ```
 
-## Developing the sales val pipeline and testing changes
+## Other key views
 
-### Choose output target (in `src/inputs.yaml`)
+In addition to the Athena output tables, two warehouse views are commonly used when debugging/exploring the sales validation flags:
 
-```yaml
-output_environment: "dev"  # or "prod"
-```
+**`sale.vw_flag`**
 
-- `"prod"` → writes to production tables & S3 paths
-- `"dev"`: writes to user-scoped dev tables & S3 paths, athena database will appear as `z_dev_${USER}_sale`
+Provides the **current flag status** of each sale.
 
-### First-time dev setup
-Once outputs arrive at the development S3 bucket, a crawler will need to be run to populate the Athena tables.
+The underlying `sale.flag` table stores historical versions of flags. This view resolves those into the most recent determination per sale (`doc_no`). This is the version that is held in `default.vw_pin_sale`.
 
-### Required environment variables
+**`sale.vw_flag_group`**
 
-Ensure you have the following environment variables set:
-- `AWS_S3_WAREHOUSE_BUCKET`
-- `AWS_S3_WAREHOUSE_BUCKET_DEV`
+Provides **context about the statistical group used in flagging**.
 
-## AWS Glue Job Documentation
+Includes whether a sale’s group met the minimum observation threshold (`meets_group_threshold`) required for standard deviation-based outlier detection.
 
-This repository manages the configurations, scripts, and details for an AWS Glue Job. It's essential to maintain consistency and version control for all changes related to the job. Therefore, specific procedures have been established.
-
-### ⚠️ Important guidelines
-
-1. **DO NOT** modify the Glue job script, its associated flagging python script, or any of its job details directly via the AWS Console.
-2. All changes to these components should originate from this repository. This ensures that every modification is tracked and version-controlled.
-3. The **only** advisable actions in the AWS Console concerning this Glue job are:
-    - Running the job
-4. To test a change to the Glue job script or the flagging script, make an edit on a branch and open a pull request. Our GitHub Actions configuration will deploy a staging version of your job, named `z_ci_<your-branch-name>_sales_val_flagging`, that you can run to test your changes. See the [Modifying the Glue job](#modifying-the-glue-job-its-flagging-script-or-its-settings) section below for more details.
-
-### Modifying the Glue job, its flagging script, or its settings
-
-The Glue job and its flagging script are written in Python, while the job details and settings are defined in a [Terraform](https://developer.hashicorp.com/terraform/intro) configuration file. These files can be edited to modify the Glue job script, its flagging script, or its job settings.
-
-1. Locate the desired files to edit:
-    - Glue script: `glue/sales_val_flagging.py`
-    - Flagging script: `glue/flagging_script_glue/flagging.py`
-    - Job details/settings: `main.tf`, under the resource block `aws_glue_job.sales_val_flagging` (see [the Terraform AWS provider docs](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/glue_job) for details)
-2. Any changes to these files should be made in the following sequence:
-    - Make a new git branch for your changes.
-    - Edit the files as necessary.
-    - Open a pull request for your changes against the `main` branch. A GitHub Actions workflow called `deploy-terraform` will deploy a staging version of your job named `z_ci_<your-branch-name>_sales_val_flagging` that you can run to test your changes.
-      - By default, this configuration will deploy an empty version of the `sale.flag` table, which simulates an environment in which there are no preexisting flags prior to a run.
-      - If you would like to test your job against a subset of the production data, copy your data subset from the production job bucket to the bucket created by Terraform for your job (or leave the new bucket empty to simulate running the job when no flags exist). Then, run the crawler created by Terraform for your PR in order to populate the staging version of the `sale.flag` database that your staging job uses. If you're having trouble finding your staging bucket, job, or crawler, check the GitHub Actions output for the first successful run of your PR and look for the Terraform output displaying the IDs of these resources.
-    - If you need to make further changes, push commits to your branch and GitHub Actions will deploy the changes to the staging job and its associated resources.
-    - Once you're happy with your changes, request review on your PR.
-    - Once your PR is approved, merge it into `main`. A GitHub Actions workflow called `cleanup-terraform` will delete the staging resources that were created for your branch, while a separate `deploy-terraform` run will deploy your changes to the production job and its associated resources.
+In some cases, a sale may still be flagged even if the threshold was not met — typically due to PTAX-203 indicators combined with extreme price deviation.
 
 ## Exporting Flags to iasWorld
 
