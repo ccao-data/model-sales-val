@@ -64,19 +64,6 @@ def go(
     return df
 
 
-def create_group_string(groups: tuple, sep: str) -> str:
-    """
-    Creates a string joined on a separator from the groups tuple.
-    For the purpose of making column names and descriptions.
-    Inputs:
-        groups (tuple): the columns being used in groupby()
-        sep (str): string to separate the groups with.
-    Outputs:
-        groups as a string joined by given separator
-    """
-    return sep.join(groups)
-
-
 def outlier_taxonomy(
     df: pd.DataFrame,
     permut: tuple,
@@ -205,8 +192,6 @@ def pricing_info(
     Outputs:
         df (pd.DataFrame): dataframe with 3 extra columns of price info.
     """
-    group_string = create_group_string(groups, "_")
-
     columns_to_log = ["meta_sale_price"]
     if not condos:
         columns_to_log.append("sv_price_per_sqft")
@@ -214,7 +199,7 @@ def pricing_info(
 
     prices = [
         "sv_price_deviation",
-        f"sv_cgdr_deviation_{group_string}",
+        "sv_cgdr_deviation",
     ]
     if not condos:
         prices.insert(1, "sv_price_per_sqft_deviation")
@@ -273,9 +258,9 @@ def pricing_info(
             "sv_price_per_sqft"
         ].transform(z_normalize_groupby)
 
-    df[f"sv_cgdr_deviation_{group_string}"] = df.groupby(list(groups))[
-        "sv_cgdr"
-    ].transform(z_normalize_groupby)
+    df["sv_cgdr_deviation"] = df.groupby(list(groups))["sv_cgdr"].transform(
+        z_normalize_groupby
+    )
 
     holds = get_thresh(df, prices, permut, groups)
     df["sv_pricing"] = df.apply(
@@ -354,7 +339,6 @@ def price_column(
     value = "Not price outlier"
     price = False
 
-    group_string = create_group_string(groups, "_")
     key = tuple(row[group] for group in groups)
 
     if condos:
@@ -371,21 +355,19 @@ def price_column(
 
             if (
                 price
-                and pd.notnull(row[f"sv_cgdr_deviation_{group_string}"])
-                and thresholds.get(f"sv_cgdr_deviation_{group_string}").get(
-                    key
-                )
+                and pd.notnull(row["sv_cgdr_deviation"])
+                and thresholds.get("sv_cgdr_deviation").get(key)
             ):
                 # not every combo will have pct change info so we need this check
-                p_std, *p_std_range = thresholds.get(
-                    f"sv_cgdr_deviation_{group_string}"
-                ).get(key)
+                p_std, *p_std_range = thresholds.get("sv_cgdr_deviation").get(
+                    key
+                )
 
                 p_lower, p_upper = p_std_range
                 if row[
                     "sv_price_movement"
                 ] == "Away from mean" and not between_two_numbers(
-                    row[f"sv_cgdr_deviation_{group_string}"], p_lower, p_upper
+                    row["sv_cgdr_deviation"], p_lower, p_upper
                 ):
                     value += " swing"
 
@@ -416,21 +398,19 @@ def price_column(
 
             if (
                 price
-                and pd.notnull(row[f"sv_cgdr_deviation_{group_string}"])
-                and thresholds.get(f"sv_cgdr_deviation_{group_string}").get(
-                    key
-                )
+                and pd.notnull(row["sv_cgdr_deviation"])
+                and thresholds.get("sv_cgdr_deviation").get(key)
             ):
                 # not every combo will have pct change info so we need this check
-                p_std, *p_std_range = thresholds.get(
-                    f"sv_cgdr_deviation_{group_string}"
-                ).get(key)
+                p_std, *p_std_range = thresholds.get("sv_cgdr_deviation").get(
+                    key
+                )
 
                 p_lower, p_upper = p_std_range
                 if row[
                     "sv_price_movement"
                 ] == "Away from mean" and not between_two_numbers(
-                    row[f"sv_cgdr_deviation_{group_string}"], p_lower, p_upper
+                    row["sv_cgdr_deviation"], p_lower, p_upper
                 ):
                     value += " swing"
 
@@ -551,13 +531,9 @@ def deviation_dollars(df: pd.DataFrame, groups: tuple) -> pd.DataFrame:
     Outputs:
         df (pd.DataFrame): dataframe with deviation columns
     """
-    group_string = create_group_string(groups, "_")
-
-    df[f"sv_deviation_{group_string}_mean_price"] = (
-        df["meta_sale_price"] - df[f"sv_mean_price_{group_string}"]
-    )
-    df[f"sv_deviation_{group_string}_mean_price_per_sqft"] = (
-        df["sv_price_per_sqft"] - df[f"sv_mean_price_per_sqft_{group_string}"]
+    df["sv_deviation_mean_price"] = df["meta_sale_price"] - df["sv_mean_price"]
+    df["sv_deviation_mean_price_per_sqft"] = (
+        df["sv_price_per_sqft"] - df["sv_mean_price_per_sqft"]
     )
 
     return df
@@ -575,18 +551,16 @@ def grouping_mean(
     Outputs:
         df (pd.DataFrame): dataframe with grouped by mean column
     """
-    group_string = create_group_string(groups, "_")
-
     group_mean = df.groupby(list(groups))["meta_sale_price"].mean()
 
     if condos:
         df.set_index(list(groups), inplace=True)
-        df[f"sv_mean_price_{group_string}"] = group_mean
+        df["sv_mean_price"] = group_mean
     else:
         group_mean_sqft = df.groupby(list(groups))["sv_price_per_sqft"].mean()
         df.set_index(list(groups), inplace=True)
-        df[f"sv_mean_price_{group_string}"] = group_mean
-        df[f"sv_mean_price_per_sqft_{group_string}"] = group_mean_sqft
+        df["sv_mean_price"] = group_mean
+        df["sv_mean_price_per_sqft"] = group_mean_sqft
 
     df.reset_index(inplace=True)
 
@@ -622,21 +596,17 @@ def get_movement(dups: pd.DataFrame, groups: tuple) -> pd.DataFrame:
     Outputs:
         df (pd.DataFrame): duplicate records with new column
     """
-    group_string = create_group_string(groups, "_")
-
-    dups[f"sv_deviation_{group_string}_mean_price_abs"] = abs(
-        dups[f"sv_mean_price_{group_string}"] - dups["meta_sale_price"]
+    dups["sv_deviation_mean_price_abs"] = abs(
+        dups["sv_mean_price"] - dups["meta_sale_price"]
     )
 
     temp = (
         dups.sort_values("meta_sale_date")
-        .groupby(["pin"])[f"sv_deviation_{group_string}_mean_price_abs"]
+        .groupby(["pin"])["sv_deviation_mean_price_abs"]
         .shift()
     )
     dups["sv_price_movement"] = (
-        dups[f"sv_deviation_{group_string}_mean_price_abs"]
-        .lt(temp)
-        .astype(float)
+        dups["sv_deviation_mean_price_abs"].lt(temp).astype(float)
     )
     dups["sv_price_movement"] = np.select(
         [(dups["sv_price_movement"] == 0), (dups["sv_price_movement"] == 1)],
