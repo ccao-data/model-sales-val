@@ -18,7 +18,7 @@ import awswrangler as wr
 # inconsistency in the script, the `sale.flag` table was not involved
 parquet_files_prod_prior = wr.s3.list_objects(
     os.path.join(
-        "s3://ccao-data-backup-us-east-1/0004_update_sd_bounds_config_structure/flag_prior/"
+        "s3://ccao-data-backup-us-east-1/model-sales-val/migrations/0004_update_sd_bounds_config_structure/flag_prior/"
     ),
     suffix=".parquet",
 )
@@ -55,7 +55,7 @@ for key, df in dfs_prod_prior.items():
 
     dfs_prod_updated[key] = df_updated
 
-output_prefix = "s3://ccao-data-backup-us-east-1/0004_update_sd_bounds_config_structure/flag_updated/"
+output_prefix = "s3://ccao-data-backup-us-east-1/model-sales-val/migrations/0004_update_sd_bounds_config_structure/flag_updated/"
 
 for name, df in dfs_prod_updated.items():
     output_path = os.path.join(output_prefix, f"{name}.parquet")

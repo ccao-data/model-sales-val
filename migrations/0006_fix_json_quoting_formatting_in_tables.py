@@ -28,7 +28,7 @@ JSON_COLUMNS = [
     "time_frame",
 ]
 
-BACKUP_BASE = "s3://ccao-data-backup-us-east-1/0006_fix_json_quoting_formatting_in_tables"
+BACKUP_BASE = "s3://ccao-data-backup-us-east-1/model-sales-val/migrations/0006_fix_json_quoting_formatting_in_tables"
 
 parquet_files_prod_prior = wr.s3.list_objects(
     os.path.join(BACKUP_BASE, "parameter_prior/"),
