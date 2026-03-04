@@ -22,7 +22,7 @@ def read_parquets_to_dfs(table):
     parquet_files = wr.s3.list_objects(
         os.path.join(
             os.getenv("AWS_BUCKET_SV_BACKUP"),
-            "0003_fix_is_ptax_outlier_column",
+            "model-sales-val/migrations/0003_fix_is_ptax_outlier_column",
             "old_prod_data",
             table,
         ),
@@ -76,7 +76,7 @@ def write_dfs_to_s3(dfs, bucket, table):
     for df_name, df in dfs.items():
         file_path = os.path.join(
             bucket,
-            "0003_fix_is_ptax_outlier_column",
+            "model-sales-val/migrations/0003_fix_is_ptax_outlier_column",
             "new_prod_data",
             table,
             df_name + ".parquet",
