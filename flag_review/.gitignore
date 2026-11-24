@@ -1,0 +1,4 @@
+# Outputs of the export scripts and rendered reports. The workbooks hold sales
+# sent to analysts and the reports can be rebuilt from the .qmd files
+*.xlsx
+*.html
