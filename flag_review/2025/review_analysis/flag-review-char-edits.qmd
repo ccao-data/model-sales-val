@@ -92,6 +92,9 @@ num <- function(x) prettyNum(x, big.mark = ",")
 triads <- c("South", "City")
 
 homes <- changes |>
+  # A home with no card in both years has no field-by-field comparison. Count
+  # those fields as unchanged; card_set_changed still marks the home as changed
+  mutate(across(ends_with("_changed"), \(x) coalesce(x, FALSE))) |>
   mutate(
     any_changed = if_any(ends_with("_changed")),
     triad = factor(
@@ -100,7 +103,7 @@ homes <- changes |>
     )
   )
 
-# Reviewed sales of homes that have a residential record in both years.
+# Reviewed sales of homes that have a residential record in either year.
 reviewed <- reviewed_sales |>
   inner_join(homes, by = "pin") |>
   left_join(workbook_text, by = c("doc_no", "source_file")) |>

@@ -5,10 +5,28 @@ WITH reviewed_townships AS (
         ON review.doc_no = sale.doc_no
 ),
 
-changes AS (
+-- Every PIN with a residential record in either year. card_set_changed is TRUE
+-- when a card was added or removed, including a PIN that left or entered the
+-- residential table
+pins AS (
+    SELECT
+        pin,
+        MIN_BY(township_code, year) AS township_code,
+        ARRAY_SORT(ARRAY_AGG(card) FILTER (WHERE year = '2025'))
+        IS DISTINCT FROM ARRAY_SORT(ARRAY_AGG(card) FILTER (WHERE year = '2026'))
+            AS card_set_changed
+    FROM default.vw_card_res_char
+    WHERE year IN ('2025', '2026')
+        AND township_code IN (
+            SELECT reviewed_townships.township_code FROM reviewed_townships
+        )
+    GROUP BY pin
+),
+
+-- Characteristic changes on cards that exist in both years
+card_changes AS (
     SELECT
         before.pin,
-        MIN(before.township_code) AS township_code,
         -- Fields reported one by one
         BOOL_OR(before.char_rooms IS DISTINCT FROM after.char_rooms)
             AS rooms_changed,
@@ -28,8 +46,6 @@ changes AS (
         ) AS recent_renovation_changed,
         BOOL_OR(before.char_hbath IS DISTINCT FROM after.char_hbath)
             AS half_baths_changed,
-        BOOL_OR(before.class IS DISTINCT FROM after.class)
-            AS class_changed,
         BOOL_OR(before.char_type_resd IS DISTINCT FROM after.char_type_resd)
             AS stories_changed,
         BOOL_OR(before.char_cnst_qlty IS DISTINCT FROM after.char_cnst_qlty)
@@ -63,6 +79,25 @@ changes AS (
             SELECT reviewed_townships.township_code FROM reviewed_townships
         )
     GROUP BY before.pin
+),
+
+-- Class comes from the PIN universe, which covers every class, so a home that
+-- became vacant land, commercial, or exempt still counts as a class change
+class_changes AS (
+    SELECT
+        pin,
+        MAX(class) FILTER (WHERE year = '2025')
+        IS DISTINCT FROM MAX(class) FILTER (WHERE year = '2026') AS class_changed
+    FROM default.vw_pin_universe
+    WHERE year IN ('2025', '2026')
+    GROUP BY pin
+),
+
+changes AS (
+    SELECT *
+    FROM pins
+    LEFT JOIN card_changes USING (pin)
+    LEFT JOIN class_changes USING (pin)
 ),
 
 trained AS (
