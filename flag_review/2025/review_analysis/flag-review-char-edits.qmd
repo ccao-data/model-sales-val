@@ -1,0 +1,546 @@
+---
+title: "Which sale review flags correlate with characteristic changes? A review of the South and City sale review effort"
+execute:
+  echo: false
+  warning: false
+  message: false
+format:
+  html:
+    embed-resources: true
+    page-layout: full
+    fig-width: 10
+    fig-dpi: 150
+---
+
+```{r}
+library(DBI)
+library(dplyr)
+library(ggplot2)
+library(noctua)
+library(paws.storage)
+library(readxl)
+
+conn <- dbConnect(noctua::athena(), rstudio_conn_tab = FALSE)
+
+run_query <- function(file) {
+  sql <- paste(readLines(file), collapse = "\n")
+  as_tibble(dbGetQuery(conn, sql))
+}
+
+# One row per PIN in the townships with reviewed sales, saying which
+# characteristics differ between the 2025 and 2026 records
+changes <- run_query("flag-review-changes.sql")
+# One row per reviewed sale, with the analyst's flags
+reviewed_sales <- run_query("flag-review-sales.sql")
+# One row per 2025 sale in those townships
+deviations <- run_query("flag-review-deviations.sql")
+```
+
+```{r}
+# The table stores a blank workbook cell as "no", this is to get a more complete
+# version of the analysis, since we don't store this information in the downstream athena tables,
+# and I was curious about them explicitly writing "no" vs leaving it blank
+s3 <- paws.storage::s3()
+bucket <- "ccao-data-raw-us-east-1"
+keys <- s3$list_objects_v2(Bucket = bucket, Prefix = "sale/flag_review/") |>
+  getElement("Contents") |>
+  sapply(\(object) object$Key)
+keys <- keys[grepl("\\.xlsx$", keys)]
+
+workbook_text <- lapply(keys, \(key) {
+  path <- tempfile(fileext = ".xlsx")
+  s3$download_file(Bucket = bucket, Key = key, Filename = path)
+  sheet <- read_excel(path, col_types = "text")
+  transmute(
+    sheet,
+    doc_no = `Sale Doc No`,
+    source_file = basename(key),
+    typed = toupper(trimws(`Characteristic Change`))
+  )
+}) |>
+  bind_rows() |>
+  distinct(doc_no, source_file, .keep_all = TRUE)
+```
+
+```{r}
+fields <- c(
+  "Rooms" = "rooms",
+  "Full baths" = "full_baths",
+  "Beds" = "beds",
+  "Central air" = "central_air",
+  "Building sq ft" = "bldg_sf",
+  "Basement finish" = "basement_finish",
+  "Recent renovation" = "recent_renovation",
+  "Half baths" = "half_baths",
+  "Class" = "class",
+  "Stories" = "stories",
+  "Construction quality" = "construction_quality",
+  "Attic finish" = "attic_finish",
+  "Basement type" = "basement_type",
+  "Exterior wall" = "exterior_wall",
+  "Apartments" = "apartments"
+)
+changed_cols <- paste0(fields, "_changed")
+
+# One workbook is left out of every chart. This is because it pre-dates our data input change that switched from char change 1/0 to char change maj/min/0, so it is harder to compare
+pilot_workbook <- "valuations_sale_review_2025-12-16.xlsx"
+
+pct <- function(x) sprintf("%.1f%%", 100 * x)
+num <- function(x) prettyNum(x, big.mark = ",")
+
+# 2025 review focused mainly on South with some of the highest SD sales from city
+triads <- c("South", "City")
+
+homes <- changes |>
+  # A home with no card in both years has no field-by-field comparison. Count
+  # those fields as unchanged; card_set_changed still marks the home as changed
+  mutate(across(ends_with("_changed"), \(x) coalesce(x, FALSE))) |>
+  mutate(
+    any_changed = if_any(ends_with("_changed")),
+    triad = factor(
+      if_else(as.integer(township_code) >= 70, "City", "South"),
+      levels = triads
+    )
+  )
+
+# Reviewed sales of homes that have a residential record in either year.
+reviewed <- reviewed_sales |>
+  inner_join(homes, by = "pin") |>
+  left_join(workbook_text, by = c("doc_no", "source_file")) |>
+  mutate(
+    typed = coalesce(typed, ""),
+    not_arms_length = !is_arms_length,
+    char_major = has_characteristic_change == "yes_major",
+    char_minor = has_characteristic_change == "yes_minor",
+    stored_no = has_characteristic_change == "no",
+    char_no = stored_no & typed %in% c("NO", "N"),
+    nothing_marked = is_arms_length & !is_flip & !has_class_change &
+      char_no & !requires_field_check & !work_drawer
+  )
+
+main <- reviewed |>
+  filter(source_file != pilot_workbook)
+
+# The two comparison groups: homes with a 2025 sale the 2026 model trained on,
+# and homes the 2026 model valued that did not sell in 2025. Neither includes
+# a reviewed home
+other_sales <- homes |>
+  filter(trained_on_2025_sale, !pin %in% reviewed_sales$pin)
+unsold <- homes |>
+  filter(valued_by_2026_model, !sold_in_2025, !pin %in% reviewed_sales$pin)
+
+# Reviewed sales against the two comparison groups, one set of rows per triad
+groups <- lapply(triads, \(area) {
+  like <- filter(main, triad == area)
+  other <- filter(other_sales, triad == area)
+  none <- filter(unsold, triad == area)
+  tibble(
+    triad = factor(area, levels = triads),
+    label = c("Reviewed sales", "Other 2025 sales", "Homes with no 2025 sale"),
+    n = c(nrow(like), nrow(other), nrow(none)),
+    share = c(
+      mean(like$any_changed), mean(other$any_changed), mean(none$any_changed)
+    ),
+    reviewed = c(TRUE, FALSE, FALSE)
+  )
+}) |>
+  bind_rows()
+
+# Look up one figure from `groups` for the text
+group_share <- function(area, row) {
+  pct(groups$share[groups$triad == area & groups$label == row])
+}
+
+# The flags, named with the labels shown in charts, then two comparison rows
+flags <- c(
+  "Class change" = "has_class_change",
+  "Field check" = "requires_field_check",
+  "Characteristic change: major" = "char_major",
+  "Characteristic change: minor" = "char_minor",
+  "Flip" = "is_flip",
+  "Not arms-length" = "not_arms_length",
+  "Work drawer" = "work_drawer"
+)
+comparison_rows <- c(
+  "Analyst typed no characteristic change" = "char_no",
+  "Nothing marked" = "nothing_marked"
+)
+flag_rows <- c(flags, comparison_rows)
+
+# Share of reviewed sales with a change for each flag, by triad. `overall` is
+# the share across both triads and sets the order of the rows
+flag_rates <- lapply(names(flag_rows), \(label) {
+  main |>
+    filter(.data[[flag_rows[[label]]]]) |>
+    mutate(overall = mean(any_changed)) |>
+    group_by(triad, overall) |>
+    summarise(n = n(), share = mean(any_changed), .groups = "drop") |>
+    mutate(flag = label, is_flag = label %in% names(flags))
+}) |>
+  bind_rows()
+
+# Price deviation bands, half a standard deviation wide. The tails are grouped
+# because few sales sit that far out
+band_edges <- seq(-2.5, 2, 0.5)
+edge_text <- sub("-", "\u2212", sapply(band_edges, format))
+band_labels <- c(
+  paste("Below", edge_text[1]),
+  paste(head(edge_text, -1), "to", tail(edge_text, -1)),
+  paste(tail(edge_text, 1), "or more")
+)
+
+# 2025 sales with a price deviation, reviewed or not.
+banded <- deviations |>
+  inner_join(homes, by = "pin") |>
+  mutate(
+    group = case_when(
+      doc_no %in% main$doc_no ~ "Reviewed sales",
+      pin %in% other_sales$pin ~ "Other 2025 sales"
+    ),
+    group = factor(group, levels = c("Reviewed sales", "Other 2025 sales")),
+    band = cut(
+      price_deviation,
+      breaks = c(-Inf, band_edges, Inf), labels = band_labels, right = FALSE
+    )
+  ) |>
+  filter(!is.na(group))
+
+# One chart panel per triad and group
+band_panels <- banded |>
+  count(group, triad) |>
+  mutate(
+    panel = paste0(triad, ": ", tolower(group), " (n = ", num(n), ")"),
+    panel = factor(panel, levels = panel)
+  ) |>
+  select(group, triad, panel)
+
+by_band <- banded |>
+  group_by(group, triad, band) |>
+  summarise(
+    n = n(),
+    across(all_of(c("any_changed", changed_cols)), mean),
+    .groups = "drop"
+  ) |>
+  inner_join(band_panels, by = c("group", "triad"))
+
+# Put under every chart
+period <- "2025 sales. Records compared between tax years 2025 and 2026"
+```
+
+```{r}
+# Chart styling shared by every figure
+blue <- "#2a78d6"
+gray <- "#b4b3ad"
+ink <- "#0b0b0b"
+muted <- "#52514e"
+
+theme_set(
+  theme_minimal(base_size = 14) +
+    theme(
+      panel.grid.minor = element_blank(),
+      panel.grid.major.y = element_blank(),
+      panel.grid.major.x = element_line(colour = "#e7e6e1", linewidth = 0.4),
+      axis.title = element_blank(),
+      axis.text = element_text(colour = ink),
+      axis.text.x = element_text(colour = muted),
+      plot.title = element_text(face = "bold", size = 15),
+      plot.subtitle = element_text(colour = muted, size = 12),
+      plot.title.position = "plot",
+      strip.text = element_text(face = "bold", hjust = 0, size = 13),
+      legend.position = "none"
+    )
+)
+
+# Horizontal bars with the value and sample size written at the end of each
+# bar. `data` needs the columns label, share, n, and reviewed (TRUE for blue,
+# FALSE for gray). `reference` holds shares to mark with a dashed line
+bar_chart <- function(data, limit, breaks = waiver(), reference = NULL) {
+  reference_line <- if (!is.null(reference)) {
+    geom_vline(
+      data = reference,
+      aes(xintercept = share), linetype = "dashed", colour = ink
+    )
+  }
+
+  ggplot(data, aes(share, label, fill = reviewed)) +
+    geom_col(width = 0.6) +
+    reference_line +
+    # A white box behind each label keeps the dashed line from running
+    # through it
+    geom_label(
+      aes(label = paste0(" ", pct(share), " (n = ", num(n), ")")),
+      hjust = 0, colour = ink, size = 4, fill = "white",
+      border.colour = NA, label.padding = unit(0.1, "lines")
+    ) +
+    scale_fill_manual(values = c("TRUE" = blue, "FALSE" = gray)) +
+    scale_x_continuous(
+      labels = scales::label_percent(),
+      breaks = breaks,
+      limits = c(0, limit),
+      expand = expansion(mult = c(0, 0.02))
+    )
+}
+
+# Put bars in the order given, top to bottom
+in_order <- function(x) factor(x, levels = rev(unique(x)))
+
+# A grid of shares with the value written in each cell. `data` needs the
+# columns share and text, and `x` and `y` name the columns to put on each axis
+heatmap <- function(data, x, y) {
+  ggplot(data, aes({{ x }}, {{ y }}, fill = share)) +
+    geom_tile(colour = "white", linewidth = 1.5) +
+    geom_text(
+      aes(
+        label = text,
+        colour = !is.na(share) & share > 0.8 * max(share, na.rm = TRUE)
+      ),
+      size = 4
+    ) +
+    scale_fill_gradientn(
+      colours = c("#f3f8fe", "#cde2fb", "#86b6ef", "#3987e5", "#1c5cab"),
+      limits = c(0, NA), na.value = "white"
+    ) +
+    scale_colour_manual(values = c("TRUE" = "white", "FALSE" = ink)) +
+    theme(
+      panel.grid = element_blank(),
+      axis.text.x = element_text(colour = ink, face = "bold", lineheight = 0.9)
+    )
+}
+```
+
+## Main findings
+
+```{r}
+# Figures quoted in the findings below
+group_n <- function(area, row) {
+  num(groups$n[groups$triad == area & groups$label == row])
+}
+
+# Share changed in each price deviation band for one triad and group of sales
+band_shares <- function(area, sales) {
+  rows <- filter(by_band, triad == area, group == sales)
+  setNames(rows$any_changed, rows$band)
+}
+south_reviewed <- band_shares("South", "Reviewed sales")
+south_other <- band_shares("South", "Other 2025 sales")[names(south_reviewed)]
+city_reviewed <- band_shares("City", "Reviewed sales")
+
+# Reviewed sales with a sales validation standard deviation of 1 or more
+high_share <- function(area) {
+  high <- filter(
+    banded, group == "Reviewed sales", triad == area, price_deviation >= 1
+  )
+  pct(mean(high$any_changed))
+}
+
+workbooks <- function(area) n_distinct(main$source_file[main$triad == area])
+```
+
+- **In the South, a reviewed sale was more likely to get a characteristic
+  update than a sale that was not reviewed.**
+  `r group_share("South", "Reviewed sales")` of reviewed sales had a change,
+  against `r group_share("South", "Other 2025 sales")` of other 2025 sales. The
+  gap holds across price deviation bands. Reviewed sales changed more often in
+  `r sum(south_reviewed > south_other)` of the `r length(south_reviewed)`
+  bands, though the size of the gap varies and is near zero in a few of them.
+- **South sales that were not reviewed still changed often.**
+  `r group_share("South", "Other 2025 sales")` of them changed, against
+  `r group_share("South", "Homes with no 2025 sale")` of South homes with no
+  2025 sale. Other characteristic update workflows may account for some of
+  this.
+- **Sales with high sales validation standard deviation values changed most,
+  but changes are spread across the whole range.** Among reviewed sales with a
+  sales validation standard deviation of 1 or more, `r high_share("South")`
+  changed in the South and `r high_share("City")` in the City. No band is close
+  to zero. The lowest band for reviewed sales is `r pct(min(south_reviewed))`
+  in the South and `r pct(min(city_reviewed))` in the City.
+- **The City has fewer reviewed sales and a much lower baseline.** The City has
+  `r group_n("City", "Reviewed sales")` reviewed sales and the South has
+  `r group_n("South", "Reviewed sales")`. Only
+  `r group_share("City", "Other 2025 sales")` of other 2025 sales in the City
+  changed, and `r group_share("City", "Homes with no 2025 sale")` of homes with
+  no sale. The City was not reassessed in 2026, which is the likely reason.
+  Reviewed City sales still changed
+  `r group_share("City", "Reviewed sales")` of the time.
+- **All City reviews came from one workbook.** The City review was completed by
+  one analyst. The South reviews are spread across `r workbooks("South")` workbooks
+  from several analysts.
+
+## Reviewed sales against other homes
+
+```{r}
+#| fig-height: 5
+groups |>
+  mutate(label = in_order(label)) |>
+  bar_chart(limit = 0.65, breaks = seq(0, 0.5, 0.25)) +
+  facet_grid(
+    rows = vars(triad), scales = "free_y", space = "free_y", switch = "y"
+  ) +
+  theme(
+    strip.placement = "outside",
+    strip.text.y.left = element_text(angle = 0, vjust = 1),
+    panel.spacing.y = unit(1.5, "lines")
+  ) +
+  labs(
+    title = "Share of homes with any characteristic changed",
+    subtitle = period
+  )
+```
+
+## Which flags correlate with characteristic changes?
+
+```{r}
+#| fig-width: 13
+#| fig-height: 6
+flag_rates |>
+  arrange(desc(overall)) |>
+  mutate(label = in_order(flag), reviewed = is_flag) |>
+  bar_chart(
+    limit = 1.25, breaks = seq(0, 1, 0.25),
+    reference = filter(groups, label == "Other 2025 sales")
+  ) +
+  facet_wrap(vars(triad)) +
+  theme(panel.spacing.x = unit(2, "lines")) +
+  labs(
+    title = "Share of reviewed sales with any characteristic changed, by flag",
+    subtitle = paste0(
+      period, ".\nThe dashed line is other 2025 sales (South ",
+      group_share("South", "Other 2025 sales"), ", City ",
+      group_share("City", "Other 2025 sales"), ")"
+    )
+  )
+```
+
+## Which characteristics changed?
+
+```{r}
+#| fig-height: 14
+# One column per group of homes in each triad, titled with its sample size
+field_columns <- function(area) {
+  like <- filter(main, triad == area)
+  other <- filter(other_sales, triad == area)
+  subsets <- list(
+    "All\nreviewed" = like,
+    "Class\nchange" = filter(like, has_class_change),
+    "Field\ncheck" = filter(like, requires_field_check),
+    "Char. change:\nmajor" = filter(like, char_major),
+    "Char. change:\nminor" = filter(like, char_minor),
+    "Flip" = filter(like, is_flip)
+  )
+  reviewed_columns <- lapply(names(subsets), \(column) {
+    tibble(
+      group = column,
+      n = nrow(subsets[[column]]),
+      field = names(fields),
+      share = colMeans(subsets[[column]][changed_cols])
+    )
+  })
+  other_column <- tibble(
+    group = "Other 2025\nsales",
+    n = nrow(other),
+    field = names(fields),
+    share = colMeans(other[changed_cols])
+  )
+  bind_rows(other_column, reviewed_columns) |>
+    mutate(triad = factor(area, levels = triads))
+}
+
+by_field <- lapply(triads, field_columns) |>
+  bind_rows() |>
+  mutate(column = paste0(group, "\nn = ", num(n)))
+
+# Fields run top to bottom from most to least often changed on reviewed sales
+field_order <- names(fields)[order(colMeans(main[changed_cols]))]
+
+by_field |>
+  mutate(
+    column = factor(column, levels = unique(column)),
+    field = factor(field, levels = field_order),
+    text = sprintf("%.1f", 100 * share)
+  ) |>
+  heatmap(column, field) +
+  facet_wrap(vars(triad), ncol = 1, scales = "free_x") +
+  scale_x_discrete(position = "top") +
+  theme(strip.placement = "outside", panel.spacing.y = unit(2, "lines")) +
+  labs(
+    title = "Share of homes where each characteristic changed (%)",
+    subtitle = period
+  )
+```
+
+## Does a sale's price deviation correlate with characteristic changes?
+
+```{r}
+#| fig-width: 13
+#| fig-height: 9
+by_band |>
+  mutate(
+    label = factor(band, levels = band_labels),
+    share = any_changed,
+    reviewed = group == "Reviewed sales"
+  ) |>
+  bar_chart(limit = 1.05, breaks = seq(0, 0.75, 0.25)) +
+  facet_wrap(vars(panel), ncol = 2) +
+  theme(
+    panel.spacing.x = unit(2, "lines"),
+    panel.spacing.y = unit(1.5, "lines"),
+    axis.title.y = element_text(colour = muted, margin = margin(r = 10))
+  ) +
+  labs(
+    title = paste(
+      "Share of sales with any characteristic changed,",
+      "by price deviation"
+    ),
+    subtitle = paste0(period, ". n is the number of sales"),
+    y = "Standard deviations above or below the price of similar sales"
+  )
+```
+
+The next chart splits the same sales by characteristic. Where characteristic
+changes rise with price, the characteristics that changed are mostly rooms, full
+baths, and beds. The top row of each panel is the number of sales in the band,
+and bands with few sales give noisy shares.
+
+```{r}
+#| fig-width: 14
+#| fig-height: 17
+# A top row holds the number of sales in each band
+sales_row <- "Number of sales"
+
+band_fields <- lapply(names(fields), \(name) {
+  tibble(
+    panel = by_band$panel,
+    band = by_band$band,
+    field = name,
+    share = by_band[[paste0(fields[[name]], "_changed")]],
+    text = sprintf("%.1f", 100 * share)
+  )
+}) |>
+  bind_rows()
+
+band_counts <- by_band |>
+  transmute(panel, band, field = sales_row, share = NA_real_, text = num(n))
+
+bind_rows(band_fields, band_counts) |>
+  mutate(field = factor(field, levels = c(field_order, sales_row))) |>
+  heatmap(band, field) +
+  facet_wrap(vars(panel), ncol = 2, axes = "all_x") +
+  scale_x_discrete(position = "top", labels = scales::label_wrap(6)) +
+  theme(
+    strip.placement = "outside",
+    panel.spacing.x = unit(1.5, "lines"),
+    panel.spacing.y = unit(2, "lines"),
+    axis.text.x = element_text(size = 10)
+  ) +
+  labs(
+    title = paste(
+      "Share of sales where each characteristic changed,",
+      "by price deviation (%)"
+    ),
+    subtitle = paste0(
+      period, ".\nEach column is a price deviation band, in standard ",
+      "deviations from the price of similar sales. Darker means changed more ",
+      "often"
+    )
+  )
+```

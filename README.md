@@ -17,7 +17,7 @@ This repository contains code to identify and flag sales that may be non-arms-le
 
 The sales validation model (hereafter referred to as "the model") uses simple statistics and heuristics to identify such sales. Each sale is assigned to a statistical group defined by its geographic area, property type, and a rolling time window. The model calculates the mean and standard deviation of log sale price and price per square foot within each group, then flags any sale that falls beyond a configured number of standard deviations from its group's mean. It also uses a variety of common heuristics, such as matching last names, foreclosure information, etc.
 
-Non-arms-length transactions can affect any process that uses sales data. As such, we currently use the output of this model, along with human analyst review information, to exclude flagged transactions from:
+Non-arms-length transactions can affect any process that uses sales data. As such, we currently use the output of this model, along with [human analyst review information](#analyst-flag-review), to exclude flagged transactions from:
 
 - The training data of our [valuation models](https://github.com/ccao-data/model-res-avm#model-overview)
 - [Sales ratio statistics reports](https://www.cookcountyassessor.com/riverside-2023) produced by our valuation models
@@ -338,6 +338,10 @@ Provides **context about the statistical group used in flagging**.
 Includes whether a sale’s group met the minimum observation threshold (`meets_group_threshold`) required for standard deviation-based outlier detection.
 
 In some cases, a sale may still be flagged even if the threshold was not met — typically due to PTAX-203 indicators combined with extreme price deviation.
+
+## Analyst flag review
+
+Valuations analysts review a selection of sales by hand each year, and their determinations are stored in `sale.flag_review`. `sale.vw_outlier` combines that table with the model's flags to make the final outlier determination. The scripts that export sales for review, and analysis of the review results, live in [`flag_review/`](./flag_review), organized by year.
 
 ## Exporting Flags to iasWorld
 
